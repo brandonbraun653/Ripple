@@ -1,0 +1,15 @@
+/********************************************************************************
+ *  File Name:
+ *    transport
+ *
+ *  Description:
+ *    Public header includes for accessing the Ripple transport layer
+ *
+ *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_TRANSPORT_INCLUDES
+#define RIPPLE_TRANSPORT_INCLUDES
+
+#endif /* !RIPPLE_TRANSPORT_INCLUDES */

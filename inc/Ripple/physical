@@ -1,0 +1,20 @@
+/********************************************************************************
+ *  File Name:
+ *    physical
+ *
+ *  Description:
+ *    Public header includes for accessing the Ripple physical layer
+ *
+ *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_PHYSICAL_INCLUDES
+#define RIPPLE_PHYSICAL_INCLUDES
+
+#include <Ripple/src/physical/phy_device_constants.hpp>
+#include <Ripple/src/physical/phy_device_driver.hpp>
+#include <Ripple/src/physical/phy_device_register.hpp>
+#include <Ripple/src/physical/phy_device_types.hpp>
+
+#endif /* !RIPPLE_PHYSICAL_INCLUDES */

@@ -1,0 +1,15 @@
+/********************************************************************************
+ *  File Name:
+ *    network
+ *
+ *  Description:
+ *    Public header includes for accessing the Ripple network layer
+ *
+ *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_NETWORK_INCLUDES
+#define RIPPLE_NETWORK_INCLUDES
+
+#endif /* !RIPPLE_NETWORK_INCLUDES */

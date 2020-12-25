@@ -1,0 +1,15 @@
+/********************************************************************************
+ *  File Name:
+ *    utility
+ *
+ *  Description:
+ *    Public header includes for accessing the Ripple utility layer
+ *
+ *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_UTILITY_INCLUDES
+#define RIPPLE_UTILITY_INCLUDES
+
+#endif /* !RIPPLE_UTILITY_INCLUDES */
