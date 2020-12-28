@@ -21,7 +21,7 @@
 
 /* ETL Includes */
 #include <etl/callback_service.h>
-#include <etl/function.h>
+#include <etl/delegate.h>
 #include <etl/queue.h>
 
 /* Ripple Includes */
@@ -39,13 +39,12 @@ namespace Ripple::DATALINK
    */
   enum CallbackId : uint8_t
   {
-    TX_COMPLETE,    /**< A frame was moved into the */
-    RX_COMPLETE,
-    INIT_ERROR,
+    VECT_UNHANDLED,   /**< Default unhandled callback */
+    VECT_TX_COMPLETE, /**< A frame completely transmitted (including ACK received) */
+    VECT_RX_COMPLETE, /**< A frame was received */
+    VECT_INIT_ERROR,  /**< Initialization error */
 
-    VECTOR_ID_END,
-    VECTOR_ID_START = TX_COMPLETE,
-    VECTOR_ID_RANGE = VECTOR_ID_END - VECTOR_ID_START
+    VECT_NUM_OPTIONS
   };
 
   /*-------------------------------------------------------------------------------
@@ -53,7 +52,7 @@ namespace Ripple::DATALINK
   -------------------------------------------------------------------------------*/
   struct DLHandle
   {
-    Chimera::Threading::ThreadId threadId;  /**< Id of the thread running the datalink services */
+    Chimera::Threading::ThreadId threadId; /**< Id of the thread running the datalink services */
   };
 
   /**
@@ -70,6 +69,14 @@ namespace Ripple::DATALINK
   };
   static_assert( sizeof( Frame ) == PHY::MAX_TX_PAYLOAD_SIZE );
 
+  /**
+   *  Data that is passed into an datalink layer callback event
+   */
+  struct CBData
+  {
+    CallbackId id;
+  };
+
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
@@ -83,13 +90,10 @@ namespace Ripple::DATALINK
    *  that this is not thread safe and will require protection.
    */
   template<const size_t SIZE>
-  using FrameQueue = etl::queue<PackedFrame, SIZE, etl::memory_model::MEMORY_MODEL_SMALL>;
+  using FrameQueue = etl::queue<Frame, SIZE, etl::memory_model::MEMORY_MODEL_SMALL>;
 
-  /**
-   *
-   */
-  using CBVectors = etl::callback_service<VECTOR_ID_RANGE, VECTOR_ID_START>;
-  using CBFunction = etl::ifunction<size_t>;
+  using CBFunction = etl::delegate<void(CBData &)>;
+  using CBVectors  = std::array<CBFunction, VECT_NUM_OPTIONS>;
 
 }    // namespace Ripple::DATALINK
 

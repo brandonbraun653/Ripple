@@ -13,20 +13,96 @@
 
 /* Ripple Includes */
 #include <Ripple/physical>
+#include <Ripple/src/physical/phy_device_internal.hpp>
+
 
 namespace Ripple::PHY
 {
   /*-------------------------------------------------------------------------------
+  Private Structures
+  -------------------------------------------------------------------------------*/
+  struct RegisterDefaults
+  {
+    uint8_t reg;
+    uint8_t val;
+  };
+
+  /*-------------------------------------------------------------------------------
+  Static Data
+  -------------------------------------------------------------------------------*/
+  static const RegisterDefaults sRegDefaults[] = {
+    /* clang-format off */
+    { REG_ADDR_CONFIG, CONFIG_Reset },
+    { REG_ADDR_EN_AA, EN_AA_Reset },
+    { REG_ADDR_EN_RXADDR, EN_RXADDR_Reset },
+    { REG_ADDR_SETUP_AW, SETUP_AW_Reset },
+    { REG_ADDR_SETUP_RETR, SETUP_RETR_Reset },
+    { REG_ADDR_RF_CH, RF_CH_Reset },
+    { REG_ADDR_RF_SETUP, RF_SETUP_Reset },
+    { REG_ADDR_STATUS, STATUS_Reset },
+    { REG_ADDR_OBSERVE_TX, OBSERVE_TX_Reset },
+    { REG_ADDR_RX_ADDR_P2, RX_ADDR_P2_Reset },
+    { REG_ADDR_RX_ADDR_P3, RX_ADDR_P3_Reset },
+    { REG_ADDR_RX_ADDR_P4, RX_ADDR_P4_Reset },
+    { REG_ADDR_RX_ADDR_P5, RX_ADDR_P5_Reset },
+    { REG_ADDR_RX_PW_P0, RX_PW_P0_Reset },
+    { REG_ADDR_RX_PW_P1, RX_PW_P1_Reset },
+    { REG_ADDR_RX_PW_P2, RX_PW_P2_Reset },
+    { REG_ADDR_RX_PW_P3, RX_PW_P3_Reset },
+    { REG_ADDR_RX_PW_P4, RX_PW_P4_Reset },
+    { REG_ADDR_RX_PW_P5, RX_PW_P5_Reset },
+    { REG_ADDR_FIFO_STATUS, FIFO_STATUS_Reset },
+    { REG_ADDR_DYNPD, DYNPD_Reset },
+    { REG_ADDR_FEATURE, FEATURE_Reset }
+    /* clang-format on */
+  };
+
+  /*-------------------------------------------------------------------------------
+  Static Functions
+  -------------------------------------------------------------------------------*/
+  static bool driverReady( DeviceHandle &handle )
+  {
+    /*-------------------------------------------------
+    For now, this is just a single flag
+    -------------------------------------------------*/
+    return handle.opened;
+  }
+
+  /*-------------------------------------------------------------------------------
+  Utility Functions
+  -------------------------------------------------------------------------------*/
+  DeviceHandle *getHandle( SessionContext session )
+  {
+    if ( !session )
+    {
+      return nullptr;
+    }
+    else
+    {
+      auto context  = reinterpret_cast<NetStackHandle *>( session );
+      auto physical = reinterpret_cast<PHY::DeviceHandle *>( context->physical );
+
+      return physical;
+    }
+  }
+
+
+  /*-------------------------------------------------------------------------------
   Open/Close Functions
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t openDevice( const DriverConfig &cfg, DriverHandle &handle )
+  Chimera::Status_t openDevice( const DeviceConfig &cfg, DeviceHandle &handle )
   {
+    // Do not perform the configuration here. Simply validate that the device
+    // is connected on the configured GPIO/SPI drivers.
+
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t closeDevice( DriverHandle &handle )
+  Chimera::Status_t closeDevice( DeviceHandle &handle )
   {
+    // Clear the handle memory, including the drivers.
+
     return Chimera::Status::NOT_SUPPORTED;
   }
 
@@ -34,94 +110,478 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Device Commands
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t flushTX( DriverHandle &handle )
+  Chimera::Status_t resetRegisterDefaults( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Reset each register back to power-on defaults
+    -------------------------------------------------*/
+    auto result = Chimera::Status::OK;
+    for ( size_t x = 0; x < ARRAY_COUNT( sRegDefaults ); x++ )
+    {
+      result |= writeRegister( handle, sRegDefaults[ x ].reg, sRegDefaults[ x ].val );
+      auto val = readRegister( handle, sRegDefaults[ x ].reg );
+
+      if ( ( val != sRegDefaults[ x ].val ) || ( result != Chimera::Status::OK ) )
+      {
+        Chimera::insert_debug_breakpoint();
+        return Chimera::Status::FAIL;
+      }
+    }
+
+    /*-------------------------------------------------
+    Handle the multi-byte registers
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_TX_ADDR, &TX_ADDR_Reset, TX_ADDR_byteWidth );
+    writeRegister( handle, REG_ADDR_RX_ADDR_P0, &RX_ADDR_P0_Reset, RX_ADDR_P0_byteWidth );
+    writeRegister( handle, REG_ADDR_RX_ADDR_P1, &RX_ADDR_P1_Reset, RX_ADDR_P1_byteWidth );
+
+    return result;
   }
 
 
-  Chimera::Status_t flushRX( DriverHandle &handle )
+  Chimera::Status_t flushTX( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Flush the hardware/software TX buffers
+    -------------------------------------------------*/
+    writeCommand( handle, CMD_FLUSH_TX );
+    memset( handle.txBuffer, 0, ARRAY_BYTES( DeviceHandle::txBuffer ) );
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t startListening( DriverHandle &handle )
+  Chimera::Status_t flushRX( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Flush the hardware/software RX buffers
+    -------------------------------------------------*/
+    writeCommand( handle, CMD_FLUSH_RX );
+    memset( handle.rxBuffer, 0, ARRAY_BYTES( DeviceHandle::rxBuffer ) );
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t stopListening( DriverHandle &handle )
+  Chimera::Status_t startListening( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    using namespace Chimera::GPIO;
+
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( handle.flags & DEV_IS_LISTENING )
+    {
+      return Chimera::Status::OK;
+    }
+
+    /*-------------------------------------------------
+    Transition back to Standby-1 mode
+    -------------------------------------------------*/
+    handle.cePin->setState( State::LOW );
+
+    /*-------------------------------------------------
+    If we are auto-acknowledging RX packets with a payload,
+    make sure the TX FIFO is clean so we don't accidentally
+    transmit data on the next transition back to TX mode.
+    -------------------------------------------------*/
+    if ( registerIsBitmaskSet( handle, REG_ADDR_FEATURE, FEATURE_EN_ACK_PAY ) )
+    {
+      flushTX( handle );
+    }
+
+    /*-------------------------------------------------
+    Clear interrupt flags and transition to RX mode by
+    setting PRIM_RX=1 and CE=1. Wait the required ~130uS
+    RX settling time needed to get into RX mode.
+    -------------------------------------------------*/
+    setRegisterBits( handle, REG_ADDR_STATUS, ( STATUS_RX_DR | STATUS_TX_DS | STATUS_MAX_RT ) );
+    setRegisterBits( handle, REG_ADDR_CONFIG, CONFIG_PRIM_RX );
+    handle.cePin->setState( State::HIGH );
+    Chimera::delayMilliseconds( 1 );
+
+    /*-------------------------------------------------
+    If the Pipe 0 RX address was previously clobbered
+    so that a TX could occur, restore the address.
+    -------------------------------------------------*/
+    if( handle.cachedPipe0RXAddr )
+    {
+      openReadPipe( handle, PIPE_NUM_0, handle.cachedPipe0RXAddr );
+    }
+
+    /*-------------------------------------------------
+    Update listener status flags
+    -------------------------------------------------*/
+    handle.flags &= ~( DEV_IS_LISTENING | DEV_LISTEN_PAUSE );
+    handle.flags |= DEV_IS_LISTENING;
+
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t pauseListening( DriverHandle &handle )
+  Chimera::Status_t stopListening( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    using namespace Chimera::GPIO;
+
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( !( handle.flags & ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) )
+    {
+      return Chimera::Status::OK;
+    }
+
+    /*-------------------------------------------------
+    Transition device into standby mode 1
+    -------------------------------------------------*/
+    handle.cePin->setState( State::LOW );
+    clrRegisterBits( handle, REG_ADDR_CONFIG, CONFIG_PRIM_RX );
+
+    /*-------------------------------------------------
+    If we are auto-acknowledging RX packets with a payload,
+    make sure the TX FIFO is clean so we don't accidentally
+    transmit data on the next transition back to TX mode.
+    -------------------------------------------------*/
+    if ( registerIsBitmaskSet( handle, REG_ADDR_FEATURE, FEATURE_EN_ACK_PAY ) )
+    {
+      flushTX( handle );
+    }
+
+    /*-------------------------------------------------
+    Update listener status flags
+    -------------------------------------------------*/
+    handle.flags &= ~( DEV_IS_LISTENING | DEV_LISTEN_PAUSE );
+
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t resumeListening( DriverHandle &handle )
+  Chimera::Status_t pauseListening( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    using namespace Chimera::GPIO;
+
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) || !( handle.flags & DEV_IS_LISTENING ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( handle.flags & DEV_LISTEN_PAUSE )
+    {
+      return Chimera::Status::OK;
+    }
+
+    /*-------------------------------------------------
+    According to the state transition diagram, the
+    module is in RX mode when PRIM_RX=1 and CE=1. By
+    clearing CE=0, we can transition the module to
+    Standby-1 mode.
+    -------------------------------------------------*/
+    handle.cePin->setState( State::LOW );
+    handle.flags |= ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE );
+
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t toggleDynamicPayloads( DriverHandle &handle, const bool state )
+  Chimera::Status_t resumeListening( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    using namespace Chimera::GPIO;
+
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) ||
+         ( ( handle.flags & ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) != ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    According to the state transition diagram, the
+    module is in Standby-1 mode when PRIM_RX=1, CE=0.
+    By setting CE=1, we can transition the module back
+    to RX mode.
+    -------------------------------------------------*/
+    handle.cePin->setState( State::HIGH );
+    handle.flags &= ~DEV_LISTEN_PAUSE;
+
+    /* The transition requires an RX settling period of ~130us */
+    Chimera::delayMilliseconds( 1 );
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t toggleAutoAck( DriverHandle &handle, const bool state, const PipeNumber pipe )
+  Chimera::Status_t toggleAckPayloads( DeviceHandle &handle, const bool state )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Enable/disable the ack payload functionality
+    -------------------------------------------------*/
+    if( state && !( handle.flags & DEV_ACK_PAYLOADS ) )
+    {
+      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      {
+        toggleFeatures( handle, true );
+      }
+
+      /*-------------------------------------------------
+      Enable the proper bits
+      // TODO: Why only P0/P1? Check datasheet then make comment
+      -------------------------------------------------*/
+      setRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_ACK_PAY );
+      setRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_DPL_P0 | DYNPD_DPL_P1 );
+
+      handle.flags |= DEV_ACK_PAYLOADS;
+    }
+    else if( handle.flags & DEV_ACK_PAYLOADS ) // && !state
+    {
+      clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
+      clrRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_DPL_P0 | DYNPD_DPL_P1 );
+
+      handle.flags &= ~DEV_ACK_PAYLOADS;
+    }
+
+    return Chimera::Status::OK;
+  }
+
+
+  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const bool state )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Enable/disable the dynamic payload functionality
+    -------------------------------------------------*/
+    if ( state )
+    {
+      /*-------------------------------------------------
+      Send the activate command to enable features
+      -------------------------------------------------*/
+      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      {
+        toggleFeatures( handle, true );
+      }
+
+      /*-------------------------------------------------
+      Enable the dynamic payload feature bit
+      -------------------------------------------------*/
+      setRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
+
+      /*-------------------------------------------------
+      Enable dynamic payload on all pipes. This requires that
+      auto-acknowledge be enabled.
+      -------------------------------------------------*/
+      setRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
+      setRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_Mask );
+
+      handle.flags |= DEV_FEATURES_ACTIVE;
+    }
+    else if ( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
+    {
+      /*-------------------------------------------------
+      Disable for all pipes
+      -------------------------------------------------*/
+      clrRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_Mask );
+      clrRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
+      clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
+
+      handle.flags &= ~DEV_FEATURES_ACTIVE;
+    }
+
+    return Chimera::Status::OK;
+  }
+
+
+  Chimera::Status_t toggleDynamicAck( DeviceHandle &handle, const bool state )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Enable/disable dynamic ack
+    -------------------------------------------------*/
+    if ( state )
+    {
+      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      {
+        toggleFeatures( handle, true );
+      }
+
+      setRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DYN_ACK );
+    }
+    else if ( handle.flags & DEV_FEATURES_ACTIVE )
+    {
+      clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DYN_ACK );
+    }
+    // else features are disabled, so dynamic ack is too
+  }
+
+
+  Chimera::Status_t toggleAutoAck( DeviceHandle &handle, const bool state, const PipeNumber pipe )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Figure out how many pipes to operate on
+    -------------------------------------------------*/
+    if ( pipe == PIPE_NUM_ALL )
+    {
+      if ( state )
+      {
+        setRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
+      }
+      else
+      {
+        clrRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
+      }
+    }
+    else if ( pipe < MAX_NUM_PIPES )
+    {
+      uint8_t en_aa = readRegister( handle, REG_ADDR_EN_AA );
+
+      if ( state )
+      {
+        en_aa |= 1u << pipe;
+      }
+      else
+      {
+        en_aa &= ~( 1u << pipe );
+      }
+
+      writeRegister( handle, REG_ADDR_EN_AA, en_aa );
+    }
+    else
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    return Chimera::Status::OK;
+  }
+
+
+  Chimera::Status_t toggleFeatures( DeviceHandle &handle, const bool state )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Enable/disable the features functionality
+    -------------------------------------------------*/
+    if( state && !( handle.flags & DEV_FEATURES_ACTIVE ) )
+    {
+      writeCommand( handle, CMD_ACTIVATE, &FEATURE_ACTIVATE_KEY, 1 );
+      handle.flags |= DEV_FEATURES_ACTIVE;
+    }
+    else if( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
+    {
+      writeCommand( handle, CMD_ACTIVATE, &FEATURE_ACTIVATE_KEY, 1 );
+      handle.flags &= ~DEV_FEATURES_ACTIVE;
+    }
+    // else nothing to do
   }
 
 
   /*-------------------------------------------------------------------------------
   Data Pipe Operations
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t openWritePipe( DriverHandle &handle, const PhysicalAddress address )
+  Chimera::Status_t openWritePipe( DeviceHandle &handle, const MACAddress address )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t closeWritePipe( DriverHandle &handle )
+  Chimera::Status_t closeWritePipe( DeviceHandle &handle )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t openReadPipe( DriverHandle &handle, const PipeNumber pipe, const PhysicalAddress address )
+  Chimera::Status_t openReadPipe( DeviceHandle &handle, const PipeNumber pipe, const MACAddress address )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t closeReadPipe( DriverHandle &handle, const PipeNumber pipe )
+  Chimera::Status_t closeReadPipe( DeviceHandle &handle, const PipeNumber pipe )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t readFIFO( DriverHandle &handle, void *const buffer, const size_t length )
+  Chimera::Status_t readFIFO( DeviceHandle &handle, void *const buffer, const size_t length )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t writePipe( DriverHandle &handle, const void *const buffer, const size_t length )
+  Chimera::Status_t writePipe( DeviceHandle &handle, const void *const buffer, const size_t length )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
 
 
-  Chimera::Status_t stageAckPayload( DriverHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
+  Chimera::Status_t stageAckPayload( DeviceHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
   {
     return Chimera::Status::NOT_SUPPORTED;
   }
@@ -130,73 +590,73 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Data Setters/Getters
   -------------------------------------------------------------------------------*/
-  Reg8_t getStatusRegister( DriverHandle &handle )
+  Reg8_t getStatusRegister( DeviceHandle &handle )
   {
   }
 
 
-  Chimera::Status_t setPALevel( DriverHandle &handle, const PowerAmplitude level )
+  Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level )
   {
   }
 
 
-  PowerAmplitude getPALevel( DriverHandle &handle )
+  PowerAmplitude getPALevel( DeviceHandle &handle )
   {
   }
 
 
-  Chimera::Status_t setDataRate( DriverHandle &handle, const DataRate speed )
+  Chimera::Status_t setDataRate( DeviceHandle &handle, const DataRate speed )
   {
   }
 
 
-  DataRate getDataRate( DriverHandle &handle )
+  DataRate getDataRate( DeviceHandle &handle )
   {
   }
 
 
-  Chimera::Status_t setRetries( DriverHandle &handle, const AutoRetransmitDelay delay, const size_t count )
+  Chimera::Status_t setRetries( DeviceHandle &handle, const AutoRetransmitDelay delay, const size_t count )
   {
   }
 
 
-  AutoRetransmitDelay getRTXDelay( DriverHandle &handle )
+  AutoRetransmitDelay getRTXDelay( DeviceHandle &handle )
   {
   }
 
 
-  size_t getRTXCount( DriverHandle &handle )
+  size_t getRTXCount( DeviceHandle &handle )
   {
   }
 
 
-  Chimera::Status_t setRFChannel( DriverHandle &handle, const size_t channel )
+  Chimera::Status_t setRFChannel( DeviceHandle &handle, const size_t channel )
   {
   }
 
 
-  size_t getRFChannel( DriverHandle &handle )
+  size_t getRFChannel( DeviceHandle &handle )
   {
   }
 
 
-  Chimera::Status_t setStaticPayloadSize( DriverHandle &handle, const size_t size, const PipeNumber pipe )
+  Chimera::Status_t setStaticPayloadSize( DeviceHandle &handle, const size_t size, const PipeNumber pipe )
   {
   }
 
 
-  size_t getStaticPayloadSize( DriverHandle &handle, const PipeNumber pipe )
+  size_t getStaticPayloadSize( DeviceHandle &handle, const PipeNumber pipe )
   {
   }
 
 
-  PipeNumber getFIFOPayloadAvailable( DriverHandle &handle )
+  PipeNumber getFIFOPayloadAvailable( DeviceHandle &handle )
   {
   }
 
 
-  size_t getFIFOPayloadSize( DriverHandle &handle )
+  size_t getFIFOPayloadSize( DeviceHandle &handle )
   {
   }
 
-}  // namespace Ripple::PHY
+}    // namespace Ripple::PHY

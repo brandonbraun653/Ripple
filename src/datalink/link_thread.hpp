@@ -83,18 +83,28 @@ namespace Ripple::DATALINK
   protected:
     /**
      *  Initialize the service to prepare it for first time execution
+     *
+     *  @param[in]  session     User session information
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t initialize();
+    Chimera::Status_t initialize( SessionContext session );
+
+    /**
+     *  Initializes the radio with the user configured settings
+     *
+     *  @param[in]  session     User session information
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t powerUpRadio( SessionContext session );
 
     /**
      *  Internal unhandled callback function should the user not register anything
      *  for a particular callback id.
      *
-     *  @param[in]  id          The callback ID that was not handled
+     *  @param[in]  data        Data associated with the callback
      *  @return void
      */
-    void unhandledCallback( const size_t id );
+    void unhandledCallback( CBData &id );
 
   private:
     CBVectors mCBRegistry;                     /**< Callback service vectors */
@@ -102,7 +112,6 @@ namespace Ripple::DATALINK
     FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;    /**< Queue for data coming from the physical layer */
     Chimera::Threading::RecursiveMutex mMutex; /**< Thread safety lock */
 
-    etl::function_mp<Service, size_t, &Service::unhandledCallback> mUHCFunction;
   };
 }    // namespace Ripple::DATALINK
 

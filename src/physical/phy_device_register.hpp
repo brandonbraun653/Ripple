@@ -37,32 +37,32 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Register Addresses
   -------------------------------------------------------------------------------*/
-  static constexpr uint8_t REG_CONFIG      = 0x00; /**< Configuration Register */
-  static constexpr uint8_t REG_EN_AA       = 0x01; /**< Enable Auto Acknowledgment */
-  static constexpr uint8_t REG_EN_RXADDR   = 0x02; /**< Enable RX Addresses */
-  static constexpr uint8_t REG_SETUP_AW    = 0x03; /**< Setup of Address Width */
-  static constexpr uint8_t REG_SETUP_RETR  = 0x04; /**< Setup of Automatic Retransmission */
-  static constexpr uint8_t REG_RF_CH       = 0x05; /**< RF Channel Frequency Settings */
-  static constexpr uint8_t REG_RF_SETUP    = 0x06; /**< RF Channel Settings Register */
-  static constexpr uint8_t REG_STATUS      = 0x07; /**< Status Register */
-  static constexpr uint8_t REG_OBSERVE_TX  = 0x08; /**< Transmit Observe */
-  static constexpr uint8_t REG_CD          = 0x09; /**< Carrier Detect */
-  static constexpr uint8_t REG_RX_ADDR_P0  = 0x0A; /**< Receive Address Data Pipe 0 */
-  static constexpr uint8_t REG_RX_ADDR_P1  = 0x0B; /**< Receive Address Data Pipe 1 */
-  static constexpr uint8_t REG_RX_ADDR_P2  = 0x0C; /**< Receive Address Data Pipe 2 */
-  static constexpr uint8_t REG_RX_ADDR_P3  = 0x0D; /**< Receive Address Data Pipe 3 */
-  static constexpr uint8_t REG_RX_ADDR_P4  = 0x0E; /**< Receive Address Data Pipe 4 */
-  static constexpr uint8_t REG_RX_ADDR_P5  = 0x0F; /**< Receive Address Data Pipe 5 */
-  static constexpr uint8_t REG_TX_ADDR     = 0x10; /**< Transmit Address */
-  static constexpr uint8_t REG_RX_PW_P0    = 0x11; /**< Number of bytes in RX Payload Data Pipe 0 */
-  static constexpr uint8_t REG_RX_PW_P1    = 0x12; /**< Number of bytes in RX Payload Data Pipe 1 */
-  static constexpr uint8_t REG_RX_PW_P2    = 0x13; /**< Number of bytes in RX Payload Data Pipe 2 */
-  static constexpr uint8_t REG_RX_PW_P3    = 0x14; /**< Number of bytes in RX Payload Data Pipe 3 */
-  static constexpr uint8_t REG_RX_PW_P4    = 0x15; /**< Number of bytes in RX Payload Data Pipe 4 */
-  static constexpr uint8_t REG_RX_PW_P5    = 0x16; /**< Number of bytes in RX Payload Data Pipe 5 */
-  static constexpr uint8_t REG_FIFO_STATUS = 0x17; /**< FIFO Status Register */
-  static constexpr uint8_t REG_DYNPD       = 0x1C; /**< Enable Dynamic Payload Length for Data Pipes */
-  static constexpr uint8_t REG_FEATURE     = 0x1D; /**< Feature Register */
+  static constexpr uint8_t REG_ADDR_CONFIG      = 0x00; /**< Configuration Register */
+  static constexpr uint8_t REG_ADDR_EN_AA       = 0x01; /**< Enable Auto Acknowledgment */
+  static constexpr uint8_t REG_ADDR_EN_RXADDR   = 0x02; /**< Enable RX Addresses */
+  static constexpr uint8_t REG_ADDR_SETUP_AW    = 0x03; /**< Setup of Address Width */
+  static constexpr uint8_t REG_ADDR_SETUP_RETR  = 0x04; /**< Setup of Automatic Retransmission */
+  static constexpr uint8_t REG_ADDR_RF_CH       = 0x05; /**< RF Channel Frequency Settings */
+  static constexpr uint8_t REG_ADDR_RF_SETUP    = 0x06; /**< RF Channel Settings Register */
+  static constexpr uint8_t REG_ADDR_STATUS      = 0x07; /**< Status Register */
+  static constexpr uint8_t REG_ADDR_OBSERVE_TX  = 0x08; /**< Transmit Observe */
+  static constexpr uint8_t REG_ADDR_CD          = 0x09; /**< Carrier Detect */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P0  = 0x0A; /**< Receive Address Data Pipe 0 */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P1  = 0x0B; /**< Receive Address Data Pipe 1 */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P2  = 0x0C; /**< Receive Address Data Pipe 2 */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P3  = 0x0D; /**< Receive Address Data Pipe 3 */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P4  = 0x0E; /**< Receive Address Data Pipe 4 */
+  static constexpr uint8_t REG_ADDR_RX_ADDR_P5  = 0x0F; /**< Receive Address Data Pipe 5 */
+  static constexpr uint8_t REG_ADDR_TX_ADDR     = 0x10; /**< Transmit Address */
+  static constexpr uint8_t REG_ADDR_RX_PW_P0    = 0x11; /**< Number of bytes in RX Payload Data Pipe 0 */
+  static constexpr uint8_t REG_ADDR_RX_PW_P1    = 0x12; /**< Number of bytes in RX Payload Data Pipe 1 */
+  static constexpr uint8_t REG_ADDR_RX_PW_P2    = 0x13; /**< Number of bytes in RX Payload Data Pipe 2 */
+  static constexpr uint8_t REG_ADDR_RX_PW_P3    = 0x14; /**< Number of bytes in RX Payload Data Pipe 3 */
+  static constexpr uint8_t REG_ADDR_RX_PW_P4    = 0x15; /**< Number of bytes in RX Payload Data Pipe 4 */
+  static constexpr uint8_t REG_ADDR_RX_PW_P5    = 0x16; /**< Number of bytes in RX Payload Data Pipe 5 */
+  static constexpr uint8_t REG_ADDR_FIFO_STATUS = 0x17; /**< FIFO Status Register */
+  static constexpr uint8_t REG_ADDR_DYNPD       = 0x1C; /**< Enable Dynamic Payload Length for Data Pipes */
+  static constexpr uint8_t REG_ADDR_FEATURE     = 0x1D; /**< Feature Register */
 
   /*-------------------------------------------------------------------------------
   Register Bit Definitions
@@ -331,6 +331,7 @@ namespace Ripple::PHY
   -------------------------------------------------*/
   static constexpr uint8_t FEATURE_MSK            = 0x07;
   static constexpr uint8_t FEATURE_Reset          = 0x00;
+  static constexpr uint8_t FEATURE_ACTIVATE_KEY   = 0x73;
   static constexpr uint8_t FEATURE_EN_DPL_Pos     = 2u;
   static constexpr uint8_t FEATURE_EN_DPL_Msk     = 1u << FEATURE_EN_DPL_Pos;
   static constexpr uint8_t FEATURE_EN_DPL         = FEATURE_EN_DPL_Msk;

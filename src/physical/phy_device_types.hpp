@@ -26,9 +26,22 @@ namespace Ripple::PHY
   using RFChannel = uint8_t;
 
   /*-------------------------------------------------------------------------------
+  Constants
+  -------------------------------------------------------------------------------*/
+  static constexpr size_t SPI_CMD_BYTE_LEN = 1;
+  static constexpr size_t MAX_SPI_DATA_LEN = 32;
+
+  /**
+   *  Maximum number of bytes that will go out on the wire
+   *  during a single SPI transaction. This accounts for the
+   *  max frame length (32 bytes) + a command (1 byte )
+   */
+  static constexpr size_t MAX_SPI_TRANSACTION_LEN = 33;
+
+  /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
-  enum PipeBitField_t : size_t
+  enum PipeBitField_t : uint8_t
   {
     PIPE_BF_0 = ( 1u << 0 ),
     PIPE_BF_1 = ( 1u << 1 ),
@@ -40,7 +53,7 @@ namespace Ripple::PHY
     PIPE_BF_MASK = 0x3Fu
   };
 
-  enum PipeNumber : size_t
+  enum PipeNumber : uint8_t
   {
     PIPE_NUM_0   = 0u,
     PIPE_NUM_1   = 1u,
@@ -50,14 +63,14 @@ namespace Ripple::PHY
     PIPE_NUM_5   = 5u,
     PIPE_NUM_MAX = 6u,
     PIPE_NUM_ALL = PIPE_NUM_MAX,
-    PIPE_INVALID = std::numeric_limits<size_t>::max()
+    PIPE_INVALID = std::numeric_limits<uint8_t>::max()
   };
 
 
   /**
    *   Definitions for tracking the hardware state machine mode
    */
-  enum Mode : size_t
+  enum Mode : uint8_t
   {
     MODE_POWER_DOWN = 0,
     MODE_STANDBY_I,
@@ -72,7 +85,7 @@ namespace Ripple::PHY
   /**
    *   Definitions for allowed TX power levels
    */
-  enum PowerAmplitude : size_t
+  enum PowerAmplitude : uint8_t
   {
     PA_MIN  = 0u, /**< -18 dBm */
     PA_LOW  = 2u, /**< -12 dBm */
@@ -83,7 +96,7 @@ namespace Ripple::PHY
   /**
    *   Definitions for allowed data rates
    */
-  enum DataRate : size_t
+  enum DataRate : uint8_t
   {
     DR_1MBPS,  /**< 1 MBPS */
     DR_2MBPS,  /**< 2 MBPS */
@@ -93,7 +106,7 @@ namespace Ripple::PHY
   /**
    *   Definitions for CRC settings
    */
-  enum CRCLength : size_t
+  enum CRCLength : uint8_t
   {
     CRC_DISABLED, /**< No CRC */
     CRC_8,        /**< 8 Bit CRC */
@@ -105,7 +118,7 @@ namespace Ripple::PHY
    *   numerical value here is NOT the number of bytes. This is the
    *   register level definition.
    */
-  enum AddressWidth : size_t
+  enum AddressWidth : uint8_t
   {
     AW_3Byte = 0x01,
     AW_4Byte = 0x02,
@@ -115,7 +128,7 @@ namespace Ripple::PHY
   /**
    *   Definitions for the auto retransmit delay register field
    */
-  enum AutoRetransmitDelay : size_t
+  enum AutoRetransmitDelay : uint8_t
   {
     ART_DELAY_250uS  = 0,
     ART_DELAY_500uS  = 1,
@@ -139,6 +152,23 @@ namespace Ripple::PHY
     ART_DELAY_MAX = ART_DELAY_4000uS
   };
 
+
+  enum bfISRMask : uint8_t
+  {
+    ISR_MSK_TX_DS  = ( 1u << 0 ),
+    ISR_MSK_RX_DR  = ( 1u << 1 ),
+    ISR_MSK_MAX_RT = ( 1u << 2 ),
+  };
+
+  enum bfControlFlags : uint8_t
+  {
+    DEV_PLUS_VARIANT     = ( 1u << 0 ), /**< Device is a + variation of NRF24L01 */
+    DEV_IS_LISTENING     = ( 1u << 1 ), /**< Device is actively listening */
+    DEV_LISTEN_PAUSE     = ( 1u << 2 ), /**< Device has paused listening */
+    DEV_DYNAMIC_PAYLOADS = ( 1u << 3 ), /**< Dynamic payloads enabled */
+    DEV_FEATURES_ACTIVE  = ( 1u << 4 ), /**< HW feature register enabled */
+    DEV_ACK_PAYLOADS     = ( 1u << 5 ), /**< ACK payloads are enabled */
+  };
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -182,14 +212,14 @@ namespace Ripple::PHY
   /**
    *  NRF24L01 hardware configuration specs
    */
-  struct DriverConfig
+  struct DeviceConfig
   {
     /*-------------------------------------------------
     Physical Interface Defintions
     -------------------------------------------------*/
-    Chimera::SPI::DriverConfig cfgSPI;    /**< SPI interface configuration */
-    Chimera::GPIO::PinInit cfgIRQ;        /**< IRQ pin GPIO configuration */
-    Chimera::GPIO::PinInit cfgCE;         /**< Chip enable GPIO configuration */
+    Chimera::SPI::DriverConfig spi; /**< SPI interface configuration */
+    Chimera::GPIO::PinInit irq;     /**< IRQ pin GPIO configuration */
+    Chimera::GPIO::PinInit ce;      /**< Chip enable GPIO configuration */
 
     /*-------------------------------------------------
     Driver Configuration
@@ -200,25 +230,35 @@ namespace Ripple::PHY
     AddressWidth hwAddressWidth;
     AutoRetransmitDelay hwRTXDelay;
     RFChannel hwRFChannel;
+    bfISRMask hwISRMask;
   };
 
 
-  struct DriverHandle
+  struct DeviceHandle
   {
     /*-------------------------------------------------
     Physical Interface
     -------------------------------------------------*/
-    Chimera::SPI::Driver_sPtr spi;      /**< Reference to the SPI driver instance */
-    Chimera::GPIO::Driver_sPtr cePin;   /**< Reference to the Chip Enable pin instance */
-    Chimera::GPIO::Driver_sPtr irqPin;  /**< Reference to the IRQ pin instance */
+    /* IO Drivers */
+    Chimera::SPI::Driver_sPtr spi;     /**< Reference to the SPI driver instance */
+    Chimera::GPIO::Driver_sPtr cePin;  /**< Reference to the Chip Enable pin instance */
+    Chimera::GPIO::Driver_sPtr irqPin; /**< Reference to the IRQ pin instance */
+    Chimera::GPIO::Driver_sPtr csPin;  /**< Chip select GPIO configuration */
+
+    /* Config options */
+    DeviceConfig cfg; /**< Configuration options */
 
     /*-------------------------------------------------
     Driver State
     -------------------------------------------------*/
-    RegisterMap reg;  /**< Tracks the system state as reads/writes occur */
-
-
+    bool opened;                                 /**< Whether or not the driver has been enabled/openend */
+    uint8_t flags;                               /**< Flags tracking runtime device settings */
+    RegisterMap registerCache;                   /**< Tracks the system state as reads/writes occur */
+    uint8_t txBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal transmit buffer */
+    uint8_t rxBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal receive buffer */
+    uint64_t cachedPipe0RXAddr;                  /**< RX address cache when Pipe 0 need to become TX */
+    // TBD
   };
-}  // namespace Ripple::PHY
+}    // namespace Ripple::PHY
 
-#endif  /* !RIPPLE_PHYSICAL_DEVICE_TYPES_HPP */
+#endif /* !RIPPLE_PHYSICAL_DEVICE_TYPES_HPP */

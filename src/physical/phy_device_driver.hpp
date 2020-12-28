@@ -22,6 +22,18 @@
 namespace Ripple::PHY
 {
   /*-------------------------------------------------------------------------------
+  Utility Functions
+  -------------------------------------------------------------------------------*/
+  /**
+   *  Extracts the handle from the session context
+   *
+   *  @param[in]  session       The current session
+   *  @return DeviceHandle *
+   */
+  DeviceHandle *getHandle( SessionContext session );
+
+
+  /*-------------------------------------------------------------------------------
   Open/Close Functions
   -------------------------------------------------------------------------------*/
   /**
@@ -31,7 +43,7 @@ namespace Ripple::PHY
    *  @param[in]  handle        Configured device handle, if opening is successful
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openDevice( const DriverConfig &cfg, DriverHandle &handle );
+  Chimera::Status_t openDevice( const DeviceConfig &cfg, DeviceHandle &handle );
 
   /**
    *  Closes the device associated with the handle
@@ -39,19 +51,27 @@ namespace Ripple::PHY
    *  @param[in]  handle        The device to close
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeDevice( DriverHandle &handle );
+  Chimera::Status_t closeDevice( DeviceHandle &handle );
 
 
   /*-------------------------------------------------------------------------------
   Device Commands
   -------------------------------------------------------------------------------*/
   /**
+   *  Resets the device registers to their default settings
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t resetRegisterDefaults( DeviceHandle &handle );
+
+  /**
    *  Clears out the TX FIFO
    *
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t flushTX( DriverHandle &handle );
+  Chimera::Status_t flushTX( DeviceHandle &handle );
 
   /**
    *  Clears out the RX FIFO
@@ -59,7 +79,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t flushRX( DriverHandle &handle );
+  Chimera::Status_t flushRX( DeviceHandle &handle );
 
   /**
    *  Start listening on the pipes opened for reading.
@@ -71,7 +91,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t startListening( DriverHandle &handle );
+  Chimera::Status_t startListening( DeviceHandle &handle );
 
   /**
    *  Stop listening for RX messages and switch to transmit mode. Does nothing if already
@@ -80,7 +100,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t stopListening( DriverHandle &handle );
+  Chimera::Status_t stopListening( DeviceHandle &handle );
 
   /**
    *  Pauses a currently listening device. Does nothing if the device is not listening.
@@ -88,7 +108,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t pauseListening( DriverHandle &handle );
+  Chimera::Status_t pauseListening( DeviceHandle &handle );
 
   /**
    *  Resumes listening a paused device. Does nothing if the device is not paused.
@@ -96,7 +116,17 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t resumeListening( DriverHandle &handle );
+  Chimera::Status_t resumeListening( DeviceHandle &handle );
+
+  /**
+   *  Enables/disables sending payloads along with ACK frames. Must have
+   *  dynamic payloads enabled as well.
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  state       Enable/disable ack payloads
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t toggleAckPayloads( DeviceHandle &handle, const bool state );
 
   /**
    *  Enable dynamically-sized payloads for both TX and ACK packets
@@ -107,9 +137,20 @@ namespace Ripple::PHY
    *
    *  @param[in]  handle      Handle to the device
    *  @param[in]  state       Enable/disable dynamic payloads
-   *  @return void
+   *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleDynamicPayloads( DriverHandle &handle, const bool state );
+  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const bool state );
+
+  /**
+   *  Enable/disable the ability to selectively enable the auto-ack functionality
+   *  on a per-packet basis. This affects availability of the W_TX_PAYLOAD_NOACK
+   *  command.
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  state       Enable/disable the dynamic ack function
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t toggleDynamicAck( DeviceHandle &handle, const bool state );
 
   /**
    *  Enable/disable the Auto-Ack functionality upon packet reception
@@ -119,8 +160,16 @@ namespace Ripple::PHY
    *  @param[in]  pipe        Which pipe to act on
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleAutoAck( DriverHandle &handle, const bool state, const PipeNumber pipe );
+  Chimera::Status_t toggleAutoAck( DeviceHandle &handle, const bool state, const PipeNumber pipe );
 
+  /**
+   *  Enable/disable the device Feature register
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  state       Enable/disable
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t toggleFeatures( DeviceHandle &handle, const bool state );
 
   /*-------------------------------------------------------------------------------
   Data Pipe Operations
@@ -132,7 +181,7 @@ namespace Ripple::PHY
    *  @param[in]  address     The address for pipe 0 to write to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openWritePipe( DriverHandle &handle, const PhysicalAddress address );
+  Chimera::Status_t openWritePipe( DeviceHandle &handle, const MACAddress address );
 
   /**
    *  Closes pipe 0 for writing. Can be safely called without previously calling open.
@@ -140,7 +189,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeWritePipe( DriverHandle &handle );
+  Chimera::Status_t closeWritePipe( DeviceHandle &handle );
 
   /**
    *  Open any pipe for reading. Up to 6 pipes can be open for reading at once.  Open all the required
@@ -164,7 +213,7 @@ namespace Ripple::PHY
    *  @param[in]  address     The address you want the pipe to listen to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openReadPipe( DriverHandle &handle, const PipeNumber pipe, const PhysicalAddress address );
+  Chimera::Status_t openReadPipe( DeviceHandle &handle, const PipeNumber pipe, const MACAddress address );
 
   /**
    *  Close a pipe after it has been previously opened.
@@ -174,7 +223,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        Which pipe number to close, 0-5.
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeReadPipe( DriverHandle &handle, const PipeNumber pipe );
+  Chimera::Status_t closeReadPipe( DeviceHandle &handle, const PipeNumber pipe );
 
   /**
    *  Read the available FIFO payload into a buffer
@@ -184,7 +233,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Maximum number of bytes to read into the buffer
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t readFIFO( DriverHandle &handle, void *const buffer, const size_t length );
+  Chimera::Status_t readFIFO( DeviceHandle &handle, void *const buffer, const size_t length );
 
   /**
    *  Immediately writes data to pipe 0 under the assumption that the hardware has already
@@ -201,7 +250,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Number of bytes to be sent from the buffer
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t writePipe( DriverHandle &handle, const void *const buffer, const size_t length );
+  Chimera::Status_t writePipe( DeviceHandle &handle, const void *const buffer, const size_t length );
 
   /**
    *  Write an ACK payload for the specified pipe
@@ -219,7 +268,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Length of the data to send, up to 32 bytes max.
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t stageAckPayload( DriverHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length );
+  Chimera::Status_t stageAckPayload( DeviceHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length );
 
 
   /*-------------------------------------------------------------------------------
@@ -231,7 +280,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Reg8_t
    */
-  Reg8_t getStatusRegister( DriverHandle &handle );
+  Reg8_t getStatusRegister( DeviceHandle &handle );
 
   /**
    *  Set the power amplifier level
@@ -240,7 +289,7 @@ namespace Ripple::PHY
    *  @param[in]  level       Desired power amplifier level
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setPALevel( DriverHandle &handle, const PowerAmplitude level );
+  Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level );
 
   /**
    *  Get the current power amplitude level
@@ -248,7 +297,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return PowerAmplitude
    */
-  PowerAmplitude getPALevel( DriverHandle &handle );
+  PowerAmplitude getPALevel( DeviceHandle &handle );
 
   /**
    *  Set the TX/RX data rate
@@ -259,7 +308,7 @@ namespace Ripple::PHY
    *  @param[in]  speed       Desired speed for the radio to TX/RX with
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setDataRate( DriverHandle &handle, const DataRate speed );
+  Chimera::Status_t setDataRate( DeviceHandle &handle, const DataRate speed );
 
   /**
    *  Get the current transmission data rate
@@ -267,7 +316,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return DataRate
    */
-  DataRate getDataRate( DriverHandle &handle );
+  DataRate getDataRate( DeviceHandle &handle );
 
   /**
    *  Set the number and delay of retries upon failed transfer
@@ -277,7 +326,7 @@ namespace Ripple::PHY
    *  @param[in]  count       How many retries before giving up, max 15
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setRetries( DriverHandle &handle, const AutoRetransmitDelay delay, const size_t count );
+  Chimera::Status_t setRetries( DeviceHandle &handle, const AutoRetransmitDelay delay, const size_t count );
 
   /**
    *  Gets the current configured retransmit delay
@@ -285,7 +334,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return AutoRetransmitDelay
    */
-  AutoRetransmitDelay getRTXDelay( DriverHandle &handle );
+  AutoRetransmitDelay getRTXDelay( DeviceHandle &handle );
 
   /**
    *  Gets the current configured transmit retry count
@@ -293,7 +342,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  size_t getRTXCount( DriverHandle &handle );
+  size_t getRTXCount( DeviceHandle &handle );
 
   /**
    *  Set RF communication channel
@@ -302,7 +351,7 @@ namespace Ripple::PHY
    *  @param[in]  channel     Which RF channel to communicate on, 0-125
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setRFChannel( DriverHandle &handle, const size_t channel );
+  Chimera::Status_t setRFChannel( DeviceHandle &handle, const size_t channel );
 
   /**
    *  Get the current RF communication channel
@@ -310,7 +359,59 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  size_t getRFChannel( DriverHandle &handle );
+  size_t getRFChannel( DeviceHandle &handle );
+
+  /**
+   *  Sets the ISR mask to enable/disable interrupt event generations on the
+   *  device's IRQ pin.
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  msk         Bit field of which ISRs to enable
+   *  @return Chimera::Stauts_t
+   */
+  Chimera::Status_t setISRMasks( DeviceHandle &handle, const bfISRMask msk );
+
+  /**
+   *  Gets the currently enabled ISR masks
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return bfISRMaskS
+   */
+  bfISRMask getISRMasks( DeviceHandle &handle );
+
+  /**
+   *  Set device address width
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  width       Which address width to set
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t setAddressWidth( DeviceHandle &handle, const AddressWidth width );
+
+  /**
+   *  Gets the current address width setting
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return AddressWidth
+   */
+  AddressWidth getAddressWidth( DeviceHandle &handle );
+
+  /**
+   *  Set the CRC length used for RF packet transactions
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  length      Which CRC length to set
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t setCRCLength( DeviceHandle &handle, const CRCLength length );
+
+  /**
+   *  Get the current CRC length
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return CRCLength
+   */
+  CRCLength getCRCLength( DeviceHandle &handle );
 
   /**
    *  Set static payload size
@@ -319,7 +420,7 @@ namespace Ripple::PHY
    *  @param[in]  size        The number of bytes in the payload
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setStaticPayloadSize( DriverHandle &handle, const size_t size, const PipeNumber pipe );
+  Chimera::Status_t setStaticPayloadSize( DeviceHandle &handle, const size_t size, const PipeNumber pipe );
 
   /**
    *  Get the currently configured static payload size
@@ -328,7 +429,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        The pipe to check
    *  @return size_t
    */
-  size_t getStaticPayloadSize( DriverHandle &handle, const PipeNumber pipe );
+  size_t getStaticPayloadSize( DeviceHandle &handle, const PipeNumber pipe );
 
   /**
    *  Check if data is available to be read on any pipe. If so, returns a bitfield that indicates
@@ -337,7 +438,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return PipeNumber
    */
-  PipeNumber getFIFOPayloadAvailable( DriverHandle &handle );
+  PipeNumber getFIFOPayloadAvailable( DeviceHandle &handle );
 
   /**
    *  Gets how many bytes are available in the latest RX FIFO payload
@@ -345,7 +446,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  size_t getFIFOPayloadSize( DriverHandle &handle );
+  size_t getFIFOPayloadSize( DeviceHandle &handle );
 
 }    // namespace Ripple::PHY
 

@@ -14,12 +14,12 @@ set(LINK_LIBS
 # Interface Library
 # ====================================================
 function(build_library variant)
-  set(DRIVER ripple_network${variant})
+  set(DRIVER ripple_shared${variant})
   add_library(${DRIVER} STATIC
-    net_thread.cpp
+    cmn_utils.cpp
   )
   target_link_libraries(${DRIVER} PRIVATE ${LINK_LIBS} prj_device_target prj_build_target${variant})
-  export(TARGETS ${DRIVER} FILE "${PROJECT_BINARY_DIR}/Ripple/network/${DRIVER}.cmake")
+  export(TARGETS ${DRIVER} FILE "${PROJECT_BINARY_DIR}/Ripple/shared/${DRIVER}.cmake")
 endfunction()
 
 add_target_variants(build_library)
