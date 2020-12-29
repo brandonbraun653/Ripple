@@ -158,6 +158,8 @@ namespace Ripple::PHY
     ISR_MSK_TX_DS  = ( 1u << 0 ),
     ISR_MSK_RX_DR  = ( 1u << 1 ),
     ISR_MSK_MAX_RT = ( 1u << 2 ),
+
+    ISR_MSK_ALL = ISR_MSK_MAX_RT | ISR_MSK_RX_DR | ISR_MSK_TX_DS
   };
 
   enum bfControlFlags : uint8_t

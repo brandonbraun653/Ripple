@@ -37,6 +37,24 @@ namespace Ripple::DATALINK
   -------------------------------------------------*/
   void Service::run( SessionContext context )
   {
+    using namespace Chimera::Threading;
+
+    /*-------------------------------------------------
+    Wait for this thread to be told to initialize
+    -------------------------------------------------*/
+    ThreadMsg msg = ITCMsg::ITC_NOP;
+    while ( true )
+    {
+      if ( this_thread::receiveTaskMsg( msg, TIMEOUT_BLOCK ) && ( msg == ITCMsg::ITC_WAKEUP ) )
+      {
+        break;
+      }
+      else
+      {
+        this_thread::yield();
+      }
+    }
+
     /*-------------------------------------------------
     Prepare the service to run
     -------------------------------------------------*/
@@ -46,6 +64,11 @@ namespace Ripple::DATALINK
       tmp.id = VECT_UNHANDLED;
       mCBRegistry[ VECT_UNHANDLED ]( tmp );
     }
+
+    auto hndl = PHY::getHandle( context );
+
+    Ripple::PHY::openDevice( hndl->cfg, *hndl );
+    Ripple::PHY::resetRegisterDefaults( *hndl );
 
     /*-------------------------------------------------
     Exectue the service
@@ -222,4 +245,9 @@ namespace Ripple::DATALINK
     return result;
   }
 
+
+  void Service::unhandledCallback( CBData &id )
+  {
+    // Do nothing
+  }
 }    // namespace Ripple::DATALINK

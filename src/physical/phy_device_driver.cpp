@@ -94,8 +94,10 @@ namespace Ripple::PHY
   {
     // Do not perform the configuration here. Simply validate that the device
     // is connected on the configured GPIO/SPI drivers.
+    handle.opened = true;
+    handle.cfg = cfg;
 
-    return Chimera::Status::NOT_SUPPORTED;
+    return Chimera::Status::OK;
   }
 
 
@@ -592,31 +594,155 @@ namespace Ripple::PHY
   -------------------------------------------------------------------------------*/
   Reg8_t getStatusRegister( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return 0;
+    }
+
+    return writeCommand( handle, CMD_NOP );
   }
 
 
   Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Merge bits from level into setup according to a mask
+    https://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge
+    -------------------------------------------------*/
+    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+    setup ^= ( setup ^ static_cast<uint8_t>( level ) ) & RF_SETUP_RF_PWR_Msk;
+
+    /*-------------------------------------------------
+    Update the register setting
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_RF_SETUP, setup );
+    handle.registerCache.RF_SETUP = setup;
+
+    return Chimera::Status::OK;
   }
 
 
   PowerAmplitude getPALevel( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      Chimera::insert_debug_breakpoint();
+      return PowerAmplitude::PA_LOW;
+    }
+
+    /*-------------------------------------------------
+    Read and convert the latest data
+    -------------------------------------------------*/
+    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+    handle.registerCache.RF_SETUP = setup;
+
+    return static_cast<PowerAmplitude>( ( setup & RF_SETUP_RF_PWR ) >> 1 );
   }
 
 
   Chimera::Status_t setDataRate( DeviceHandle &handle, const DataRate speed )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*------------------------------------------------
+    Cache the current setup so we don't blow away bits
+    ------------------------------------------------*/
+    Reg8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+
+    /*------------------------------------------------
+    Decide which bits need to be set/cleared
+    ------------------------------------------------*/
+    switch ( speed )
+    {
+      case DataRate::DR_250KBPS:
+        setup |= RF_SETUP_RF_DR_LOW;
+        setup &= ~RF_SETUP_RF_DR_HIGH;
+        break;
+
+      case DataRate::DR_1MBPS:
+        setup &= ~( RF_SETUP_RF_DR_HIGH | RF_SETUP_RF_DR_LOW );
+        break;
+
+      case DataRate::DR_2MBPS:
+        setup &= ~RF_SETUP_RF_DR_LOW;
+        setup |= RF_SETUP_RF_DR_HIGH;
+        break;
+
+      default:
+        return Chimera::Status::INVAL_FUNC_PARAM;
+        break;
+    }
+
+    /*------------------------------------------------
+    Write the configuration and verify it was set properly
+    ------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_RF_SETUP, setup );
+    handle.registerCache.RF_SETUP = setup;
+
+    return Chimera::Status::OK;
   }
 
 
   DataRate getDataRate( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      Chimera::insert_debug_breakpoint();
+      return DataRate::DR_250KBPS;
+    }
+
+    /*-------------------------------------------------
+    Convert the current register setting
+    -------------------------------------------------*/
+    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+    handle.registerCache.RF_SETUP = setup;
+    return static_cast<DataRate>( setup & ( RF_SETUP_RF_DR_HIGH | RF_SETUP_RF_DR_LOW ) );
   }
 
 
   Chimera::Status_t setRetries( DeviceHandle &handle, const AutoRetransmitDelay delay, const size_t count )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Convert to the proper register settings
+    -------------------------------------------------*/
+    Reg8_t ard        = ( static_cast<Reg8_t>( delay ) & 0x0F ) << SETUP_RETR_ARD_Pos;
+    Reg8_t arc        = ( count & 0x0F ) << SETUP_RETR_ARC_Pos;
+    Reg8_t setup_retr = ard | arc;
+
+    writeRegister( handle, REG_ADDR_SETUP_RETR, setup_retr );
+    handle.registerCache.SETUP_RETR = setup_retr;
+    return Chimera::Status::OK;
   }
 
 
@@ -632,11 +758,77 @@ namespace Ripple::PHY
 
   Chimera::Status_t setRFChannel( DeviceHandle &handle, const size_t channel )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Write the RF channel
+    -------------------------------------------------*/
+    auto maskedChannel = static_cast<Reg8_t>( channel & RF_CH_Mask );
+    writeRegister( handle, REG_ADDR_RF_CH, maskedChannel );
+    handle.registerCache.RF_CH = maskedChannel;
+
+    return Chimera::Status::OK;
   }
 
 
   size_t getRFChannel( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if( !driverReady( handle ) )
+    {
+      return 0;
+    }
+
+    /*-------------------------------------------------
+    Channel is directly convertible from register value
+    -------------------------------------------------*/
+    auto channel = readRegister( handle, REG_ADDR_RF_CH );
+    handle.registerCache.RF_CH = channel;
+    return static_cast<size_t>( channel );
+  }
+
+
+  Chimera::Status_t setISRMasks( DeviceHandle &handle, const bfISRMask msk )
+  {
+
+  }
+
+
+  bfISRMask getISRMasks( DeviceHandle &handle )
+  {
+
+  }
+
+
+  Chimera::Status_t setAddressWidth( DeviceHandle &handle, const AddressWidth width )
+  {
+
+  }
+
+
+  AddressWidth getAddressWidth( DeviceHandle &handle )
+  {
+
+  }
+
+
+  Chimera::Status_t setCRCLength( DeviceHandle &handle, const CRCLength length )
+  {
+
+  }
+
+
+  CRCLength getCRCLength( DeviceHandle &handle )
+  {
+
   }
 
 

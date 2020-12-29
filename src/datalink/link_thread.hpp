@@ -22,8 +22,10 @@
 namespace Ripple::DATALINK
 {
   /*-------------------------------------------------------------------------------
-  Public Functions
+  Constants
   -------------------------------------------------------------------------------*/
+  static constexpr size_t THREAD_STACK          = STACK_BYTES( 1024 );
+  static constexpr std::string_view THREAD_NAME = "heartbeat";
 
 
   /*-------------------------------------------------------------------------------
