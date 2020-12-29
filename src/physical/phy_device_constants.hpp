@@ -20,6 +20,11 @@
 
 namespace Ripple::PHY
 {
+  /*-------------------------------------------------
+  Driver Configuration
+  -------------------------------------------------*/
+  static constexpr bool ValidateRegisters = false;
+
   /*------------------------------------------------
   Hardware Configuration
   ------------------------------------------------*/
@@ -35,6 +40,7 @@ namespace Ripple::PHY
   static constexpr size_t MAX_NUM_RX_PIPES    = MAX_NUM_PIPES;
   static constexpr size_t MIN_TX_PAYLOAD_SIZE = 0;
   static constexpr size_t MAX_TX_PAYLOAD_SIZE = 32;
+  static constexpr size_t DFLT_PAYLOAD_SIZE   = MAX_TX_PAYLOAD_SIZE;
   static constexpr size_t MIN_ADDR_BYTES      = 3;
   static constexpr size_t MAX_ADDR_BYTES      = 5;
 

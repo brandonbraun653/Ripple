@@ -41,6 +41,12 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
+  enum class PayloadType : uint8_t
+  {
+    PAYLOAD_REQUIRES_ACK,
+    PAYLOAD_NO_ACK
+  };
+
   enum PipeBitField_t : uint8_t
   {
     PIPE_BF_0 = ( 1u << 0 ),
@@ -110,7 +116,10 @@ namespace Ripple::PHY
   {
     CRC_DISABLED, /**< No CRC */
     CRC_8,        /**< 8 Bit CRC */
-    CRC_16        /**< 16 Bit CRC */
+    CRC_16,       /**< 16 Bit CRC */
+
+    CRC_NUM_OPTIONS,
+    CRC_UNKNOWN
   };
 
   /**
@@ -120,9 +129,12 @@ namespace Ripple::PHY
    */
   enum AddressWidth : uint8_t
   {
-    AW_3Byte = 0x01,
-    AW_4Byte = 0x02,
-    AW_5Byte = 0x03
+    AW_3Byte = 3,
+    AW_4Byte,
+    AW_5Byte,
+
+    AW_NUM_OPTIONS,
+    AW_UNKNOWN
   };
 
   /**
@@ -149,12 +161,34 @@ namespace Ripple::PHY
 
     ART_DELAY_MIN = ART_DELAY_250uS,
     ART_DELAY_MED = ART_DELAY_2250uS,
-    ART_DELAY_MAX = ART_DELAY_4000uS
+    ART_DELAY_MAX = ART_DELAY_4000uS,
+    ART_DELAY_UNKNOWN = std::numeric_limits<uint8_t>::max()
   };
 
+  enum AutoRetransmitCount : uint8_t
+  {
+    ART_COUNT_DISABLED,
+    ART_COUNT_1,
+    ART_COUNT_2,
+    ART_COUNT_3,
+    ART_COUNT_4,
+    ART_COUNT_5,
+    ART_COUNT_6,
+    ART_COUNT_7,
+    ART_COUNT_8,
+    ART_COUNT_9,
+    ART_COUNT_10,
+    ART_COUNT_11,
+    ART_COUNT_12,
+    ART_COUNT_13,
+    ART_COUNT_14,
+    ART_COUNT_15,
+    ART_COUNT_INVALID
+  };
 
   enum bfISRMask : uint8_t
   {
+    ISR_NONE       = 0,
     ISR_MSK_TX_DS  = ( 1u << 0 ),
     ISR_MSK_RX_DR  = ( 1u << 1 ),
     ISR_MSK_MAX_RT = ( 1u << 2 ),

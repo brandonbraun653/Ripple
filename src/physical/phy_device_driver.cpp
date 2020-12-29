@@ -51,11 +51,57 @@ namespace Ripple::PHY
     { REG_ADDR_RX_PW_P3, RX_PW_P3_Reset },
     { REG_ADDR_RX_PW_P4, RX_PW_P4_Reset },
     { REG_ADDR_RX_PW_P5, RX_PW_P5_Reset },
-    { REG_ADDR_FIFO_STATUS, FIFO_STATUS_Reset },
     { REG_ADDR_DYNPD, DYNPD_Reset },
     { REG_ADDR_FEATURE, FEATURE_Reset }
     /* clang-format on */
   };
+
+  /* clang-format off */
+  static const uint8_t rxPipeAddressRegister[ MAX_NUM_PIPES ] = {
+    REG_ADDR_RX_ADDR_P0,
+    REG_ADDR_RX_ADDR_P1,
+    REG_ADDR_RX_ADDR_P2,
+    REG_ADDR_RX_ADDR_P3,
+    REG_ADDR_RX_ADDR_P4,
+    REG_ADDR_RX_ADDR_P5
+  };
+
+  static const uint8_t rxPipePayloadWidthRegister[ MAX_NUM_PIPES ] = {
+    REG_ADDR_RX_PW_P0,
+    REG_ADDR_RX_PW_P1,
+    REG_ADDR_RX_PW_P2,
+    REG_ADDR_RX_PW_P3,
+    REG_ADDR_RX_PW_P4,
+    REG_ADDR_RX_PW_P5
+  };
+
+  static const uint8_t rxPipeEnableBitField[ MAX_NUM_PIPES ] = {
+    EN_RXADDR_P0,
+    EN_RXADDR_P1,
+    EN_RXADDR_P2,
+    EN_RXADDR_P3,
+    EN_RXADDR_P4,
+    EN_RXADDR_P5
+  };
+
+  static const uint8_t rxPipeEnableDPLMask[ MAX_NUM_PIPES ] = {
+    DYNPD_DPL_P0,
+    DYNPD_DPL_P1,
+    DYNPD_DPL_P2,
+    DYNPD_DPL_P3,
+    DYNPD_DPL_P4,
+    DYNPD_DPL_P5
+  };
+
+  static const uint8_t rxPipeEnableAAMask[ MAX_NUM_PIPES ] = {
+    EN_AA_P0,
+    EN_AA_P1,
+    EN_AA_P2,
+    EN_AA_P3,
+    EN_AA_P4,
+    EN_AA_P5
+  };
+  /* clang-format on */
 
   /*-------------------------------------------------------------------------------
   Static Functions
@@ -95,7 +141,7 @@ namespace Ripple::PHY
     // Do not perform the configuration here. Simply validate that the device
     // is connected on the configured GPIO/SPI drivers.
     handle.opened = true;
-    handle.cfg = cfg;
+    handle.cfg    = cfg;
 
     return Chimera::Status::OK;
   }
@@ -117,7 +163,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -125,13 +171,18 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Reset each register back to power-on defaults
     -------------------------------------------------*/
-    auto result = Chimera::Status::OK;
     for ( size_t x = 0; x < ARRAY_COUNT( sRegDefaults ); x++ )
     {
-      result |= writeRegister( handle, sRegDefaults[ x ].reg, sRegDefaults[ x ].val );
-      auto val = readRegister( handle, sRegDefaults[ x ].reg );
+      /*-------------------------------------------------
+      Write the register, then read it back
+      -------------------------------------------------*/
+      writeRegister( handle, sRegDefaults[ x ].reg, sRegDefaults[ x ].val );
+      uint8_t val = readRegister( handle, sRegDefaults[ x ].reg );
 
-      if ( ( val != sRegDefaults[ x ].val ) || ( result != Chimera::Status::OK ) )
+      /*-------------------------------------------------
+      Verify register settings match
+      -------------------------------------------------*/
+      if ( ( val != sRegDefaults[ x ].val ) )
       {
         Chimera::insert_debug_breakpoint();
         return Chimera::Status::FAIL;
@@ -145,7 +196,7 @@ namespace Ripple::PHY
     writeRegister( handle, REG_ADDR_RX_ADDR_P0, &RX_ADDR_P0_Reset, RX_ADDR_P0_byteWidth );
     writeRegister( handle, REG_ADDR_RX_ADDR_P1, &RX_ADDR_P1_Reset, RX_ADDR_P1_byteWidth );
 
-    return result;
+    return Chimera::Status::OK;
   }
 
 
@@ -154,7 +205,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -173,7 +224,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -194,11 +245,11 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( handle.flags & DEV_IS_LISTENING )
+    else if ( handle.flags & DEV_IS_LISTENING )
     {
       return Chimera::Status::OK;
     }
@@ -232,7 +283,7 @@ namespace Ripple::PHY
     If the Pipe 0 RX address was previously clobbered
     so that a TX could occur, restore the address.
     -------------------------------------------------*/
-    if( handle.cachedPipe0RXAddr )
+    if ( handle.cachedPipe0RXAddr )
     {
       openReadPipe( handle, PIPE_NUM_0, handle.cachedPipe0RXAddr );
     }
@@ -254,11 +305,11 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( !( handle.flags & ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) )
+    else if ( !( handle.flags & ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) )
     {
       return Chimera::Status::OK;
     }
@@ -295,11 +346,11 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) || !( handle.flags & DEV_IS_LISTENING ) )
+    if ( !driverReady( handle ) || !( handle.flags & DEV_IS_LISTENING ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( handle.flags & DEV_LISTEN_PAUSE )
+    else if ( handle.flags & DEV_LISTEN_PAUSE )
     {
       return Chimera::Status::OK;
     }
@@ -350,7 +401,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -358,9 +409,9 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Enable/disable the ack payload functionality
     -------------------------------------------------*/
-    if( state && !( handle.flags & DEV_ACK_PAYLOADS ) )
+    if ( state && !( handle.flags & DEV_ACK_PAYLOADS ) )
     {
-      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      if ( !( handle.flags & DEV_FEATURES_ACTIVE ) )
       {
         toggleFeatures( handle, true );
       }
@@ -374,7 +425,7 @@ namespace Ripple::PHY
 
       handle.flags |= DEV_ACK_PAYLOADS;
     }
-    else if( handle.flags & DEV_ACK_PAYLOADS ) // && !state
+    else if ( handle.flags & DEV_ACK_PAYLOADS )    // && !state
     {
       clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
       clrRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_DPL_P0 | DYNPD_DPL_P1 );
@@ -386,14 +437,18 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const bool state )
+  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const PipeNumber pipe, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( !( pipe < PIPE_NUM_MAX ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
     }
 
     /*-------------------------------------------------
@@ -404,7 +459,7 @@ namespace Ripple::PHY
       /*-------------------------------------------------
       Send the activate command to enable features
       -------------------------------------------------*/
-      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      if ( !( handle.flags & DEV_FEATURES_ACTIVE ) )
       {
         toggleFeatures( handle, true );
       }
@@ -418,8 +473,8 @@ namespace Ripple::PHY
       Enable dynamic payload on all pipes. This requires that
       auto-acknowledge be enabled.
       -------------------------------------------------*/
-      setRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
-      setRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_Mask );
+      setRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
+      setRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
 
       handle.flags |= DEV_FEATURES_ACTIVE;
     }
@@ -428,8 +483,8 @@ namespace Ripple::PHY
       /*-------------------------------------------------
       Disable for all pipes
       -------------------------------------------------*/
-      clrRegisterBits( handle, REG_ADDR_DYNPD, DYNPD_Mask );
-      clrRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
+      clrRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
+      clrRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
       clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
 
       handle.flags &= ~DEV_FEATURES_ACTIVE;
@@ -444,7 +499,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -454,7 +509,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     if ( state )
     {
-      if( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+      if ( !( handle.flags & DEV_FEATURES_ACTIVE ) )
       {
         toggleFeatures( handle, true );
       }
@@ -466,6 +521,8 @@ namespace Ripple::PHY
       clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DYN_ACK );
     }
     // else features are disabled, so dynamic ack is too
+
+    return Chimera::Status::OK;
   }
 
 
@@ -474,7 +531,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -482,35 +539,30 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Figure out how many pipes to operate on
     -------------------------------------------------*/
+    uint8_t mask = 0;
     if ( pipe == PIPE_NUM_ALL )
     {
-      if ( state )
-      {
-        setRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
-      }
-      else
-      {
-        clrRegisterBits( handle, REG_ADDR_EN_AA, EN_AA_Mask );
-      }
+      mask = EN_AA_Mask;
     }
     else if ( pipe < MAX_NUM_PIPES )
     {
-      uint8_t en_aa = readRegister( handle, REG_ADDR_EN_AA );
-
-      if ( state )
-      {
-        en_aa |= 1u << pipe;
-      }
-      else
-      {
-        en_aa &= ~( 1u << pipe );
-      }
-
-      writeRegister( handle, REG_ADDR_EN_AA, en_aa );
+      mask = rxPipeEnableAAMask[ pipe ];
     }
     else
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Write the data
+    -------------------------------------------------*/
+    if ( state )
+    {
+      setRegisterBits( handle, REG_ADDR_EN_AA, mask );
+    }
+    else
+    {
+      clrRegisterBits( handle, REG_ADDR_EN_AA, mask );
     }
 
     return Chimera::Status::OK;
@@ -522,7 +574,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -530,17 +582,45 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Enable/disable the features functionality
     -------------------------------------------------*/
-    if( state && !( handle.flags & DEV_FEATURES_ACTIVE ) )
+    if ( state && !( handle.flags & DEV_FEATURES_ACTIVE ) )
     {
       writeCommand( handle, CMD_ACTIVATE, &FEATURE_ACTIVATE_KEY, 1 );
       handle.flags |= DEV_FEATURES_ACTIVE;
     }
-    else if( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
+    else if ( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
     {
       writeCommand( handle, CMD_ACTIVATE, &FEATURE_ACTIVATE_KEY, 1 );
       handle.flags &= ~DEV_FEATURES_ACTIVE;
     }
     // else nothing to do
+
+    return Chimera::Status::OK;
+  }
+
+
+  Chimera::Status_t togglePower( DeviceHandle &handle, const bool state )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Set the power state
+    -------------------------------------------------*/
+    if( state )
+    {
+      setRegisterBits( handle, REG_ADDR_CONFIG, CONFIG_PWR_UP );
+    }
+    else
+    {
+      clrRegisterBits( handle, REG_ADDR_CONFIG, CONFIG_PWR_UP );
+    }
+
+    return Chimera::Status::OK;
   }
 
 
@@ -549,43 +629,293 @@ namespace Ripple::PHY
   -------------------------------------------------------------------------------*/
   Chimera::Status_t openWritePipe( DeviceHandle &handle, const MACAddress address )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Cache the currently configured RX address
+    -------------------------------------------------*/
+    readRegister( handle, REG_ADDR_RX_ADDR_P0, &handle.cachedPipe0RXAddr, MAX_ADDR_BYTES );
+
+    /*-------------------------------------------------
+    Set pipe 0 RX address == TX address. This allows the
+    reception of an ACK packet from the node at the TX
+    address.
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_RX_ADDR_P0, &address, MAX_ADDR_BYTES );
+    writeRegister( handle, REG_ADDR_TX_ADDR, &address, MAX_ADDR_BYTES );
+
+    return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t closeWritePipe( DeviceHandle &handle )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Clobber the TX pipe address
+    -------------------------------------------------*/
+    MACAddress clobber = 0;
+    writeRegister( handle, REG_ADDR_TX_ADDR, &clobber, MAX_ADDR_BYTES );
+
+    /*-------------------------------------------------
+    If possible, clobber the RX pipe as well. This is
+    allowed if the device is in TX mode, aka not
+    listening and not paused listening.
+    -------------------------------------------------*/
+    if ( !( handle.flags & ( DEV_IS_LISTENING | DEV_LISTEN_PAUSE ) ) )
+    {
+      writeRegister( handle, REG_ADDR_RX_ADDR_P0, &clobber, MAX_ADDR_BYTES );
+    }
+
+    return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t openReadPipe( DeviceHandle &handle, const PipeNumber pipe, const MACAddress address )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( !( pipe < PIPE_NUM_MAX ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Assign the address for the pipe to listen against
+    -------------------------------------------------*/
+    size_t addressBytes  = 0u;
+    MACAddress addressMask = 0u;
+
+    if ( ( pipe == PIPE_NUM_0 ) || ( pipe == PIPE_NUM_1 ) )
+    {
+      /*-------------------------------------------------
+      Write only as many address bytes as set in SETUP_AW
+      -------------------------------------------------*/
+      addressBytes = getAddressWidth( handle );
+      addressMask  = 0xFFFFFFFFFFu;
+      writeRegister( handle, rxPipeAddressRegister[ pipe ], &address, addressBytes );
+
+      /*------------------------------------------------
+      Save the pipe 0 address because it is clobbered by
+      openWritePipe() and will need to be restored later
+      when we start listening again.
+      ------------------------------------------------*/
+      if ( pipe == PIPE_NUM_0 )
+      {
+        memcpy( &handle.cachedPipe0RXAddr, &address, addressBytes );
+      }
+    }
+    else
+    {
+      addressBytes = 1u;
+      addressMask  = 0xFFu;
+
+      /*------------------------------------------------
+      These pipes only need the first bytes assigned as
+      they take the rest of their address from PIPE_NUM_0.
+      ------------------------------------------------*/
+      writeRegister( handle, rxPipeAddressRegister[ pipe ], &address, addressBytes );
+    }
+
+    /*------------------------------------------------
+    Optionally validate the write
+    ------------------------------------------------*/
+    if constexpr ( ValidateRegisters )
+    {
+      uint64_t writtenAddress = 0u;
+      readRegister( handle, rxPipeAddressRegister[ pipe ], &writtenAddress, addressBytes );
+
+      if ( writtenAddress != ( address & addressMask ) )
+      {
+        return Chimera::Status::FAIL;
+      }
+    }
+
+    /*-------------------------------------------------
+    Write the payload width, then turn the pipe on
+    -------------------------------------------------*/
+    uint8_t payloadSize = DFLT_PAYLOAD_SIZE;
+    if( handle.flags & DEV_DYNAMIC_PAYLOADS )
+    {
+      // TODO: Verify if this still allows for dynamic payloads. Datasheet says zero == disabled, but
+      //       it might be what makes this mode work for some of the cheaper chinese clones.
+      payloadSize = 0;
+    }
+
+    writeRegister( handle, rxPipePayloadWidthRegister[ pipe ], payloadSize );
+    setRegisterBits( handle, REG_ADDR_EN_RXADDR, rxPipeEnableBitField[ pipe ] );
+
+    return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t closeReadPipe( DeviceHandle &handle, const PipeNumber pipe )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if( !( pipe < PIPE_NUM_MAX ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Disable the RX pipe
+    -------------------------------------------------*/
+    clrRegisterBits( handle, REG_ADDR_EN_RXADDR, rxPipeEnableBitField[ pipe ] );
+
+    /*-------------------------------------------------
+    Clear the payload width
+    -------------------------------------------------*/
+    writeRegister( handle, rxPipePayloadWidthRegister[ pipe ], 0 );
+
+    /*-------------------------------------------------
+    Clear the RX address
+    -------------------------------------------------*/
+    MACAddress clobberAddress = 0;
+    if ( ( pipe == PIPE_NUM_0 ) || ( pipe == PIPE_NUM_1 ) )
+    {
+      writeRegister( handle, rxPipeAddressRegister[ pipe ], &clobberAddress, MAX_ADDR_BYTES );
+    }
+    else
+    {
+      writeRegister( handle, rxPipeAddressRegister[ pipe ], &clobberAddress, 1u );
+    }
+
+    /*-------------------------------------------------
+    If using dynamic payloads, disable it
+    -------------------------------------------------*/
+    if( handle.flags & DEV_DYNAMIC_PAYLOADS )
+    {
+      clrRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
+      clrRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
+    }
+
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t readFIFO( DeviceHandle &handle, void *const buffer, const size_t length )
+  Chimera::Status_t readPayload( DeviceHandle &handle, void *const buffer, const size_t length )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    using namespace Chimera::GPIO;
+
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if ( !buffer || !length )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    The chip enable pin must be low to read out data.
+    This places the device in Standby-1 mode.
+    -------------------------------------------------*/
+    State prevState = State::LOW;
+    handle.cePin->getState( prevState );
+
+    if( prevState == State::HIGH )
+    {
+      handle.cePin->setState( State::LOW );
+    }
+
+    /*-------------------------------------------------
+    Read out the payload
+    -------------------------------------------------*/
+    size_t readLength = std::min( length, MAX_TX_PAYLOAD_SIZE );
+    readCommand( handle, CMD_R_RX_PAYLOAD, buffer, readLength );
+
+    /*-------------------------------------------------
+    Reset the CE pin back to original state if needed.
+    -------------------------------------------------*/
+    if( prevState == State::HIGH )
+    {
+      handle.cePin->setState( prevState );
+    }
+
+    return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t writePipe( DeviceHandle &handle, const void *const buffer, const size_t length )
+  Chimera::Status_t writePayload( DeviceHandle &handle, const void *const buffer, const size_t length, const PayloadType type )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if ( !buffer || !length )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Select the appropriate write command
+    -------------------------------------------------*/
+    uint8_t cmd = CMD_W_TX_PAYLOAD;
+    if( type == PayloadType::PAYLOAD_NO_ACK )
+    {
+      cmd = CMD_W_TX_PAYLOAD_NO_ACK;
+    }
+
+    /*-------------------------------------------------
+    Send the data
+    -------------------------------------------------*/
+    writeCommand( handle, cmd, buffer, length );
+
+    return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t stageAckPayload( DeviceHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
   {
-    return Chimera::Status::NOT_SUPPORTED;
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if ( !buffer || !length || !( pipe < PIPE_NUM_MAX ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Perform the staging command
+    -------------------------------------------------*/
+    size_t writeLength = std::min( length, MAX_TX_PAYLOAD_SIZE );
+    writeCommand( handle, CMD_W_ACK_PAYLOAD, buffer, writeLength );
+
+    return Chimera::Status::OK;
   }
 
 
@@ -597,7 +927,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return 0;
     }
@@ -606,12 +936,40 @@ namespace Ripple::PHY
   }
 
 
+  bool rxFifoFull( DeviceHandle &handle )
+  {
+    Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
+    return status & FIFO_STATUS_RX_FULL;
+  }
+
+
+  bool rxFifoEmpty( DeviceHandle &handle )
+  {
+    Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
+    return status & FIFO_STATUS_RX_EMPTY;
+  }
+
+
+  bool txFifoFull( DeviceHandle &handle )
+  {
+    Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
+    return status & FIFO_STATUS_TX_FULL;
+  }
+
+
+  bool txFifoEmpty( DeviceHandle &handle )
+  {
+    Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
+    return status & FIFO_STATUS_TX_EMPTY;
+  }
+
+
   Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level )
   {
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -638,7 +996,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       Chimera::insert_debug_breakpoint();
       return PowerAmplitude::PA_LOW;
@@ -647,7 +1005,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Read and convert the latest data
     -------------------------------------------------*/
-    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+    uint8_t setup                 = readRegister( handle, REG_ADDR_RF_SETUP );
     handle.registerCache.RF_SETUP = setup;
 
     return static_cast<PowerAmplitude>( ( setup & RF_SETUP_RF_PWR ) >> 1 );
@@ -659,7 +1017,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -708,7 +1066,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       Chimera::insert_debug_breakpoint();
       return DataRate::DR_250KBPS;
@@ -717,7 +1075,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Convert the current register setting
     -------------------------------------------------*/
-    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
+    uint8_t setup                 = readRegister( handle, REG_ADDR_RF_SETUP );
     handle.registerCache.RF_SETUP = setup;
     return static_cast<DataRate>( setup & ( RF_SETUP_RF_DR_HIGH | RF_SETUP_RF_DR_LOW ) );
   }
@@ -728,7 +1086,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -748,11 +1106,37 @@ namespace Ripple::PHY
 
   AutoRetransmitDelay getRTXDelay( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return AutoRetransmitDelay::ART_DELAY_UNKNOWN;
+    }
+
+    /*-------------------------------------------------
+    Read the register and convert
+    -------------------------------------------------*/
+    uint8_t val = readRegister( handle, REG_ADDR_SETUP_RETR );
+    return static_cast<AutoRetransmitDelay>( ( val & SETUP_RETR_ARD_Msk ) >> SETUP_RETR_ARD_Pos );
   }
 
 
-  size_t getRTXCount( DeviceHandle &handle )
+  AutoRetransmitCount getRTXCount( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return AutoRetransmitCount::ART_COUNT_INVALID;
+    }
+
+    /*-------------------------------------------------
+    Read the register and convert
+    -------------------------------------------------*/
+    uint8_t val = readRegister( handle, REG_ADDR_SETUP_RETR );
+    return static_cast<AutoRetransmitCount>( ( val & SETUP_RETR_ARC_Msk ) >> SETUP_RETR_ARC_Pos );
   }
 
 
@@ -761,7 +1145,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
@@ -782,7 +1166,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if( !driverReady( handle ) )
+    if ( !driverReady( handle ) )
     {
       return 0;
     }
@@ -790,65 +1174,319 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Channel is directly convertible from register value
     -------------------------------------------------*/
-    auto channel = readRegister( handle, REG_ADDR_RF_CH );
+    auto channel               = readRegister( handle, REG_ADDR_RF_CH );
     handle.registerCache.RF_CH = channel;
     return static_cast<size_t>( channel );
   }
 
 
-  Chimera::Status_t setISRMasks( DeviceHandle &handle, const bfISRMask msk )
+  Chimera::Status_t setISRMasks( DeviceHandle &handle, const uint8_t msk )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
 
+    /*-------------------------------------------------
+    Read the current config settings and mask off the
+    existing flag configuration.
+    -------------------------------------------------*/
+    uint8_t cfg = readRegister( handle, REG_ADDR_CONFIG );
+    cfg |= ( CONFIG_MASK_MAX_RT | CONFIG_MASK_RX_DR | CONFIG_MASK_TX_DS );
+
+    /*-------------------------------------------------
+    Build the mask. Note the masks use negative logic,
+    so clearing the bit means enabling the interrupt.
+    -------------------------------------------------*/
+    if ( msk & bfISRMask::ISR_MSK_MAX_RT )
+    {
+      cfg &= ~CONFIG_MASK_MAX_RT;
+    }
+
+    if ( msk & bfISRMask::ISR_MSK_RX_DR )
+    {
+      cfg &= ~CONFIG_MASK_RX_DR;
+    }
+
+    if ( msk & bfISRMask::ISR_MSK_TX_DS )
+    {
+      cfg &= ~CONFIG_MASK_TX_DS;
+    }
+
+    /*-------------------------------------------------
+    Write the updated mask settings
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_CONFIG, cfg );
+    return Chimera::Status::OK;
   }
 
 
-  bfISRMask getISRMasks( DeviceHandle &handle )
+  uint8_t getISRMasks( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return bfISRMask::ISR_NONE;
+    }
 
+    /*-------------------------------------------------
+    Get the config register and look at each bit. Note
+    that the masks use negative logic, so a cleared bit
+    means the interrupt is enabled.
+    -------------------------------------------------*/
+    uint8_t msk = 0;
+    uint8_t cfg = readRegister( handle, REG_ADDR_CONFIG );
+
+    if ( !( cfg & CONFIG_MASK_MAX_RT ) )
+    {
+      msk |= bfISRMask::ISR_MSK_MAX_RT;
+    }
+
+    if ( !( cfg & CONFIG_MASK_TX_DS ) )
+    {
+      msk |= bfISRMask::ISR_MSK_TX_DS;
+    }
+
+    if ( !( cfg & CONFIG_MASK_RX_DR ) )
+    {
+      msk |= bfISRMask::ISR_MSK_RX_DR;
+    }
+
+    return msk;
   }
 
 
   Chimera::Status_t setAddressWidth( DeviceHandle &handle, const AddressWidth width )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
 
+    /*-------------------------------------------------
+    Convert the enum into the appropriate register val
+    -------------------------------------------------*/
+    uint8_t val = 0;
+    switch ( width )
+    {
+      case AddressWidth::AW_3Byte:
+        val = 0x01;
+        break;
+
+      case AddressWidth::AW_4Byte:
+        val = 0x02;
+        break;
+
+      case AddressWidth::AW_5Byte:
+        val = 0x03;
+        break;
+
+      default:
+        return Chimera::Status::INVAL_FUNC_PARAM;
+        break;
+    };
+
+    writeRegister( handle, REG_ADDR_SETUP_AW, val );
+    return Chimera::Status::OK;
   }
 
 
   AddressWidth getAddressWidth( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return AddressWidth::AW_UNKNOWN;
+    }
 
+    /*-------------------------------------------------
+    Parse the register setting
+    -------------------------------------------------*/
+    uint8_t val = readRegister( handle, REG_ADDR_SETUP_AW );
+    switch ( val )
+    {
+      case 0x01:
+        return AddressWidth::AW_3Byte;
+        break;
+
+      case 0x02:
+        return AddressWidth::AW_4Byte;
+        break;
+
+      case 0x03:
+        return AddressWidth::AW_5Byte;
+        break;
+
+      default:
+        return AddressWidth::AW_UNKNOWN;
+        break;
+    };
   }
 
 
   Chimera::Status_t setCRCLength( DeviceHandle &handle, const CRCLength length )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
 
+    /*-------------------------------------------------
+    Clear the existing config and use the new one
+    -------------------------------------------------*/
+    uint8_t config = readRegister( handle, REG_ADDR_CONFIG );
+    config &= ~( CONFIG_CRCO | CONFIG_EN_CRC );
+
+    switch ( length )
+    {
+      case CRCLength::CRC_8:
+        config |= CONFIG_EN_CRC;
+        config &= ~CONFIG_CRCO;
+        break;
+
+      case CRCLength::CRC_16:
+        config |= CONFIG_EN_CRC | CONFIG_CRCO;
+        break;
+
+      default:
+        return Chimera::Status::INVAL_FUNC_PARAM;
+        break;
+    }
+
+    writeRegister( handle, REG_ADDR_CONFIG, config );
+    return Chimera::Status::OK;
   }
 
 
   CRCLength getCRCLength( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return CRCLength::CRC_UNKNOWN;
+    }
 
+    /*-------------------------------------------------
+    CRC is either enabled manually, or automatically
+    enabled by hardware when auto-ack is enabled.
+    -------------------------------------------------*/
+    CRCLength result = CRCLength::CRC_DISABLED;
+    uint8_t config   = readRegister( handle, REG_ADDR_CONFIG );
+    uint8_t en_aa    = readRegister( handle, REG_ADDR_EN_AA );
+
+
+    if ( ( config & CONFIG_EN_CRC ) || en_aa )
+    {
+      if ( config & CONFIG_CRCO )
+      {
+        result = CRCLength::CRC_16;
+      }
+      else
+      {
+        result = CRCLength::CRC_8;
+      }
+    }
+
+    return result;
   }
 
 
   Chimera::Status_t setStaticPayloadSize( DeviceHandle &handle, const size_t size, const PipeNumber pipe )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+    else if ( !( pipe < ARRAY_COUNT( rxPipePayloadWidthRegister ) ) || !( size <= MAX_TX_PAYLOAD_SIZE ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Set the static payload size
+    -------------------------------------------------*/
+    writeRegister( handle, rxPipePayloadWidthRegister[ pipe ], static_cast<uint8_t>( size ) );
+    return Chimera::Status::OK;
   }
 
 
   size_t getStaticPayloadSize( DeviceHandle &handle, const PipeNumber pipe )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) || !( pipe < ARRAY_COUNT( rxPipePayloadWidthRegister ) ) )
+    {
+      return 0;
+    }
+
+    /*-------------------------------------------------
+    Read the static width
+    -------------------------------------------------*/
+    return readRegister( handle, rxPipePayloadWidthRegister[ pipe ] );
   }
 
 
-  PipeNumber getFIFOPayloadAvailable( DeviceHandle &handle )
+  PipeNumber getAvailablePayloadPipe( DeviceHandle &handle )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) || rxFifoEmpty( handle ) )
+    {
+      return PipeNumber::PIPE_INVALID;
+    }
+
+    /*-------------------------------------------------
+    Read the status register to get appropriate pipe
+    -------------------------------------------------*/
+    uint8_t sts = getStatusRegister( handle );
+    return static_cast<PipeNumber>( ( sts & STATUS_RX_P_NO_Msk ) >> STATUS_RX_P_NO_Pos );
   }
 
 
-  size_t getFIFOPayloadSize( DeviceHandle &handle )
+  size_t getAvailablePayloadSize( DeviceHandle &handle, const PipeNumber pipe )
   {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) || !( pipe < ARRAY_COUNT( rxPipePayloadWidthRegister ) ) )
+    {
+      return 0;
+    }
+
+    /*-------------------------------------------------
+    Using dynamic payloads? Grab the last reported size
+    else get the pipe's static configuration.
+    -------------------------------------------------*/
+    if ( handle.flags & DEV_DYNAMIC_PAYLOADS )
+    {
+      uint8_t tmp = 0;
+      readCommand( handle, CMD_R_RX_PL_WID, &tmp, 1u );
+      return tmp;
+    }
+    else
+    {
+      return getStaticPayloadSize( handle, pipe );
+    }
   }
 
 }    // namespace Ripple::PHY

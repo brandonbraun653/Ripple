@@ -136,10 +136,11 @@ namespace Ripple::PHY
    *  must be called again as well.
    *
    *  @param[in]  handle      Handle to the device
+   *  @param[in]  pipe        Which pipe to act on
    *  @param[in]  state       Enable/disable dynamic payloads
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const bool state );
+  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const PipeNumber pipe, const bool state );
 
   /**
    *  Enable/disable the ability to selectively enable the auto-ack functionality
@@ -170,6 +171,16 @@ namespace Ripple::PHY
    *  @return Chimera::Status_t
    */
   Chimera::Status_t toggleFeatures( DeviceHandle &handle, const bool state );
+
+  /**
+   *  Enables/disables the device radio power
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  state       Enable/disable
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t togglePower( DeviceHandle &handle, const bool state );
+
 
   /*-------------------------------------------------------------------------------
   Data Pipe Operations
@@ -229,28 +240,23 @@ namespace Ripple::PHY
    *  Read the available FIFO payload into a buffer
    *
    *  @param[in]  handle      Handle to the device
-   *  @param[out] buffer      Pointer to a buffer where the data should be written
-   *  @param[in]  length      Maximum number of bytes to read into the buffer
+   *  @param[out] buffer      Pointer to a buffer where the data should be written. Should be sized for max packet.
+   *  @param[in]  length      Number of bytes to read from FIFO into the buffer
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t readFIFO( DeviceHandle &handle, void *const buffer, const size_t length );
+  Chimera::Status_t readPayload( DeviceHandle &handle, void *const buffer, const size_t length );
 
   /**
    *  Immediately writes data to pipe 0 under the assumption that the hardware has already
-   *  been configured for TX transfers. This prevents the software from going through the
-   *  full TX configuration process each time a packet needs to be sent.
-   *
-   *  Prerequisite Calls:
-   *    1. openWritePipe()
-   *    2. setChannel()
-   *    3. stopListening() [Pipe 0 only]
+   *  been configured properly for the transfer.
    *
    *  @param[in]  handle      Handle to the device
    *  @param[in]  buffer      Array of data to be sent
    *  @param[in]  length      Number of bytes to be sent from the buffer
+   *  @param[in]  type        Should the hardware expect an ACK from receiver or not?
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t writePipe( DeviceHandle &handle, const void *const buffer, const size_t length );
+  Chimera::Status_t writePayload( DeviceHandle &handle, const void *const buffer, const size_t length, const PayloadType type );
 
   /**
    *  Write an ACK payload for the specified pipe
@@ -281,6 +287,38 @@ namespace Ripple::PHY
    *  @return Reg8_t
    */
   Reg8_t getStatusRegister( DeviceHandle &handle );
+
+  /**
+   *  Checks if the RX FIFO is full
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return bool
+   */
+  bool rxFifoFull( DeviceHandle &handle );
+
+  /**
+   *  Checks if the RX FIFO is empty
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return bool
+   */
+  bool rxFifoEmpty( DeviceHandle &handle );
+
+  /**
+   *  Checks if the TX FIFO is full
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return bool
+   */
+  bool txFifoFull( DeviceHandle &handle );
+
+  /**
+   *  Checks if the TX FIFO is empty
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return bool
+   */
+  bool txFifoEmpty( DeviceHandle &handle );
 
   /**
    *  Set the power amplifier level
@@ -342,7 +380,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  size_t getRTXCount( DeviceHandle &handle );
+  AutoRetransmitCount getRTXCount( DeviceHandle &handle );
 
   /**
    *  Set RF communication channel
@@ -369,15 +407,15 @@ namespace Ripple::PHY
    *  @param[in]  msk         Bit field of which ISRs to enable
    *  @return Chimera::Stauts_t
    */
-  Chimera::Status_t setISRMasks( DeviceHandle &handle, const bfISRMask msk );
+  Chimera::Status_t setISRMasks( DeviceHandle &handle, const uint8_t msk );
 
   /**
    *  Gets the currently enabled ISR masks
    *
    *  @param[in]  handle      Handle to the device
-   *  @return bfISRMaskS
+   *  @return uint8_t
    */
-  bfISRMask getISRMasks( DeviceHandle &handle );
+  uint8_t getISRMasks( DeviceHandle &handle );
 
   /**
    *  Set device address width
@@ -414,7 +452,9 @@ namespace Ripple::PHY
   CRCLength getCRCLength( DeviceHandle &handle );
 
   /**
-   *  Set static payload size
+   *  Set payload size for a given pipe. If using static payloads, the transmitter must
+   *  send the exact amount of bytes or else the pipe won't see it. If using dynamic
+   *  payloads, this setting will be ignored.
    *
    *  @param[in]  handle      Handle to the device
    *  @param[in]  size        The number of bytes in the payload
@@ -438,15 +478,17 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return PipeNumber
    */
-  PipeNumber getFIFOPayloadAvailable( DeviceHandle &handle );
+  PipeNumber getAvailablePayloadPipe( DeviceHandle &handle );
 
   /**
-   *  Gets how many bytes are available in the latest RX FIFO payload
+   *  Gets the size of the latest packet, accounting for either static or
+   *  dynamic payload width configurations.
    *
    *  @param[in]  handle      Handle to the device
+   *  @param[in]  pipe        The pipe to check (only used if static payload enabled)
    *  @return size_t
    */
-  size_t getFIFOPayloadSize( DeviceHandle &handle );
+  size_t getAvailablePayloadSize( DeviceHandle &handle, const PipeNumber pipe );
 
 }    // namespace Ripple::PHY
 
