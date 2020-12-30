@@ -73,7 +73,10 @@ namespace Ripple::DATALINK
     /*-------------------------------------------------
     Exectue the service
     -------------------------------------------------*/
-    while ( 1 ) {}
+    while ( 1 )
+    {
+      Chimera::delayMilliseconds( 100 );
+    }
   }
 
 
@@ -187,45 +190,11 @@ namespace Ripple::DATALINK
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
 
-    /*-------------------------------------------------------------------------------
-    Hardware Driver Initialization
-    -------------------------------------------------------------------------------*/
     /*-------------------------------------------------
-    Discrete GPIO: Chip Enable Pin
+    GPIO interrupt configuration
     -------------------------------------------------*/
-    physical->cePin = Chimera::GPIO::getDriver( physical->cfg.ce.port, physical->cfg.ce.pin );
-    result |= physical->cePin->init( physical->cfg.ce );
+    // Attach a member function
 
-    /*-------------------------------------------------
-    Discrete GPIO: IRQ Pin
-    -------------------------------------------------*/
-    physical->irqPin = Chimera::GPIO::getDriver( physical->cfg.irq.port, physical->cfg.irq.pin );
-    result |= physical->irqPin->init( physical->cfg.irq );
-
-    /*-------------------------------------------------
-    SPI: Chip Select Pin
-    -------------------------------------------------*/
-    physical->csPin = Chimera::GPIO::getDriver( physical->cfg.spi.CSInit.port, physical->cfg.spi.CSInit.pin );
-    result |= physical->csPin->init( physical->cfg.spi.CSInit );
-
-    /*-------------------------------------------------
-    SPI: Protocol Settings
-    -------------------------------------------------*/
-    physical->spi = Chimera::SPI::getDriver( physical->cfg.spi.HWInit.hwChannel );
-    result |= physical->spi->init( physical->cfg.spi );
-
-    /*-------------------------------------------------
-    Early exit. No point in moving forward if the GPIO
-    haven't been able to be configured correctly.
-    -------------------------------------------------*/
-    if( result != Chimera::Status::OK )
-    {
-      return result;
-    }
-
-    /*-------------------------------------------------------------------------------
-    Radio Default Settings
-    -------------------------------------------------------------------------------*/
     /*-------------------------------------------------
     Reset the device to power on conditions
     -------------------------------------------------*/

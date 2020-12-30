@@ -294,6 +294,11 @@ namespace Ripple::PHY
     uint8_t rxBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal receive buffer */
     uint64_t cachedPipe0RXAddr;                  /**< RX address cache when Pipe 0 need to become TX */
     // TBD
+
+    void clear()
+    {
+
+    }
   };
 }    // namespace Ripple::PHY
 
