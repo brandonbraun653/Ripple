@@ -30,8 +30,8 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Static Data
   -------------------------------------------------------------------------------*/
+  /* clang-format off */
   static const RegisterDefaults sRegDefaults[] = {
-    /* clang-format off */
     { REG_ADDR_CONFIG, CONFIG_Reset },
     { REG_ADDR_EN_AA, EN_AA_Reset },
     { REG_ADDR_EN_RXADDR, EN_RXADDR_Reset },
@@ -53,10 +53,8 @@ namespace Ripple::PHY
     { REG_ADDR_RX_PW_P5, RX_PW_P5_Reset },
     { REG_ADDR_DYNPD, DYNPD_Reset },
     { REG_ADDR_FEATURE, FEATURE_Reset }
-    /* clang-format on */
   };
 
-  /* clang-format off */
   static const uint8_t rxPipeAddressRegister[ MAX_NUM_PIPES ] = {
     REG_ADDR_RX_ADDR_P0,
     REG_ADDR_RX_ADDR_P1,
