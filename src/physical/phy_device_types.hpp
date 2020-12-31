@@ -14,6 +14,7 @@
 
 /* Chimera Includes */
 #include <Chimera/common>
+#include <Chimera/exti>
 #include <Chimera/gpio>
 #include <Chimera/spi>
 
@@ -257,6 +258,8 @@ namespace Ripple::PHY
     Chimera::GPIO::PinInit irq;     /**< IRQ pin GPIO configuration */
     Chimera::GPIO::PinInit ce;      /**< Chip enable GPIO configuration */
 
+    Chimera::EXTI::EdgeTrigger irqEdge;
+
     /*-------------------------------------------------
     Driver Configuration
     -------------------------------------------------*/
@@ -270,7 +273,7 @@ namespace Ripple::PHY
   };
 
 
-  struct DeviceHandle
+  struct Handle
   {
     /*-------------------------------------------------
     Physical Interface

@@ -1,6 +1,6 @@
 /********************************************************************************
  *  File Name:
- *    link_thread.hpp
+ *    data_link_service.hpp
  *
  *  Description:
  *    Data link layer thread interface
@@ -17,7 +17,8 @@
 
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_memory_config.hpp>
-#include <Ripple/src/datalink/link_types.hpp>
+#include <Ripple/src/datalink/data_link_types.hpp>
+#include <Ripple/src/datalink/data_link_arp.hpp>
 
 namespace Ripple::DATALINK
 {
@@ -41,7 +42,7 @@ namespace Ripple::DATALINK
    *
    *  A Frame is the primary data type this layer understands how to process.
    */
-  class Service
+  class Service : Chimera::Threading::Lockable
   {
   public:
     Service();
@@ -100,6 +101,14 @@ namespace Ripple::DATALINK
     Chimera::Status_t powerUpRadio( SessionContext session );
 
     /**
+     *  Invokes the requested callback
+     *
+     *  @param[in]  id          The callback to invoke
+     *  @return void
+     */
+    void invokeCallback( const CallbackId id );
+
+    /**
      *  Internal unhandled callback function should the user not register anything
      *  for a particular callback id.
      *
@@ -108,12 +117,64 @@ namespace Ripple::DATALINK
      */
     void unhandledCallback( CBData &id );
 
-  private:
-    CBVectors mCBRegistry;                     /**< Callback service vectors */
-    FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;    /**< Queue for data destined for the physical layer */
-    FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;    /**< Queue for data coming from the physical layer */
-    Chimera::Threading::RecursiveMutex mMutex; /**< Thread safety lock */
+    /**
+     *  Callback that will be invoked when the radio's IRQ pin is asserted. This
+     *  method will execute in ISR space, so take care with function execution time.
+     *
+     *  @param[in]  arg         Unused, but required for callback signature
+     *  @return void
+     */
+    void irqPinAsserted( void *arg );
 
+    /**
+     *  Handle the IRQ event when a transmission succeeded
+     *
+     *  @param[in]  session     User session information
+     *  @return void
+     */
+    void processTXSuccess( SessionContext context );
+
+    /**
+     *  Handle the IRQ event when a transmission failed
+     *
+     *  @param[in]  session     User session information
+     *  @return void
+     */
+    void processTXFail( SessionContext context );
+
+    /**
+     *  Periodic process to transmit data that has been enqueued with the service
+     *
+     *  @param[in]  session     User session information
+     *  @return void
+     */
+    void processTXQueue( SessionContext context );
+
+    /**
+     *  Periodic process to read a frame off the radio and enqueues it
+     *  for handling by higher layers.
+     *
+     *  @param[in]  session     User session information
+     *  @return void
+     */
+    void processRXQueue( SessionContext context );
+
+  private:
+    volatile bool pendingEvent;                       /**< Signal flag set by an ISR that an event occurred */
+    CBVectors mCBRegistry;                            /**< Callback service vectors */
+    FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;           /**< Queue for data destined for the physical layer */
+    Chimera::Threading::RecursiveTimedMutex mTXMutex; /**< Thread safety lock */
+    FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;           /**< Queue for data coming from the physical layer */
+    Chimera::Threading::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
+    Chimera::Threading::ThreadId mThreadId;           /**< Thread registration ID */
+
+    ARPCache mAddressCache;
+
+    /*-------------------------------------------------
+    Fields associated with a TX procedure
+    -------------------------------------------------*/
+    bool txInProgress;  /**< TX is ongoing and hasn't been ACK'd yet */
+    size_t txPacketId;  /**< Which packet number is being processed */
   };
 }    // namespace Ripple::DATALINK
 

@@ -23,7 +23,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Private Functions
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t spiTransaction( DeviceHandle &handle, const void *const txBuffer, void *const rxBuffer,
+  Chimera::Status_t spiTransaction( Handle &handle, const void *const txBuffer, void *const rxBuffer,
                                     const size_t length )
   {
     using namespace Chimera::GPIO;
@@ -60,7 +60,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t readRegister( DeviceHandle &handle, const uint8_t addr )
+  uint8_t readRegister( Handle &handle, const uint8_t addr )
   {
     uint8_t tempBuffer = std::numeric_limits<uint8_t>::max();
     readRegister( handle, addr, &tempBuffer, sizeof( tempBuffer ) );
@@ -68,7 +68,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t readRegister( DeviceHandle &handle, const uint8_t addr, void *const buf, size_t len )
+  uint8_t readRegister( Handle &handle, const uint8_t addr, void *const buf, size_t len )
   {
     /*-------------------------------------------------
     Input Protection
@@ -103,13 +103,13 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t writeRegister( DeviceHandle &handle, const uint8_t addr, const uint8_t value )
+  uint8_t writeRegister( Handle &handle, const uint8_t addr, const uint8_t value )
   {
     return writeRegister( handle, addr, &value, sizeof( value ) );
   }
 
 
-  uint8_t writeRegister( DeviceHandle &handle, const uint8_t addr, const void *const buffer, size_t len )
+  uint8_t writeRegister( Handle &handle, const uint8_t addr, const void *const buffer, size_t len )
   {
     /*-------------------------------------------------
     Input Protection
@@ -141,13 +141,13 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t writeCommand( DeviceHandle &handle, const uint8_t cmd )
+  uint8_t writeCommand( Handle &handle, const uint8_t cmd )
   {
     return writeCommand( handle, cmd, nullptr, 0 );
   }
 
 
-  uint8_t writeCommand( DeviceHandle &handle, const uint8_t cmd, const void *const buffer, const size_t length )
+  uint8_t writeCommand( Handle &handle, const uint8_t cmd, const void *const buffer, const size_t length )
   {
     /*-------------------------------------------------
     Input Protection. Buffer is allowed to be nullptr
@@ -185,7 +185,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t readCommand( DeviceHandle &handle, const uint8_t cmd, void *const buffer, const size_t length )
+  uint8_t readCommand( Handle &handle, const uint8_t cmd, void *const buffer, const size_t length )
   {
     /*-------------------------------------------------
     Input Protection. Buffer is allowed to be nullptr
@@ -201,7 +201,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     size_t cmdLen        = 1;
     handle.txBuffer[ 0 ] = cmd;
-    memset( &handle.txBuffer[ 1 ], CMD_NOP, ARRAY_BYTES( DeviceHandle::txBuffer ) - 1 );
+    memset( &handle.txBuffer[ 1 ], CMD_NOP, ARRAY_BYTES( Handle::txBuffer ) - 1 );
 
     /*-------------------------------------------------
     Send the transaction
@@ -222,19 +222,19 @@ namespace Ripple::PHY
   }
 
 
-  bool registerIsBitmaskSet( DeviceHandle &handle, const uint8_t reg, const uint8_t bitmask )
+  bool registerIsBitmaskSet( Handle &handle, const uint8_t reg, const uint8_t bitmask )
   {
     return ( readRegister( handle, reg ) & bitmask ) == bitmask;
   }
 
 
-  bool registerIsAnySet( DeviceHandle &handle, const uint8_t reg, const uint8_t bitmask )
+  bool registerIsAnySet( Handle &handle, const uint8_t reg, const uint8_t bitmask )
   {
     return readRegister( handle, reg ) & bitmask;
   }
 
 
-  uint8_t setRegisterBits( DeviceHandle &handle, const uint8_t addr, const uint8_t mask )
+  uint8_t setRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
   {
     uint8_t current = readRegister( handle, addr );
     current |= mask;
@@ -242,7 +242,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t clrRegisterBits( DeviceHandle &handle, const uint8_t addr, const uint8_t mask )
+  uint8_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
   {
     uint8_t current = readRegister( handle, addr );
     current &= ~mask;

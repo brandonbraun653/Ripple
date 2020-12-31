@@ -28,9 +28,9 @@ namespace Ripple::PHY
    *  Extracts the handle from the session context
    *
    *  @param[in]  session       The current session
-   *  @return DeviceHandle *
+   *  @return Handle *
    */
-  DeviceHandle *getHandle( SessionContext session );
+  Handle *getHandle( SessionContext session );
 
 
   /*-------------------------------------------------------------------------------
@@ -43,7 +43,7 @@ namespace Ripple::PHY
    *  @param[in]  handle        Configured device handle, if opening is successful
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openDevice( const DeviceConfig &cfg, DeviceHandle &handle );
+  Chimera::Status_t openDevice( const DeviceConfig &cfg, Handle &handle );
 
   /**
    *  Closes the device associated with the handle
@@ -51,7 +51,7 @@ namespace Ripple::PHY
    *  @param[in]  handle        The device to close
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeDevice( DeviceHandle &handle );
+  Chimera::Status_t closeDevice( Handle &handle );
 
 
   /*-------------------------------------------------------------------------------
@@ -63,7 +63,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t resetRegisterDefaults( DeviceHandle &handle );
+  Chimera::Status_t resetRegisterDefaults( Handle &handle );
 
   /**
    *  Clears out the TX FIFO
@@ -71,7 +71,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t flushTX( DeviceHandle &handle );
+  Chimera::Status_t flushTX( Handle &handle );
 
   /**
    *  Clears out the RX FIFO
@@ -79,7 +79,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t flushRX( DeviceHandle &handle );
+  Chimera::Status_t flushRX( Handle &handle );
 
   /**
    *  Start listening on the pipes opened for reading.
@@ -91,7 +91,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t startListening( DeviceHandle &handle );
+  Chimera::Status_t startListening( Handle &handle );
 
   /**
    *  Stop listening for RX messages and switch to transmit mode. Does nothing if already
@@ -100,7 +100,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t stopListening( DeviceHandle &handle );
+  Chimera::Status_t stopListening( Handle &handle );
 
   /**
    *  Pauses a currently listening device. Does nothing if the device is not listening.
@@ -108,7 +108,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t pauseListening( DeviceHandle &handle );
+  Chimera::Status_t pauseListening( Handle &handle );
 
   /**
    *  Resumes listening a paused device. Does nothing if the device is not paused.
@@ -116,7 +116,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t resumeListening( DeviceHandle &handle );
+  Chimera::Status_t resumeListening( Handle &handle );
 
   /**
    *  Enables/disables sending payloads along with ACK frames. Must have
@@ -126,7 +126,7 @@ namespace Ripple::PHY
    *  @param[in]  state       Enable/disable ack payloads
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleAckPayloads( DeviceHandle &handle, const bool state );
+  Chimera::Status_t toggleAckPayloads( Handle &handle, const bool state );
 
   /**
    *  Enable dynamically-sized payloads for both TX and ACK packets
@@ -140,7 +140,7 @@ namespace Ripple::PHY
    *  @param[in]  state       Enable/disable dynamic payloads
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const PipeNumber pipe, const bool state );
+  Chimera::Status_t toggleDynamicPayloads( Handle &handle, const PipeNumber pipe, const bool state );
 
   /**
    *  Enable/disable the ability to selectively enable the auto-ack functionality
@@ -151,7 +151,7 @@ namespace Ripple::PHY
    *  @param[in]  state       Enable/disable the dynamic ack function
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleDynamicAck( DeviceHandle &handle, const bool state );
+  Chimera::Status_t toggleDynamicAck( Handle &handle, const bool state );
 
   /**
    *  Enable/disable the Auto-Ack functionality upon packet reception
@@ -161,7 +161,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        Which pipe to act on
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleAutoAck( DeviceHandle &handle, const bool state, const PipeNumber pipe );
+  Chimera::Status_t toggleAutoAck( Handle &handle, const bool state, const PipeNumber pipe );
 
   /**
    *  Enable/disable the device Feature register
@@ -170,7 +170,7 @@ namespace Ripple::PHY
    *  @param[in]  state       Enable/disable
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t toggleFeatures( DeviceHandle &handle, const bool state );
+  Chimera::Status_t toggleFeatures( Handle &handle, const bool state );
 
   /**
    *  Enables/disables the device radio power
@@ -179,7 +179,7 @@ namespace Ripple::PHY
    *  @param[in]  state       Enable/disable
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t togglePower( DeviceHandle &handle, const bool state );
+  Chimera::Status_t togglePower( Handle &handle, const bool state );
 
 
   /*-------------------------------------------------------------------------------
@@ -192,7 +192,7 @@ namespace Ripple::PHY
    *  @param[in]  address     The address for pipe 0 to write to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openWritePipe( DeviceHandle &handle, const MACAddress address );
+  Chimera::Status_t openWritePipe( Handle &handle, const MACAddress address );
 
   /**
    *  Closes pipe 0 for writing. Can be safely called without previously calling open.
@@ -200,7 +200,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeWritePipe( DeviceHandle &handle );
+  Chimera::Status_t closeWritePipe( Handle &handle );
 
   /**
    *  Open any pipe for reading. Up to 6 pipes can be open for reading at once.  Open all the required
@@ -224,7 +224,7 @@ namespace Ripple::PHY
    *  @param[in]  address     The address you want the pipe to listen to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openReadPipe( DeviceHandle &handle, const PipeNumber pipe, const MACAddress address );
+  Chimera::Status_t openReadPipe( Handle &handle, const PipeNumber pipe, const MACAddress address );
 
   /**
    *  Close a pipe after it has been previously opened.
@@ -234,7 +234,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        Which pipe number to close, 0-5.
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeReadPipe( DeviceHandle &handle, const PipeNumber pipe );
+  Chimera::Status_t closeReadPipe( Handle &handle, const PipeNumber pipe );
 
   /**
    *  Read the available FIFO payload into a buffer
@@ -244,7 +244,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Number of bytes to read from FIFO into the buffer
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t readPayload( DeviceHandle &handle, void *const buffer, const size_t length );
+  Chimera::Status_t readPayload( Handle &handle, void *const buffer, const size_t length );
 
   /**
    *  Immediately writes data to pipe 0 under the assumption that the hardware has already
@@ -256,7 +256,7 @@ namespace Ripple::PHY
    *  @param[in]  type        Should the hardware expect an ACK from receiver or not?
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t writePayload( DeviceHandle &handle, const void *const buffer, const size_t length, const PayloadType type );
+  Chimera::Status_t writePayload( Handle &handle, const void *const buffer, const size_t length, const PayloadType type );
 
   /**
    *  Write an ACK payload for the specified pipe
@@ -274,7 +274,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Length of the data to send, up to 32 bytes max.
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t stageAckPayload( DeviceHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length );
+  Chimera::Status_t stageAckPayload( Handle &handle, const PipeNumber pipe, const void *const buffer, size_t length );
 
 
   /*-------------------------------------------------------------------------------
@@ -286,7 +286,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return Reg8_t
    */
-  Reg8_t getStatusRegister( DeviceHandle &handle );
+  Reg8_t getStatusRegister( Handle &handle );
 
   /**
    *  Checks if the RX FIFO is full
@@ -294,7 +294,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return bool
    */
-  bool rxFifoFull( DeviceHandle &handle );
+  bool rxFifoFull( Handle &handle );
 
   /**
    *  Checks if the RX FIFO is empty
@@ -302,7 +302,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return bool
    */
-  bool rxFifoEmpty( DeviceHandle &handle );
+  bool rxFifoEmpty( Handle &handle );
 
   /**
    *  Checks if the TX FIFO is full
@@ -310,7 +310,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return bool
    */
-  bool txFifoFull( DeviceHandle &handle );
+  bool txFifoFull( Handle &handle );
 
   /**
    *  Checks if the TX FIFO is empty
@@ -318,7 +318,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return bool
    */
-  bool txFifoEmpty( DeviceHandle &handle );
+  bool txFifoEmpty( Handle &handle );
 
   /**
    *  Set the power amplifier level
@@ -327,7 +327,7 @@ namespace Ripple::PHY
    *  @param[in]  level       Desired power amplifier level
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level );
+  Chimera::Status_t setPALevel( Handle &handle, const PowerAmplitude level );
 
   /**
    *  Get the current power amplitude level
@@ -335,7 +335,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return PowerAmplitude
    */
-  PowerAmplitude getPALevel( DeviceHandle &handle );
+  PowerAmplitude getPALevel( Handle &handle );
 
   /**
    *  Set the TX/RX data rate
@@ -346,7 +346,7 @@ namespace Ripple::PHY
    *  @param[in]  speed       Desired speed for the radio to TX/RX with
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setDataRate( DeviceHandle &handle, const DataRate speed );
+  Chimera::Status_t setDataRate( Handle &handle, const DataRate speed );
 
   /**
    *  Get the current transmission data rate
@@ -354,7 +354,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return DataRate
    */
-  DataRate getDataRate( DeviceHandle &handle );
+  DataRate getDataRate( Handle &handle );
 
   /**
    *  Set the number and delay of retries upon failed transfer
@@ -364,7 +364,7 @@ namespace Ripple::PHY
    *  @param[in]  count       How many retries before giving up, max 15
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setRetries( DeviceHandle &handle, const AutoRetransmitDelay delay, const size_t count );
+  Chimera::Status_t setRetries( Handle &handle, const AutoRetransmitDelay delay, const size_t count );
 
   /**
    *  Gets the current configured retransmit delay
@@ -372,7 +372,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return AutoRetransmitDelay
    */
-  AutoRetransmitDelay getRTXDelay( DeviceHandle &handle );
+  AutoRetransmitDelay getRTXDelay( Handle &handle );
 
   /**
    *  Gets the current configured transmit retry count
@@ -380,7 +380,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  AutoRetransmitCount getRTXCount( DeviceHandle &handle );
+  AutoRetransmitCount getRTXCount( Handle &handle );
 
   /**
    *  Set RF communication channel
@@ -389,7 +389,7 @@ namespace Ripple::PHY
    *  @param[in]  channel     Which RF channel to communicate on, 0-125
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setRFChannel( DeviceHandle &handle, const size_t channel );
+  Chimera::Status_t setRFChannel( Handle &handle, const size_t channel );
 
   /**
    *  Get the current RF communication channel
@@ -397,7 +397,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return size_t
    */
-  size_t getRFChannel( DeviceHandle &handle );
+  size_t getRFChannel( Handle &handle );
 
   /**
    *  Sets the ISR mask to enable/disable interrupt event generations on the
@@ -407,7 +407,7 @@ namespace Ripple::PHY
    *  @param[in]  msk         Bit field of which ISRs to enable
    *  @return Chimera::Stauts_t
    */
-  Chimera::Status_t setISRMasks( DeviceHandle &handle, const uint8_t msk );
+  Chimera::Status_t setISRMasks( Handle &handle, const uint8_t msk );
 
   /**
    *  Gets the currently enabled ISR masks
@@ -415,7 +415,24 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return uint8_t
    */
-  uint8_t getISRMasks( DeviceHandle &handle );
+  uint8_t getISRMasks( Handle &handle );
+
+  /**
+   *  Clears the requested ISR events
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  msk         Bit field of which ISRs to clear
+   *  @return Chimera::Stauts_t
+   */
+  Chimera::Status_t clrISREvent( Handle &handle, const bfISRMask msk );
+
+  /**
+   *  Gets the most recent ISR event flags
+   *
+   *  @param[in] handle       Handle to the device
+   *  @return uint8_t
+   */
+  uint8_t getISREvent( Handle &handle );
 
   /**
    *  Set device address width
@@ -424,7 +441,7 @@ namespace Ripple::PHY
    *  @param[in]  width       Which address width to set
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setAddressWidth( DeviceHandle &handle, const AddressWidth width );
+  Chimera::Status_t setAddressWidth( Handle &handle, const AddressWidth width );
 
   /**
    *  Gets the current address width setting
@@ -432,7 +449,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return AddressWidth
    */
-  AddressWidth getAddressWidth( DeviceHandle &handle );
+  AddressWidth getAddressWidth( Handle &handle );
 
   /**
    *  Set the CRC length used for RF packet transactions
@@ -441,7 +458,7 @@ namespace Ripple::PHY
    *  @param[in]  length      Which CRC length to set
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setCRCLength( DeviceHandle &handle, const CRCLength length );
+  Chimera::Status_t setCRCLength( Handle &handle, const CRCLength length );
 
   /**
    *  Get the current CRC length
@@ -449,7 +466,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return CRCLength
    */
-  CRCLength getCRCLength( DeviceHandle &handle );
+  CRCLength getCRCLength( Handle &handle );
 
   /**
    *  Set payload size for a given pipe. If using static payloads, the transmitter must
@@ -460,7 +477,7 @@ namespace Ripple::PHY
    *  @param[in]  size        The number of bytes in the payload
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setStaticPayloadSize( DeviceHandle &handle, const size_t size, const PipeNumber pipe );
+  Chimera::Status_t setStaticPayloadSize( Handle &handle, const size_t size, const PipeNumber pipe );
 
   /**
    *  Get the currently configured static payload size
@@ -469,7 +486,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        The pipe to check
    *  @return size_t
    */
-  size_t getStaticPayloadSize( DeviceHandle &handle, const PipeNumber pipe );
+  size_t getStaticPayloadSize( Handle &handle, const PipeNumber pipe );
 
   /**
    *  Check if data is available to be read on any pipe. If so, returns a bitfield that indicates
@@ -478,7 +495,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return PipeNumber
    */
-  PipeNumber getAvailablePayloadPipe( DeviceHandle &handle );
+  PipeNumber getAvailablePayloadPipe( Handle &handle );
 
   /**
    *  Gets the size of the latest packet, accounting for either static or
@@ -488,7 +505,7 @@ namespace Ripple::PHY
    *  @param[in]  pipe        The pipe to check (only used if static payload enabled)
    *  @return size_t
    */
-  size_t getAvailablePayloadSize( DeviceHandle &handle, const PipeNumber pipe );
+  size_t getAvailablePayloadSize( Handle &handle, const PipeNumber pipe );
 
 }    // namespace Ripple::PHY
 

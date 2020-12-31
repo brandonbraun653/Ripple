@@ -12,7 +12,9 @@
 #ifndef RIPPLE_LINK_INCLUDES
 #define RIPPLE_LINK_INCLUDES
 
-#include <Ripple/src/datalink/link_thread.hpp>
-#include <Ripple/src/datalink/link_types.hpp>
+#include <Ripple/src/datalink/data_link_driver.hpp>
+#include <Ripple/src/datalink/data_link_service.hpp>
+#include <Ripple/src/datalink/data_link_types.hpp>
+#include <Ripple/src/datalink/data_link_utility.hpp>
 
 #endif /* !RIPPLE_LINK_INCLUDES */

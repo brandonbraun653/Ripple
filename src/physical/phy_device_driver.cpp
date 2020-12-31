@@ -104,7 +104,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Static Functions
   -------------------------------------------------------------------------------*/
-  static bool driverReady( DeviceHandle &handle )
+  static bool driverReady( Handle &handle )
   {
     /*-------------------------------------------------
     For now, this is just a single flag
@@ -115,7 +115,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Utility Functions
   -------------------------------------------------------------------------------*/
-  DeviceHandle *getHandle( SessionContext session )
+  Handle *getHandle( SessionContext session )
   {
     if ( !session )
     {
@@ -124,7 +124,7 @@ namespace Ripple::PHY
     else
     {
       auto context  = reinterpret_cast<NetStackHandle *>( session );
-      auto physical = reinterpret_cast<PHY::DeviceHandle *>( context->physical );
+      auto physical = reinterpret_cast<PHY::Handle *>( context->physical );
 
       return physical;
     }
@@ -134,18 +134,34 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Open/Close Functions
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t openDevice( const DeviceConfig &cfg, DeviceHandle &handle )
+  Chimera::Status_t openDevice( const DeviceConfig &cfg, Handle &handle )
   {
-    // Do not perform the configuration here. Simply validate that the device
-    // is connected on the configured GPIO/SPI drivers.
-    handle.opened = true;
+    constexpr uint8_t TestChannel = 103;
+
+    /*-------------------------------------------------
+    By this point, the project should have initialized
+    all the hardware IO drivers appropriately. Try to
+    communicate with the device.
+    -------------------------------------------------*/
+    handle.opened = true; // Temporarily set to true to the read/write can work
     handle.cfg    = cfg;
 
-    return Chimera::Status::OK;
+    writeRegister( handle, REG_ADDR_RF_CH, TestChannel );
+    uint8_t val = readRegister( handle, REG_ADDR_RF_CH );
+
+    if( val == TestChannel )
+    {
+      return Chimera::Status::OK;
+    }
+    else
+    {
+      handle.opened = false;
+      return Chimera::Status::FAIL;
+    }
   }
 
 
-  Chimera::Status_t closeDevice( DeviceHandle &handle )
+  Chimera::Status_t closeDevice( Handle &handle )
   {
     // Clear the handle memory, including the drivers.
 
@@ -156,7 +172,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Device Commands
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t resetRegisterDefaults( DeviceHandle &handle )
+  Chimera::Status_t resetRegisterDefaults( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -198,7 +214,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t flushTX( DeviceHandle &handle )
+  Chimera::Status_t flushTX( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -212,12 +228,12 @@ namespace Ripple::PHY
     Flush the hardware/software TX buffers
     -------------------------------------------------*/
     writeCommand( handle, CMD_FLUSH_TX );
-    memset( handle.txBuffer, 0, ARRAY_BYTES( DeviceHandle::txBuffer ) );
+    memset( handle.txBuffer, 0, ARRAY_BYTES( Handle::txBuffer ) );
     return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t flushRX( DeviceHandle &handle )
+  Chimera::Status_t flushRX( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -231,12 +247,12 @@ namespace Ripple::PHY
     Flush the hardware/software RX buffers
     -------------------------------------------------*/
     writeCommand( handle, CMD_FLUSH_RX );
-    memset( handle.rxBuffer, 0, ARRAY_BYTES( DeviceHandle::rxBuffer ) );
+    memset( handle.rxBuffer, 0, ARRAY_BYTES( Handle::rxBuffer ) );
     return Chimera::Status::OK;
   }
 
 
-  Chimera::Status_t startListening( DeviceHandle &handle )
+  Chimera::Status_t startListening( Handle &handle )
   {
     using namespace Chimera::GPIO;
 
@@ -296,7 +312,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t stopListening( DeviceHandle &handle )
+  Chimera::Status_t stopListening( Handle &handle )
   {
     using namespace Chimera::GPIO;
 
@@ -337,7 +353,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t pauseListening( DeviceHandle &handle )
+  Chimera::Status_t pauseListening( Handle &handle )
   {
     using namespace Chimera::GPIO;
 
@@ -366,7 +382,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t resumeListening( DeviceHandle &handle )
+  Chimera::Status_t resumeListening( Handle &handle )
   {
     using namespace Chimera::GPIO;
 
@@ -394,7 +410,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleAckPayloads( DeviceHandle &handle, const bool state )
+  Chimera::Status_t toggleAckPayloads( Handle &handle, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -435,7 +451,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleDynamicPayloads( DeviceHandle &handle, const PipeNumber pipe, const bool state )
+  Chimera::Status_t toggleDynamicPayloads( Handle &handle, const PipeNumber pipe, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -492,7 +508,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleDynamicAck( DeviceHandle &handle, const bool state )
+  Chimera::Status_t toggleDynamicAck( Handle &handle, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -524,7 +540,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleAutoAck( DeviceHandle &handle, const bool state, const PipeNumber pipe )
+  Chimera::Status_t toggleAutoAck( Handle &handle, const bool state, const PipeNumber pipe )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -567,7 +583,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t toggleFeatures( DeviceHandle &handle, const bool state )
+  Chimera::Status_t toggleFeatures( Handle &handle, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -596,7 +612,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t togglePower( DeviceHandle &handle, const bool state )
+  Chimera::Status_t togglePower( Handle &handle, const bool state )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -625,7 +641,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Data Pipe Operations
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t openWritePipe( DeviceHandle &handle, const MACAddress address )
+  Chimera::Status_t openWritePipe( Handle &handle, const MACAddress address )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -652,7 +668,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t closeWritePipe( DeviceHandle &handle )
+  Chimera::Status_t closeWritePipe( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -682,7 +698,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t openReadPipe( DeviceHandle &handle, const PipeNumber pipe, const MACAddress address )
+  Chimera::Status_t openReadPipe( Handle &handle, const PipeNumber pipe, const MACAddress address )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -765,7 +781,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t closeReadPipe( DeviceHandle &handle, const PipeNumber pipe )
+  Chimera::Status_t closeReadPipe( Handle &handle, const PipeNumber pipe )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -815,7 +831,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t readPayload( DeviceHandle &handle, void *const buffer, const size_t length )
+  Chimera::Status_t readPayload( Handle &handle, void *const buffer, const size_t length )
   {
     using namespace Chimera::GPIO;
 
@@ -861,7 +877,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t writePayload( DeviceHandle &handle, const void *const buffer, const size_t length, const PayloadType type )
+  Chimera::Status_t writePayload( Handle &handle, const void *const buffer, const size_t length, const PayloadType type )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -893,7 +909,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t stageAckPayload( DeviceHandle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
+  Chimera::Status_t stageAckPayload( Handle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -920,7 +936,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Data Setters/Getters
   -------------------------------------------------------------------------------*/
-  Reg8_t getStatusRegister( DeviceHandle &handle )
+  Reg8_t getStatusRegister( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -934,35 +950,35 @@ namespace Ripple::PHY
   }
 
 
-  bool rxFifoFull( DeviceHandle &handle )
+  bool rxFifoFull( Handle &handle )
   {
     Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
     return status & FIFO_STATUS_RX_FULL;
   }
 
 
-  bool rxFifoEmpty( DeviceHandle &handle )
+  bool rxFifoEmpty( Handle &handle )
   {
     Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
     return status & FIFO_STATUS_RX_EMPTY;
   }
 
 
-  bool txFifoFull( DeviceHandle &handle )
+  bool txFifoFull( Handle &handle )
   {
     Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
     return status & FIFO_STATUS_TX_FULL;
   }
 
 
-  bool txFifoEmpty( DeviceHandle &handle )
+  bool txFifoEmpty( Handle &handle )
   {
     Reg8_t status = readRegister( handle, REG_ADDR_FIFO_STATUS );
     return status & FIFO_STATUS_TX_EMPTY;
   }
 
 
-  Chimera::Status_t setPALevel( DeviceHandle &handle, const PowerAmplitude level )
+  Chimera::Status_t setPALevel( Handle &handle, const PowerAmplitude level )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -989,7 +1005,7 @@ namespace Ripple::PHY
   }
 
 
-  PowerAmplitude getPALevel( DeviceHandle &handle )
+  PowerAmplitude getPALevel( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1010,7 +1026,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setDataRate( DeviceHandle &handle, const DataRate speed )
+  Chimera::Status_t setDataRate( Handle &handle, const DataRate speed )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1059,7 +1075,7 @@ namespace Ripple::PHY
   }
 
 
-  DataRate getDataRate( DeviceHandle &handle )
+  DataRate getDataRate( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1079,7 +1095,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setRetries( DeviceHandle &handle, const AutoRetransmitDelay delay, const size_t count )
+  Chimera::Status_t setRetries( Handle &handle, const AutoRetransmitDelay delay, const size_t count )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1102,7 +1118,7 @@ namespace Ripple::PHY
   }
 
 
-  AutoRetransmitDelay getRTXDelay( DeviceHandle &handle )
+  AutoRetransmitDelay getRTXDelay( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1120,7 +1136,7 @@ namespace Ripple::PHY
   }
 
 
-  AutoRetransmitCount getRTXCount( DeviceHandle &handle )
+  AutoRetransmitCount getRTXCount( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1138,7 +1154,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setRFChannel( DeviceHandle &handle, const size_t channel )
+  Chimera::Status_t setRFChannel( Handle &handle, const size_t channel )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1159,7 +1175,7 @@ namespace Ripple::PHY
   }
 
 
-  size_t getRFChannel( DeviceHandle &handle )
+  size_t getRFChannel( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1178,7 +1194,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setISRMasks( DeviceHandle &handle, const uint8_t msk )
+  Chimera::Status_t setISRMasks( Handle &handle, const uint8_t msk )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1222,7 +1238,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t getISRMasks( DeviceHandle &handle )
+  uint8_t getISRMasks( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1259,7 +1275,82 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setAddressWidth( DeviceHandle &handle, const AddressWidth width )
+  Chimera::Status_t clrISREvent( Handle &handle, const bfISRMask msk )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return Chimera::Status::NOT_AVAILABLE;
+    }
+
+    /*-------------------------------------------------
+    Events are cleared by writing a 1 to the STATUS
+    register bits. Only the ISR flags are writable, so
+    don't bother with a read/modify/write operation.
+    -------------------------------------------------*/
+    uint8_t sts = 0;
+
+    if ( msk & bfISRMask::ISR_MSK_MAX_RT )
+    {
+      sts |= STATUS_MAX_RT;
+    }
+
+    if ( msk & bfISRMask::ISR_MSK_RX_DR )
+    {
+      sts |= STATUS_RX_DR;
+    }
+
+    if ( msk & bfISRMask::ISR_MSK_TX_DS )
+    {
+      sts |= STATUS_TX_DS;
+    }
+
+    /*-------------------------------------------------
+    Write the updated mask settings
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_STATUS, sts );
+    return Chimera::Status::OK;
+  }
+
+
+  uint8_t getISREvent( Handle &handle )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return bfISRMask::ISR_NONE;
+    }
+
+    /*-------------------------------------------------
+    Get the status register and look at each bit
+    -------------------------------------------------*/
+    uint8_t msk = 0;
+    uint8_t sts = readRegister( handle, REG_ADDR_STATUS );
+
+    if ( sts & STATUS_MAX_RT )
+    {
+      msk |= bfISRMask::ISR_MSK_MAX_RT;
+    }
+
+    if ( sts & STATUS_TX_DS )
+    {
+      msk |= bfISRMask::ISR_MSK_TX_DS;
+    }
+
+    if ( sts & STATUS_RX_DR )
+    {
+      msk |= bfISRMask::ISR_MSK_RX_DR;
+    }
+
+    return msk;
+  }
+
+
+  Chimera::Status_t setAddressWidth( Handle &handle, const AddressWidth width )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1297,7 +1388,7 @@ namespace Ripple::PHY
   }
 
 
-  AddressWidth getAddressWidth( DeviceHandle &handle )
+  AddressWidth getAddressWidth( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1332,7 +1423,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setCRCLength( DeviceHandle &handle, const CRCLength length )
+  Chimera::Status_t setCRCLength( Handle &handle, const CRCLength length )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1369,7 +1460,7 @@ namespace Ripple::PHY
   }
 
 
-  CRCLength getCRCLength( DeviceHandle &handle )
+  CRCLength getCRCLength( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1404,7 +1495,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setStaticPayloadSize( DeviceHandle &handle, const size_t size, const PipeNumber pipe )
+  Chimera::Status_t setStaticPayloadSize( Handle &handle, const size_t size, const PipeNumber pipe )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1426,7 +1517,7 @@ namespace Ripple::PHY
   }
 
 
-  size_t getStaticPayloadSize( DeviceHandle &handle, const PipeNumber pipe )
+  size_t getStaticPayloadSize( Handle &handle, const PipeNumber pipe )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1443,7 +1534,7 @@ namespace Ripple::PHY
   }
 
 
-  PipeNumber getAvailablePayloadPipe( DeviceHandle &handle )
+  PipeNumber getAvailablePayloadPipe( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1461,7 +1552,7 @@ namespace Ripple::PHY
   }
 
 
-  size_t getAvailablePayloadSize( DeviceHandle &handle, const PipeNumber pipe )
+  size_t getAvailablePayloadSize( Handle &handle, const PipeNumber pipe )
   {
     /*-------------------------------------------------
     Entrance Checks

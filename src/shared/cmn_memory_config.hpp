@@ -24,6 +24,7 @@ namespace Ripple
   {
     static constexpr size_t TX_QUEUE_ELEMENTS = 15;
     static constexpr size_t RX_QUEUE_ELEMENTS = 15;
+    static constexpr size_t ARP_CACHE_TABLE_ELEMENTS = 15;
   }
 }  // namespace Ripple
 
