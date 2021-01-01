@@ -18,6 +18,7 @@ function(build_library variant)
   add_library(${DRIVER} STATIC
     phy_device_driver.cpp
     phy_device_internal.cpp
+    phy_fsm_controller.cpp
   )
   target_link_libraries(${DRIVER} PRIVATE ${LINK_LIBS} prj_device_target prj_build_target${variant})
   export(TARGETS ${DRIVER} FILE "${PROJECT_BINARY_DIR}/Ripple/physical/${DRIVER}.cmake")

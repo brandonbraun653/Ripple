@@ -52,17 +52,7 @@ namespace Ripple::DATALINK
     mThreadId = this_thread::id();
 
     /*-------------------------------------------------
-    Prepare the service to run
-    -------------------------------------------------*/
-    if ( auto result = this->initialize( context ); result != Chimera::Status::OK )
-    {
-      invokeCallback( VECT_INIT_ERROR );
-      this_thread::suspend();
-      this_thread::yield();
-    }
-
-    /*-------------------------------------------------
-    Exectue the service
+    Verify the drivers have been registered
     -------------------------------------------------*/
     PHY::Handle *phyHandle     = PHY::getHandle( context );
     DATALINK::Handle *dlHandle = DATALINK::getHandle( context );
@@ -72,6 +62,22 @@ namespace Ripple::DATALINK
       Chimera::System::softwareReset();
     }
 
+    /*-------------------------------------------------
+    Prepare the service to run
+    -------------------------------------------------*/
+    if ( this->initialize( context ) == Chimera::Status::OK )
+    {
+      mFSMControl.receive( PHY::FSM::MsgPowerUp() );
+    }
+    else
+    {
+      Chimera::System::softwareReset();
+    }
+
+
+    /*-------------------------------------------------
+    Execute the service
+    -------------------------------------------------*/
     while ( 1 )
     {
       /*-------------------------------------------------
@@ -127,7 +133,7 @@ namespace Ripple::DATALINK
 
       Handle RX first to keep the HW FIFOs empty.
       -------------------------------------------------*/
-      processRXQueue( context );
+      //processRXQueue( context );
       processTXQueue( context );
     }
   }
@@ -263,7 +269,7 @@ namespace Ripple::DATALINK
     result |= PHY::setPALevel( *physical, physical->cfg.hwPowerAmplitude );
     result |= PHY::toggleDynamicAck( *physical, true );
 
-    if( datalink->dynamicPackets )
+    if ( datalink->dynamicPackets )
     {
       result |= PHY::toggleDynamicPayloads( *physical, PHY::PIPE_NUM_ALL, true );
     }
@@ -274,9 +280,16 @@ namespace Ripple::DATALINK
     }
 
     /*-------------------------------------------------
-    Power up the radio
+    Initialize the FSM controller
     -------------------------------------------------*/
-    result |= PHY::togglePower( *physical, true );
+    _fsmStateList[ PHY::FSM::StateId::POWERED_OFF ] = &_fsmState_PoweredOff;
+    _fsmStateList[ PHY::FSM::StateId::STANDBY_1 ]   = &_fsmState_Standby1;
+    _fsmStateList[ PHY::FSM::StateId::RX_MODE ]     = &_fsmState_RXMode;
+    _fsmStateList[ PHY::FSM::StateId::TX_MODE ]     = &_fsmState_TXMode;
+
+    mFSMControl.mHandle = physical;
+    mFSMControl.set_states( _fsmStateList, etl::size( _fsmStateList ) );
+    mFSMControl.start();
 
     return result;
   }
@@ -333,13 +346,11 @@ namespace Ripple::DATALINK
 
   void Service::processTXSuccess( SessionContext context )
   {
-
   }
 
 
   void Service::processTXFail( SessionContext context )
   {
-
   }
 
 
@@ -356,35 +367,30 @@ namespace Ripple::DATALINK
     {
       return;
     }
-    else if( mTXQueue.empty() )
+    else if ( mTXQueue.empty() )
     {
-      mTXMutex.unlock();
-
       /*-------------------------------------------------
-      Make sure the hardware is listening
+      Nothing to TX, so ensure hardware is listening
       -------------------------------------------------*/
-      phy = PHY::getHandle( context );
-      if( !( phy->flags & PHY::DEV_IS_LISTENING ) )
-      {
-        PHY::startListening( *phy );
-      }
-
+      mTXMutex.unlock();
+      mFSMControl.receive( PHY::FSM::MsgStartRX() );
       return;
     }
+
     /*-------------------------------------------------
     Look up the hardware address associated with the
     destination node.
     -------------------------------------------------*/
-    const Frame& cacheFrame = mTXQueue.front();
-    MACAddress dstAddress = 0;
+    const Frame &cacheFrame = mTXQueue.front();
+    MACAddress dstAddress   = 0;
 
-    if( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
+    if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
     {
       CBData tmp;
       tmp.frameNumber = cacheFrame.frameNumber;
-      tmp.id = VECT_UNKNOWN_DESTINATION;
+      tmp.id          = VECT_UNKNOWN_DESTINATION;
 
-      mCBRegistry[VECT_UNKNOWN_DESTINATION]( tmp );
+      mCBRegistry[ VECT_UNKNOWN_DESTINATION ]( tmp );
       mTXQueue.pop();
       mTXMutex.unlock();
       txInProgress = false;
@@ -404,7 +410,7 @@ namespace Ripple::DATALINK
     the proper payload length settings are set.
     -------------------------------------------------*/
     PHY::PayloadType txType;
-    if( cacheFrame.control & bfControlFlags::CTRL_NO_ACK )
+    if ( cacheFrame.control & bfControlFlags::CTRL_NO_ACK )
     {
       txType = PHY::PayloadType::PAYLOAD_NO_ACK;
     }
@@ -443,7 +449,7 @@ namespace Ripple::DATALINK
     {
       return;
     }
-    else if( mRXQueue.full() )
+    else if ( mRXQueue.full() )
     {
       /*-------------------------------------------------
       Try and dump data out of the queue
@@ -452,7 +458,7 @@ namespace Ripple::DATALINK
       this->invokeCallback( CallbackId::VECT_RX_QUEUE_FULL );
       return;
     }
-    else if( txInProgress )
+    else if ( txInProgress )
     {
       /*-------------------------------------------------
       TX-ing and RX-ing are exclusive. Play nice.

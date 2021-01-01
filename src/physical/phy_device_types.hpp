@@ -75,18 +75,12 @@ namespace Ripple::PHY
 
 
   /**
-   *   Definitions for tracking the hardware state machine mode
+   *   Modes the transceiver may be in
    */
-  enum Mode : uint8_t
+  enum TranscieverMode : uint8_t
   {
-    MODE_POWER_DOWN = 0,
-    MODE_STANDBY_I,
-    MODE_STANDBY_II,
-    MODE_RX,
-    MODE_TX,
-
-    MAX_MODES,
-    UNKNOWN_MODE
+    TRANSMIT,
+    RECEIVE
   };
 
   /**

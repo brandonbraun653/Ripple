@@ -460,9 +460,26 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( !( pipe < PIPE_NUM_MAX ) )
+    else if( !( pipe < PIPE_NUM_MAX ) && !( pipe == PIPE_NUM_ALL ) )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Determine mask to apply to EN_AA & DYNPD registers
+    -------------------------------------------------*/
+    uint8_t en_aa_mask = 0;
+    uint8_t dynpd_mask = 0;
+
+    if( pipe == PIPE_NUM_ALL )
+    {
+      en_aa_mask = EN_AA_Mask;
+      dynpd_mask = DYNPD_Mask;
+    }
+    else
+    {
+      en_aa_mask = rxPipeEnableAAMask[ pipe ];
+      dynpd_mask = rxPipeEnableDPLMask[ pipe ];
     }
 
     /*-------------------------------------------------
@@ -487,8 +504,8 @@ namespace Ripple::PHY
       Enable dynamic payload on all pipes. This requires that
       auto-acknowledge be enabled.
       -------------------------------------------------*/
-      setRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
-      setRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
+      setRegisterBits( handle, REG_ADDR_EN_AA, en_aa_mask );
+      setRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
 
       handle.flags |= DEV_FEATURES_ACTIVE;
     }
@@ -497,8 +514,8 @@ namespace Ripple::PHY
       /*-------------------------------------------------
       Disable for all pipes
       -------------------------------------------------*/
-      clrRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
-      clrRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
+      clrRegisterBits( handle, REG_ADDR_EN_AA, en_aa_mask );
+      clrRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
       clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
 
       handle.flags &= ~DEV_FEATURES_ACTIVE;
@@ -1512,7 +1529,18 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Set the static payload size
     -------------------------------------------------*/
-    writeRegister( handle, rxPipePayloadWidthRegister[ pipe ], static_cast<uint8_t>( size ) );
+    if ( pipe == PIPE_NUM_ALL )
+    {
+      for ( auto x = 0; x < PIPE_NUM_MAX; x++ )
+      {
+        writeRegister( handle, rxPipePayloadWidthRegister[ x ], static_cast<uint8_t>( size ) );
+      }
+    }
+    else
+    {
+      writeRegister( handle, rxPipePayloadWidthRegister[ pipe ], static_cast<uint8_t>( size ) );
+    }
+
     return Chimera::Status::OK;
   }
 

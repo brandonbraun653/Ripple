@@ -68,14 +68,14 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t readRegister( Handle &handle, const uint8_t addr, void *const buf, size_t len )
+  StatusReg_t readRegister( Handle &handle, const uint8_t addr, void *const buf, size_t len )
   {
     /*-------------------------------------------------
     Input Protection
     -------------------------------------------------*/
     if ( !buf || !len || ( len > MAX_SPI_DATA_LEN ) )
     {
-      return 0;
+      return INVALID_STATUS_REG;
     }
 
     /*------------------------------------------------
@@ -90,7 +90,7 @@ namespace Ripple::PHY
     if ( Chimera::Status::OK != spiTransaction( handle, handle.txBuffer, handle.rxBuffer, len + 1 ) )
     {
       Chimera::insert_debug_breakpoint();
-      return 0;
+      return INVALID_STATUS_REG;
     }
     else
     {
@@ -103,20 +103,20 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t writeRegister( Handle &handle, const uint8_t addr, const uint8_t value )
+  StatusReg_t writeRegister( Handle &handle, const uint8_t addr, const uint8_t value )
   {
     return writeRegister( handle, addr, &value, sizeof( value ) );
   }
 
 
-  uint8_t writeRegister( Handle &handle, const uint8_t addr, const void *const buffer, size_t len )
+  StatusReg_t writeRegister( Handle &handle, const uint8_t addr, const void *const buffer, size_t len )
   {
     /*-------------------------------------------------
     Input Protection
     -------------------------------------------------*/
     if ( !buffer || !len || ( len > MAX_SPI_DATA_LEN ) )
     {
-      return 0;
+      return INVALID_STATUS_REG;
     }
 
     /*------------------------------------------------
@@ -131,7 +131,7 @@ namespace Ripple::PHY
     if ( Chimera::Status::OK != spiTransaction( handle, handle.txBuffer, handle.rxBuffer, len + 1 ) )
     {
       Chimera::insert_debug_breakpoint();
-      return 0;
+      return INVALID_STATUS_REG;
     }
     else
     {
@@ -141,13 +141,13 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t writeCommand( Handle &handle, const uint8_t cmd )
+  StatusReg_t writeCommand( Handle &handle, const uint8_t cmd )
   {
     return writeCommand( handle, cmd, nullptr, 0 );
   }
 
 
-  uint8_t writeCommand( Handle &handle, const uint8_t cmd, const void *const buffer, const size_t length )
+  StatusReg_t writeCommand( Handle &handle, const uint8_t cmd, const void *const buffer, const size_t length )
   {
     /*-------------------------------------------------
     Input Protection. Buffer is allowed to be nullptr
@@ -155,7 +155,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     if ( length > MAX_SPI_DATA_LEN )
     {
-      return 0;
+      return INVALID_STATUS_REG;
     }
 
     /*-------------------------------------------------
@@ -175,7 +175,7 @@ namespace Ripple::PHY
     if ( Chimera::Status::OK != spiTransaction( handle, handle.txBuffer, handle.rxBuffer, cmdLen ) )
     {
       Chimera::insert_debug_breakpoint();
-      return 0;
+      return INVALID_STATUS_REG;
     }
     else
     {
@@ -185,7 +185,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t readCommand( Handle &handle, const uint8_t cmd, void *const buffer, const size_t length )
+  StatusReg_t readCommand( Handle &handle, const uint8_t cmd, void *const buffer, const size_t length )
   {
     /*-------------------------------------------------
     Input Protection. Buffer is allowed to be nullptr
@@ -193,7 +193,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     if ( !buffer || !length || length > MAX_SPI_DATA_LEN )
     {
-      return 0;
+      return INVALID_STATUS_REG;
     }
 
     /*-------------------------------------------------
@@ -209,7 +209,7 @@ namespace Ripple::PHY
     if ( Chimera::Status::OK != spiTransaction( handle, handle.txBuffer, handle.rxBuffer, cmdLen ) )
     {
       Chimera::insert_debug_breakpoint();
-      return 0;
+      return INVALID_STATUS_REG;
     }
     else
     {
@@ -234,7 +234,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t setRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
+  StatusReg_t setRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
   {
     uint8_t current = readRegister( handle, addr );
     current |= mask;
@@ -242,7 +242,7 @@ namespace Ripple::PHY
   }
 
 
-  uint8_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
+  StatusReg_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask )
   {
     uint8_t current = readRegister( handle, addr );
     current &= ~mask;

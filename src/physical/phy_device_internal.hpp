@@ -22,6 +22,21 @@
 namespace Ripple::PHY
 {
   /*-------------------------------------------------------------------------------
+  Aliases
+  -------------------------------------------------------------------------------*/
+  using StatusReg_t = uint8_t;
+
+  /*-------------------------------------------------------------------------------
+  Constants
+  -------------------------------------------------------------------------------*/
+  /**
+   *  The status register's bit 7 should only be zero when reading from the
+   *  device, so it makes a convenient "inavlid" flag for commands that return
+   *  the status register.
+   */
+  static constexpr StatusReg_t INVALID_STATUS_REG = ( 1u << 7 );
+
+  /*-------------------------------------------------------------------------------
   Private Functions
   -------------------------------------------------------------------------------*/
   /**
@@ -52,9 +67,9 @@ namespace Ripple::PHY
    *  @param[in]  addr        The address of the register to read
    *  @param[out] buf         The buffer to read into
    *  @param[in]  len         The total number of bytes to read from the register
-   *  @return uint8_t         The chip's status register
+   *  @return StatusReg_t
    */
-  uint8_t readRegister( Handle &handle, const uint8_t addr, void *const buf, size_t len );
+  StatusReg_t readRegister( Handle &handle, const uint8_t addr, void *const buf, size_t len );
 
   /**
    *  Writes a register on the device with a given value
@@ -65,9 +80,9 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @param[in]  addr        The address of the register to write
    *  @param[in]  value       The data to write to that register
-   *  @return uint8_t         The chip's status register
+   *  @return StatusReg_t
    */
-  uint8_t writeRegister( Handle &handle, const uint8_t addr, const uint8_t value );
+  StatusReg_t writeRegister( Handle &handle, const uint8_t addr, const uint8_t value );
 
   /**
    *  Writes a register on the device with multiple bytes
@@ -79,18 +94,18 @@ namespace Ripple::PHY
    *  @param[in]  addr        The address of the register to write
    *  @param[in]  buffer      The data to write to that register
    *  @param[in]  len         The number of bytes to write from the buffer
-   *  @return uint8_t         The chip's status register
+   *  @return StatusReg_t
    */
-  uint8_t writeRegister( Handle &handle, const uint8_t addr, const void *const buffer, size_t len );
+  StatusReg_t writeRegister( Handle &handle, const uint8_t addr, const void *const buffer, size_t len );
 
   /**
    *  Writes a single byte command to the device
    *
    *  @param[in]  handle      Handle to the device
    *  @param[in]  cmd         The command to write
-   *  @return uint8_t
+   *  @return StatusReg_t
    */
-  uint8_t writeCommand( Handle &handle, const uint8_t cmd );
+  StatusReg_t writeCommand( Handle &handle, const uint8_t cmd );
 
   /**
    *  Writes a mult-byte command to the device
@@ -99,9 +114,9 @@ namespace Ripple::PHY
    *  @param[in]  cmd         The command to write
    *  @param[in]  buffer      Data payload of the command
    *  @param[in]  length      Number of bytes in the data buffer
-   *  @return uint8_t
+   *  @return StatusReg_t
    */
-  uint8_t writeCommand( Handle &handle, const uint8_t cmd, const void *const buffer, const size_t length );
+  StatusReg_t writeCommand( Handle &handle, const uint8_t cmd, const void *const buffer, const size_t length );
 
   /**
    *  Sends a read command to the device and returns a number of bytes
@@ -110,9 +125,9 @@ namespace Ripple::PHY
    *  @param[in]  cmd         The command to write
    *  @param[out] buffer      Data buffer to place read bytes into
    *  @param[in]  length      Number of bytes to read. Buffer must be able to hold this amount.
-   *  @return uint8_t
+   *  @return StatusReg_t
    */
-  uint8_t readCommand( Handle &handle, const uint8_t cmd, void *const buffer, const size_t length );
+  StatusReg_t readCommand( Handle &handle, const uint8_t cmd, void *const buffer, const size_t length );
 
   /**
    *  Checks if the bit mask is set on the given register
@@ -142,7 +157,7 @@ namespace Ripple::PHY
    *  @param[in]  mask        Mask of which bits should be set
    *  @return uint8_t         The chip's status register
    */
-  uint8_t setRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask );
+  StatusReg_t setRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask );
 
   /**
    *  Performs a read/modify/write operation on a register to clear specific bits
@@ -152,7 +167,7 @@ namespace Ripple::PHY
    *  @param[in]  mask        Mask of which bits should be cleared
    *  @return uint8_t         The chip's status register
    */
-  uint8_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask );
+  StatusReg_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask );
 
 }    // namespace Ripple::PHY
 

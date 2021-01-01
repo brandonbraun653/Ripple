@@ -19,6 +19,7 @@
 #include <Ripple/src/shared/cmn_memory_config.hpp>
 #include <Ripple/src/datalink/data_link_types.hpp>
 #include <Ripple/src/datalink/data_link_arp.hpp>
+#include <Ripple/src/physical/phy_fsm_controller.hpp>
 
 namespace Ripple::DATALINK
 {
@@ -168,7 +169,21 @@ namespace Ripple::DATALINK
     Chimera::Threading::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
     Chimera::Threading::ThreadId mThreadId;           /**< Thread registration ID */
 
+    /*-------------------------------------------------
+    Lookup table for known devices
+    -------------------------------------------------*/
     ARPCache mAddressCache;
+
+    /*-------------------------------------------------
+    FSM Controller
+    -------------------------------------------------*/
+    PHY::FSM::RadioControl mFSMControl;
+    PHY::FSM::PoweredOff _fsmState_PoweredOff;
+    PHY::FSM::Standby1 _fsmState_Standby1;
+    PHY::FSM::RXMode _fsmState_RXMode;
+    PHY::FSM::TXMode _fsmState_TXMode;
+    etl::ifsm_state* _fsmStateList[ PHY::FSM::StateId::NUMBER_OF_STATES ];
+
 
     /*-------------------------------------------------
     Fields associated with a TX procedure

@@ -16,5 +16,6 @@
 #include <Ripple/src/physical/phy_device_driver.hpp>
 #include <Ripple/src/physical/phy_device_register.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
+#include <Ripple/src/physical/phy_fsm_controller.hpp>
 
 #endif /* !RIPPLE_PHYSICAL_INCLUDES */
