@@ -23,8 +23,9 @@ namespace Ripple::PHY
   -------------------------------------------------------------------------------*/
   struct RegisterDefaults
   {
-    uint8_t reg;
-    uint8_t val;
+    uint8_t reg;    /**< Register address */
+    uint8_t val;    /**< Value to write */
+    uint8_t rwMask; /**< Masks off only the R/W fields */
   };
 
   /*-------------------------------------------------------------------------------
@@ -32,27 +33,27 @@ namespace Ripple::PHY
   -------------------------------------------------------------------------------*/
   /* clang-format off */
   static const RegisterDefaults sRegDefaults[] = {
-    { REG_ADDR_CONFIG, CONFIG_Reset },
-    { REG_ADDR_EN_AA, EN_AA_Reset },
-    { REG_ADDR_EN_RXADDR, EN_RXADDR_Reset },
-    { REG_ADDR_SETUP_AW, SETUP_AW_Reset },
-    { REG_ADDR_SETUP_RETR, SETUP_RETR_Reset },
-    { REG_ADDR_RF_CH, RF_CH_Reset },
-    { REG_ADDR_RF_SETUP, RF_SETUP_Reset },
-    { REG_ADDR_STATUS, STATUS_Reset },
-    { REG_ADDR_OBSERVE_TX, OBSERVE_TX_Reset },
-    { REG_ADDR_RX_ADDR_P2, RX_ADDR_P2_Reset },
-    { REG_ADDR_RX_ADDR_P3, RX_ADDR_P3_Reset },
-    { REG_ADDR_RX_ADDR_P4, RX_ADDR_P4_Reset },
-    { REG_ADDR_RX_ADDR_P5, RX_ADDR_P5_Reset },
-    { REG_ADDR_RX_PW_P0, RX_PW_P0_Reset },
-    { REG_ADDR_RX_PW_P1, RX_PW_P1_Reset },
-    { REG_ADDR_RX_PW_P2, RX_PW_P2_Reset },
-    { REG_ADDR_RX_PW_P3, RX_PW_P3_Reset },
-    { REG_ADDR_RX_PW_P4, RX_PW_P4_Reset },
-    { REG_ADDR_RX_PW_P5, RX_PW_P5_Reset },
-    { REG_ADDR_DYNPD, DYNPD_Reset },
-    { REG_ADDR_FEATURE, FEATURE_Reset }
+    /* clang-format off */
+    { REG_ADDR_CONFIG,      CONFIG_Reset,       CONFIG_Mask     },
+    { REG_ADDR_EN_AA,       EN_AA_Reset,        EN_AA_Mask      },
+    { REG_ADDR_EN_RXADDR,   EN_RXADDR_Reset,    EN_RXADDR_Mask  },
+    { REG_ADDR_SETUP_AW,    SETUP_AW_Reset,     SETUP_AW_Mask   },
+    { REG_ADDR_SETUP_RETR,  SETUP_RETR_Reset,   SETUP_RETR_Mask },
+    { REG_ADDR_RF_CH,       RF_CH_Reset,        RF_CH_Mask      },
+    { REG_ADDR_RF_SETUP,    RF_SETUP_Reset,     RF_SETUP_Mask   },
+    { REG_ADDR_RX_ADDR_P2,  RX_ADDR_P2_Reset,   RX_ADDR_P2_Mask },
+    { REG_ADDR_RX_ADDR_P3,  RX_ADDR_P3_Reset,   RX_ADDR_P3_Mask },
+    { REG_ADDR_RX_ADDR_P4,  RX_ADDR_P4_Reset,   RX_ADDR_P4_Mask },
+    { REG_ADDR_RX_ADDR_P5,  RX_ADDR_P5_Reset,   RX_ADDR_P5_Mask },
+    { REG_ADDR_RX_PW_P0,    RX_PW_P0_Reset,     RX_PW_P0_Mask   },
+    { REG_ADDR_RX_PW_P1,    RX_PW_P1_Reset,     RX_PW_P1_Mask   },
+    { REG_ADDR_RX_PW_P2,    RX_PW_P2_Reset,     RX_PW_P2_Mask   },
+    { REG_ADDR_RX_PW_P3,    RX_PW_P3_Reset,     RX_PW_P3_Mask   },
+    { REG_ADDR_RX_PW_P4,    RX_PW_P4_Reset,     RX_PW_P4_Mask   },
+    { REG_ADDR_RX_PW_P5,    RX_PW_P5_Reset,     RX_PW_P5_Mask   },
+    { REG_ADDR_DYNPD,       DYNPD_Reset,        DYNPD_Mask      },
+    { REG_ADDR_FEATURE,     FEATURE_Reset,      FEATURE_Mask    }
+    /* clang-format on */
   };
 
   static const uint8_t rxPipeAddressRegister[ MAX_NUM_PIPES ] = {
@@ -190,13 +191,14 @@ namespace Ripple::PHY
       /*-------------------------------------------------
       Write the register, then read it back
       -------------------------------------------------*/
-      writeRegister( handle, sRegDefaults[ x ].reg, sRegDefaults[ x ].val );
-      uint8_t val = readRegister( handle, sRegDefaults[ x ].reg );
+      uint8_t maskedValue = sRegDefaults[ x ].val & sRegDefaults[ x ].rwMask;
+      writeRegister( handle, sRegDefaults[ x ].reg, maskedValue );
+      uint8_t readValue = readRegister( handle, sRegDefaults[ x ].reg );
 
       /*-------------------------------------------------
       Verify register settings match
       -------------------------------------------------*/
-      if ( ( val != sRegDefaults[ x ].val ) )
+      if ( ( readValue & sRegDefaults[ x ].rwMask ) != maskedValue )
       {
         Chimera::insert_debug_breakpoint();
         return Chimera::Status::FAIL;
@@ -209,6 +211,12 @@ namespace Ripple::PHY
     writeRegister( handle, REG_ADDR_TX_ADDR, &TX_ADDR_Reset, TX_ADDR_byteWidth );
     writeRegister( handle, REG_ADDR_RX_ADDR_P0, &RX_ADDR_P0_Reset, RX_ADDR_P0_byteWidth );
     writeRegister( handle, REG_ADDR_RX_ADDR_P1, &RX_ADDR_P1_Reset, RX_ADDR_P1_byteWidth );
+
+    /*-------------------------------------------------
+    Handle the STATUS register, which must be cleared
+    by setting bits instead.
+    -------------------------------------------------*/
+    writeRegister( handle, REG_ADDR_STATUS, STATUS_Clear );
 
     return Chimera::Status::OK;
   }

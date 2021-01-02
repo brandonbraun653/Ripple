@@ -28,7 +28,7 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Service Class Implementation
   -------------------------------------------------------------------------------*/
-  Service::Service()
+  Service::Service() : mSystemEnabled( false ), pendingEvent( false )
   {
   }
 
@@ -68,6 +68,7 @@ namespace Ripple::DATALINK
     if ( this->initialize( context ) == Chimera::Status::OK )
     {
       mFSMControl.receive( PHY::FSM::MsgPowerUp() );
+      mSystemEnabled = true;
     }
     else
     {
@@ -95,13 +96,7 @@ namespace Ripple::DATALINK
         -------------------------------------------------*/
         if ( eventMask & PHY::bfISRMask::ISR_MSK_MAX_RT )
         {
-          /* Acknowledge the event */
-          txInProgress = false;
-          PHY::clrISREvent( *phyHandle, PHY::bfISRMask::ISR_MSK_MAX_RT );
-
-          /* Move the state machine to process the fail state */
           processTXFail( context );
-          // TODO: Notify the network layer
         }
 
         /*-------------------------------------------------
@@ -119,7 +114,7 @@ namespace Ripple::DATALINK
         if ( eventMask & PHY::bfISRMask::ISR_MSK_TX_DS )
         {
           /* Acknowledge the event */
-          txInProgress = false;
+          mTXInProgress = false;
           PHY::clrISREvent( *phyHandle, PHY::bfISRMask::ISR_MSK_TX_DS );
 
           /* Move the state machine forward */
@@ -133,7 +128,7 @@ namespace Ripple::DATALINK
 
       Handle RX first to keep the HW FIFOs empty.
       -------------------------------------------------*/
-      //processRXQueue( context );
+      // processRXQueue( context );
       processTXQueue( context );
     }
   }
@@ -181,12 +176,12 @@ namespace Ripple::DATALINK
   }
 
 
-  Chimera::Status_t Service::registerCallback( const CallbackId id, CBFunction &func )
+  Chimera::Status_t Service::registerCallback( const CallbackId id, etl::delegate<void( size_t )> func )
   {
     /*-------------------------------------------------
     Input protection
     -------------------------------------------------*/
-    if ( !( id < CallbackId::VECT_NUM_OPTIONS ) )
+    if ( !( id < CallbackId::CB_NUM_OPTIONS ) )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -195,8 +190,35 @@ namespace Ripple::DATALINK
     Register the callback
     -------------------------------------------------*/
     this->lock();
-    mCBRegistry[ id ] = func;
+    if ( id == CallbackId::CB_UNHANDLED )
+    {
+      mDelegateRegistry.register_unhandled_delegate( func );
+    }
+    else
+    {
+      mDelegateRegistry.register_delegate( id, func );
+    }
     this->unlock();
+    return Chimera::Status::OK;
+  }
+
+
+  Chimera::Status_t Service::addARPEntry( const IPAddress ip, const MACAddress &mac )
+  {
+    this->lock();
+    bool result = mAddressCache.insert( ip, mac );
+    this->unlock();
+
+    return result ? Chimera::Status::OK : Chimera::Status::FAIL;
+  }
+
+
+  Chimera::Status_t Service::dropARPEntry( const IPAddress ip )
+  {
+    this->lock();
+    mAddressCache.remove( ip );
+    this->unlock();
+
     return Chimera::Status::OK;
   }
 
@@ -213,11 +235,6 @@ namespace Ripple::DATALINK
     {
       return Chimera::Status::FAIL;
     }
-
-    /*-------------------------------------------------
-    Register the unhandled event callback
-    -------------------------------------------------*/
-    mCBRegistry[ VECT_UNHANDLED ] = CBFunction::create<Service, &Service::unhandledCallback>( *this );
 
     /*-------------------------------------------------
     Clear all memory
@@ -280,6 +297,12 @@ namespace Ripple::DATALINK
     }
 
     /*-------------------------------------------------
+    Flush hardware FIFOs to clear pre-existing data
+    -------------------------------------------------*/
+    result |= PHY::flushRX( *physical );
+    result |= PHY::flushTX( *physical );
+
+    /*-------------------------------------------------
     Initialize the FSM controller
     -------------------------------------------------*/
     _fsmStateList[ PHY::FSM::StateId::POWERED_OFF ] = &_fsmState_PoweredOff;
@@ -295,52 +318,19 @@ namespace Ripple::DATALINK
   }
 
 
-  void Service::invokeCallback( const CallbackId id )
-  {
-    /*-------------------------------------------------
-    Input protection
-    -------------------------------------------------*/
-    if ( !( id < CallbackId::VECT_NUM_OPTIONS ) )
-    {
-      return;
-    }
-
-    /*-------------------------------------------------
-    Invoke the callback
-    -------------------------------------------------*/
-    CBData tmp;
-    tmp.id = id;
-
-    if ( mCBRegistry[ id ] )
-    {
-      mCBRegistry[ id ]( tmp );
-    }
-    else
-    {
-      mCBRegistry[ VECT_UNHANDLED ]( tmp );
-    }
-  }
-
-
-  void Service::unhandledCallback( CBData &id )
-  {
-    /*-------------------------------------------------
-    This really shouldn't be happening. Make noise if
-    it does.
-    -------------------------------------------------*/
-    Chimera::System::softwareReset();
-  }
-
-
   void Service::irqPinAsserted( void *arg )
   {
+    using namespace Chimera::Threading;
+
     /*-------------------------------------------------
     Let the user space thread know it has an event to
     process. Unsure what kind at this point.
     -------------------------------------------------*/
-    using namespace Chimera::Threading;
-    pendingEvent = true;
-    sendTaskMsg( mThreadId, TSK_MSG_WAKEUP, TIMEOUT_DONT_WAIT );
+    if ( mSystemEnabled )
+    {
+      pendingEvent = true;
+      sendTaskMsg( mThreadId, TSK_MSG_WAKEUP, TIMEOUT_DONT_WAIT );
+    }
   }
 
 
@@ -351,6 +341,31 @@ namespace Ripple::DATALINK
 
   void Service::processTXFail( SessionContext context )
   {
+    PHY::Handle *phyHandle = PHY::getHandle( context );
+
+    /*-------------------------------------------------------------------------------
+    The only reason a TX fail event must be processed is due to a max retry IRQ. In
+    this case, the data is not removed from the TX FIFO, so it must be done manually.
+    (RM 8.4) First transition back to Standby-1 mode, then clear event flags and flush
+    the TX FIFO. Otherwise, the IRQ will continuously fire.
+    -------------------------------------------------------------------------------*/
+    mFSMControl.receive( PHY::FSM::MsgGoToSTBY() );
+    PHY::flushTX( *phyHandle );
+    PHY::clrISREvent( *phyHandle, PHY::bfISRMask::ISR_MSK_MAX_RT );
+
+    /*-------------------------------------------------
+    Dump the frame queue and unlock the TX process
+    -------------------------------------------------*/
+    mTXInProgress = false;
+
+    mTXMutex.lock();
+    mTXQueue.pop();
+    mTXMutex.unlock();
+
+    /*-------------------------------------------------
+    Notify the network layer of the failed frame
+    -------------------------------------------------*/
+    mDelegateRegistry.call<CallbackId::CB_ERROR_MAX_RETRY>();
   }
 
 
@@ -363,7 +378,7 @@ namespace Ripple::DATALINK
     Cannot process another frame until the last one
     either successfully transmitted, or errored out.
     -------------------------------------------------*/
-    if ( txInProgress || !mTXMutex.try_lock_for( TIMEOUT_1MS ) )
+    if ( mTXInProgress || !mTXMutex.try_lock_for( TIMEOUT_1MS ) )
     {
       return;
     }
@@ -386,22 +401,25 @@ namespace Ripple::DATALINK
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
     {
-      CBData tmp;
-      tmp.frameNumber = cacheFrame.frameNumber;
-      tmp.id          = VECT_UNKNOWN_DESTINATION;
-
-      mCBRegistry[ VECT_UNKNOWN_DESTINATION ]( tmp );
+      mDelegateRegistry.call<CallbackId::CB_ERROR_ARP_RESOLVE>();
       mTXQueue.pop();
       mTXMutex.unlock();
-      txInProgress = false;
+      mTXInProgress = false;
+
       return;
     }
+
+    /*-------------------------------------------------
+    All information needed to TX the frame is known, so
+    it's safe to transition to standby mode in prep for
+    moving to TX mode once the data is loaded.
+    -------------------------------------------------*/
+    mFSMControl.receive( PHY::FSM::MsgGoToSTBY() );
 
     /*-------------------------------------------------
     Open the proper port for writing
     -------------------------------------------------*/
     phy = PHY::getHandle( context );
-    PHY::stopListening( *phy );
     PHY::openWritePipe( *phy, dstAddress );
 
     /*-------------------------------------------------
@@ -410,11 +428,7 @@ namespace Ripple::DATALINK
     the proper payload length settings are set.
     -------------------------------------------------*/
     PHY::PayloadType txType;
-    if ( cacheFrame.control & bfControlFlags::CTRL_NO_ACK )
-    {
-      txType = PHY::PayloadType::PAYLOAD_NO_ACK;
-    }
-    else
+    if ( cacheFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
     {
       txType = PHY::PayloadType::PAYLOAD_REQUIRES_ACK;
       PHY::setRetries( *phy, cacheFrame.rtxDelay, cacheFrame.rtxCount );
@@ -422,18 +436,19 @@ namespace Ripple::DATALINK
       // TODO: Does TX actually need this? Just RX right?
       PHY::toggleAutoAck( *phy, true, PHY::PIPE_NUM_0 );
     }
+    else
+    {
+      txType = PHY::PayloadType::PAYLOAD_NO_ACK;
+    }
 
     /*-------------------------------------------------
-    Write the data and start the transmission. The chip
-    enable pin will be reset on successful TX or error.
-
-    The length needs to be set by the Network layer in
-    accordance with the expected hardware payload size.
+    Write the data to the TX FIFO and transition to the
+    active TX mode.
     -------------------------------------------------*/
+    mTXInProgress = true;
     PHY::writePayload( *phy, cacheFrame.payload, cacheFrame.length, txType );
-    phy->cePin->setState( Chimera::GPIO::State::HIGH );
+    mFSMControl.receive( PHY::FSM::MsgStartTX() );
 
-    txInProgress = true;
     mTXMutex.unlock();
   }
 
@@ -455,10 +470,10 @@ namespace Ripple::DATALINK
       Try and dump data out of the queue
       -------------------------------------------------*/
       mRXMutex.unlock();
-      this->invokeCallback( CallbackId::VECT_RX_QUEUE_FULL );
+      mDelegateRegistry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
       return;
     }
-    else if ( txInProgress )
+    else if ( mTXInProgress )
     {
       /*-------------------------------------------------
       TX-ing and RX-ing are exclusive. Play nice.

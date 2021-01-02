@@ -12,6 +12,9 @@
 #ifndef RIPPLE_COMMON_UTILITIES_HPP
 #define RIPPLE_COMMON_UTILITIES_HPP
 
+/* STL Includes */
+#include <string_view>
+
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_types.hpp>
 
@@ -27,6 +30,17 @@ namespace Ripple
    *  @return bool
    */
   bool validateContext( SessionContext session );
+
+  /**
+   *  Converts series of numbers into the appropriate IP address
+   *
+   *  @param[in]  a             First octet
+   *  @param[in]  b             Second octet
+   *  @param[in]  c             Third octet
+   *  @param[in]  d             Fourth octet
+   *  @return IPAddress
+   */
+  IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_COMMON_UTILITIES_HPP */

@@ -15,6 +15,9 @@
 /* Chimera Includes */
 #include <Chimera/thread>
 
+/* ETL Includes */
+#include <etl/delegate_service.h>
+
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_memory_config.hpp>
 #include <Ripple/src/datalink/data_link_types.hpp>
@@ -27,7 +30,7 @@ namespace Ripple::DATALINK
   Constants
   -------------------------------------------------------------------------------*/
   static constexpr size_t THREAD_STACK          = STACK_BYTES( 1024 );
-  static constexpr std::string_view THREAD_NAME = "heartbeat";
+  static constexpr std::string_view THREAD_NAME = "datalink";
 
 
   /*-------------------------------------------------------------------------------
@@ -75,6 +78,23 @@ namespace Ripple::DATALINK
     Chimera::Status_t dequeueFrame( Frame &frame );
 
     /**
+     *  Adds a new entry to the layer's ARP table
+     *
+     *  @param[in]  ip          IP address to key off of
+     *  @param[in]  mac         MAC address associated with the IP
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t addARPEntry( const IPAddress ip, const MACAddress &mac );
+
+    /**
+     *  Removes an entry from the layer's ARP table
+     *
+     *  @param[in]  ip          IP address of entry to remove
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t dropARPEntry( const IPAddress ip );
+
+    /**
      *  Register a callback to be invoked upon some event that occurs during
      *  the service processing.
      *
@@ -82,7 +102,16 @@ namespace Ripple::DATALINK
      *  @param[in]  func        The function to register
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t registerCallback( const CallbackId id, CBFunction &func );
+    Chimera::Status_t registerCallback( const CallbackId id, etl::delegate<void( size_t )> func );
+
+    /**
+     *  Gets the event data associated with a particular callback ID
+     *
+     *  @param[in]  id          The callback event id to query
+     *  @param[out] data        Where to copy the output data into
+     *  @return bool            If the copy was successful
+     */
+    bool queryCallbackData( const CallbackId id, void *const data );
 
   protected:
     /**
@@ -100,23 +129,6 @@ namespace Ripple::DATALINK
      *  @return Chimera::Status_t
      */
     Chimera::Status_t powerUpRadio( SessionContext session );
-
-    /**
-     *  Invokes the requested callback
-     *
-     *  @param[in]  id          The callback to invoke
-     *  @return void
-     */
-    void invokeCallback( const CallbackId id );
-
-    /**
-     *  Internal unhandled callback function should the user not register anything
-     *  for a particular callback id.
-     *
-     *  @param[in]  data        Data associated with the callback
-     *  @return void
-     */
-    void unhandledCallback( CBData &id );
 
     /**
      *  Callback that will be invoked when the radio's IRQ pin is asserted. This
@@ -161,13 +173,26 @@ namespace Ripple::DATALINK
     void processRXQueue( SessionContext context );
 
   private:
-    volatile bool pendingEvent;                       /**< Signal flag set by an ISR that an event occurred */
-    CBVectors mCBRegistry;                            /**< Callback service vectors */
+    /*-------------------------------------------------
+    Class State Data
+    -------------------------------------------------*/
+    bool mSystemEnabled;                    /**< Gating signal for the ISR handler to prevent spurrious interrupts */
+    bool mTXInProgress;                     /**< TX is ongoing and hasn't been ACK'd yet */
+    volatile bool pendingEvent;             /**< Signal flag set by an ISR that an event occurred */
+    Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
+
+    /*-------------------------------------------------
+    Helper for tracking/invoking callbacks
+    -------------------------------------------------*/
+    etl::delegate_service<CallbackId::CB_NUM_OPTIONS> mDelegateRegistry;
+
+    /*-------------------------------------------------
+    TX/RX Queues
+    -------------------------------------------------*/
     FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;           /**< Queue for data destined for the physical layer */
     Chimera::Threading::RecursiveTimedMutex mTXMutex; /**< Thread safety lock */
     FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;           /**< Queue for data coming from the physical layer */
     Chimera::Threading::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
-    Chimera::Threading::ThreadId mThreadId;           /**< Thread registration ID */
 
     /*-------------------------------------------------
     Lookup table for known devices
@@ -183,13 +208,6 @@ namespace Ripple::DATALINK
     PHY::FSM::RXMode _fsmState_RXMode;
     PHY::FSM::TXMode _fsmState_TXMode;
     etl::ifsm_state* _fsmStateList[ PHY::FSM::StateId::NUMBER_OF_STATES ];
-
-
-    /*-------------------------------------------------
-    Fields associated with a TX procedure
-    -------------------------------------------------*/
-    bool txInProgress;  /**< TX is ongoing and hasn't been ACK'd yet */
-    size_t txPacketId;  /**< Which packet number is being processed */
   };
 }    // namespace Ripple::DATALINK
 

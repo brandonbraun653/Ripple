@@ -1,6 +1,6 @@
 /********************************************************************************
  *  File Name:
- *    utility
+ *    shared
  *
  *  Description:
  *    Public header includes for accessing the Ripple utility layer
@@ -9,7 +9,10 @@
  ********************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_UTILITY_INCLUDES
-#define RIPPLE_UTILITY_INCLUDES
+#ifndef RIPPLE_SHARED_INCLUDES
+#define RIPPLE_SHARED_INCLUDES
 
-#endif /* !RIPPLE_UTILITY_INCLUDES */
+#include <Ripple/src/shared/cmn_types.hpp>
+#include <Ripple/src/shared/cmn_utils.hpp>
+
+#endif /* !RIPPLE_SHARED_INCLUDES */

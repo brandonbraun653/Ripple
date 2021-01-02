@@ -145,7 +145,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------
   Setup of Address Widths (SETUP_AW)
   -------------------------------------------------*/
-  static constexpr uint8_t SETUP_AW_Msk    = 0x03;
+  static constexpr uint8_t SETUP_AW_Mask   = 0x03;
   static constexpr uint8_t SETUP_AW_Reset  = 0x03;
   static constexpr uint8_t SETUP_AW_AW_Pos = 0u;
   static constexpr uint8_t SETUP_AW_AW_Wid = 0x03;
@@ -200,6 +200,8 @@ namespace Ripple::PHY
   -------------------------------------------------*/
   static constexpr uint8_t STATUS_Mask        = 0x7F;
   static constexpr uint8_t STATUS_Reset       = 0x0E;
+  static constexpr uint8_t STATUS_Clear       = 0x70;
+  static constexpr uint8_t STATUS_Mask_RW     = 0x70;
   static constexpr uint8_t STATUS_RX_DR_Pos   = 6u;
   static constexpr uint8_t STATUS_RX_DR_Msk   = 1u << STATUS_RX_DR_Pos;
   static constexpr uint8_t STATUS_RX_DR       = STATUS_RX_DR_Msk;
@@ -329,7 +331,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------
   Feature Register (FEATURE)
   -------------------------------------------------*/
-  static constexpr uint8_t FEATURE_MSK            = 0x07;
+  static constexpr uint8_t FEATURE_Mask           = 0x07;
   static constexpr uint8_t FEATURE_Reset          = 0x00;
   static constexpr uint8_t FEATURE_ACTIVATE_KEY   = 0x73;
   static constexpr uint8_t FEATURE_EN_DPL_Pos     = 2u;

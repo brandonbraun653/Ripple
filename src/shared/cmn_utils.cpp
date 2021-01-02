@@ -35,4 +35,11 @@ namespace Ripple
     );
     /* clang-format on */
   }
+
+
+  IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d )
+  {
+    return ( ( a << 24 ) | ( b << 16 ) | ( c << 8 ) | ( d << 0 ) );
+  }
+
 }  // namespace Ripple

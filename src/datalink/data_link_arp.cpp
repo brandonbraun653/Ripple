@@ -52,9 +52,13 @@ namespace Ripple::DATALINK
     Invoke the cache miss callback if the IP wasn't
     found and the caller was expecting it to exist.
     -------------------------------------------------*/
-    if( !found && addr && mCacheMissCallback )
+    if( !found )
     {
-      mCacheMissCallback( ip );
+      if( addr && mCacheMissCallback )
+      {
+        mCacheMissCallback( ip );
+      }
+
       return false;
     }
 

@@ -22,7 +22,7 @@ namespace Ripple
   Aliases
   -------------------------------------------------------------------------------*/
   using MACAddress = uint64_t; /**< Hardware address uniquely identifying a pipe in the network */
-  using IPAddress  = uint16_t; /**< Use IPV4 style encoding, but quartet instead of octet */
+  using IPAddress  = uint32_t; /**< Use IPV4 style encoding, but quartet instead of octet */
 
   using SessionContext = void *;  /**< Opaque pointer to the NetStackHandle */
 

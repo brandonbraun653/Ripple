@@ -51,22 +51,22 @@ namespace Ripple::DATALINK
    */
   enum CallbackId : uint8_t
   {
-    VECT_UNHANDLED,     /**< Default unhandled callback */
-    VECT_TX_COMPLETE,   /**< A frame completely transmitted (including ACK received) */
-    VECT_RX_COMPLETE,   /**< A frame was received */
-    VECT_INIT_ERROR,    /**< Initialization error */
-    VECT_RX_QUEUE_FULL, /**< Notification that the RX queue should be processed */
-    VECT_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
-    VECT_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
-    VECT_UNKNOWN_DESTINATION,
+    CB_UNHANDLED,           /**< Default unhandled callback */
+    CB_TX_SUCCESS,          /**< A frame completely transmitted (including ACK received) */
+    CB_RX_PAYLOAD,          /**< A frame was received */
+    CB_ERROR_MAX_RETRY,     /**< A frame's max transmit retry limit was reached */
+    CB_ERROR_RX_QUEUE_FULL, /**< Notification that the RX queue should be processed */
+    CB_ERROR_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
+    CB_ERROR_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
+    CB_ERROR_ARP_RESOLVE,   /**< ARP could not resolve the destination address */
 
-    VECT_NUM_OPTIONS
+    CB_NUM_OPTIONS
   };
 
   enum bfControlFlags : uint16_t
   {
-    CTRL_NO_ACK = ( 1u << 0 ), /**< Payload requires no ack */
-    CTRL_STATIC = ( 1u << 1 ), /**< Payload should be configured for static length */
+    CTRL_PAYLOAD_ACK = ( 1u << 0 ), /**< Payload requires ack */
+    CTRL_STATIC      = ( 1u << 1 ), /**< Payload should be configured for static length */
   };
 
   /*-------------------------------------------------------------------------------
@@ -110,16 +110,20 @@ namespace Ripple::DATALINK
     PHY::AutoRetransmitCount rtxCount;           /**< Max retransmit attempts */
     PHY::AutoRetransmitDelay rtxDelay;           /**< Delay between each retransmission attempt */
     uint8_t payload[ PHY::MAX_TX_PAYLOAD_SIZE ]; /**< Buffer for packet payload */
+
+    void clear()
+    {
+      nextHop = 0;
+      frameNumber = 0;
+      length = 0;
+      control = 0;
+      rtxCount = PHY::AutoRetransmitCount::ART_COUNT_INVALID;
+      rtxDelay = PHY::AutoRetransmitDelay::ART_DELAY_UNKNOWN;
+
+      memset( payload, 0, ARRAY_BYTES( payload ) );
+    }
   };
 
-  /**
-   *  Data that is passed into an datalink layer callback event
-   */
-  struct CBData
-  {
-    CallbackId id;
-    uint16_t frameNumber;
-  };
 
   /*-------------------------------------------------------------------------------
   Aliases
@@ -135,10 +139,6 @@ namespace Ripple::DATALINK
    */
   template<const size_t SIZE>
   using FrameQueue = etl::queue<Frame, SIZE, etl::memory_model::MEMORY_MODEL_SMALL>;
-
-  using CBFunction = etl::delegate<void( CBData & )>;
-  using CBVectors  = std::array<CBFunction, VECT_NUM_OPTIONS>;
-
 }    // namespace Ripple::DATALINK
 
 #endif /* !RIPPLE_DATALINK_TYPES_HPP */
