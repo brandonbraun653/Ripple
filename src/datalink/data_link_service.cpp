@@ -22,11 +22,6 @@
 namespace Ripple::DATALINK
 {
   /*-------------------------------------------------------------------------------
-  Public Functions
-  -------------------------------------------------------------------------------*/
-
-
-  /*-------------------------------------------------------------------------------
   Service Class Implementation
   -------------------------------------------------------------------------------*/
   Service::Service() : mSystemEnabled( false ), pendingEvent( false )
@@ -177,6 +172,26 @@ namespace Ripple::DATALINK
   }
 
 
+  Chimera::Status_t Service::addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac )
+  {
+    this->lock();
+    bool result = mAddressCache.insert( ip, mac );
+    this->unlock();
+
+    return result ? Chimera::Status::OK : Chimera::Status::FAIL;
+  }
+
+
+  Chimera::Status_t Service::dropARPEntry( const NET::IPAddress ip )
+  {
+    this->lock();
+    mAddressCache.remove( ip );
+    this->unlock();
+
+    return Chimera::Status::OK;
+  }
+
+
   Chimera::Status_t Service::registerCallback( const CallbackId id, etl::delegate<void( size_t )> func )
   {
     /*-------------------------------------------------
@@ -204,23 +219,27 @@ namespace Ripple::DATALINK
   }
 
 
-  Chimera::Status_t Service::addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac )
+  bool Service::queryCallbackData( const CallbackId id, void *const data )
   {
-    this->lock();
-    bool result = mAddressCache.insert( ip, mac );
-    this->unlock();
-
-    return result ? Chimera::Status::OK : Chimera::Status::FAIL;
+    return false;
   }
 
 
-  Chimera::Status_t Service::dropARPEntry( const NET::IPAddress ip )
+  Chimera::Status_t Service::setRootEndpointMAC( const PHY::MACAddress &mac )
   {
-    this->lock();
-    mAddressCache.remove( ip );
-    this->unlock();
+    return Chimera::Status::NOT_SUPPORTED;
+  }
 
-    return Chimera::Status::OK;
+
+  Chimera::Status_t Service::setEndpointAddress( const Endpoint endpoint, const uint8_t address )
+  {
+    return Chimera::Status::NOT_SUPPORTED;
+  }
+
+
+  PHY::MACAddress Service::getEndpointMAC( const Endpoint endpoint )
+  {
+    return 0;
   }
 
 

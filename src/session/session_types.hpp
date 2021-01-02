@@ -27,6 +27,10 @@ namespace Ripple::Session
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
+  /**
+   *  Configuration structure describing how to initialize the radio
+   *  and what runtime behaviors it should perform.
+   */
   struct RadioConfig
   {
     /*-------------------------------------------------
@@ -42,6 +46,7 @@ namespace Ripple::Session
     -------------------------------------------------*/
     struct _Avanced
     {
+      bool verifyRegisters;       /**< Optionally verify registers are set correctly at runtime */
       PHY::MACAddress mac;        /**< MAC Address for the device */
       PHY::AddressWidth macWidth; /**< Number of bytes used in the MAC address */
       PHY::DataRate dataRate;     /**< RF on-air data rate */
@@ -57,13 +62,18 @@ namespace Ripple::Session
       networkBaud = 0;
       address     = 0;
 
-      advanced.mac      = 0;
-      advanced.macWidth = PHY::AddressWidth::AW_INVALID;
-      advanced.dataRate = PHY::DataRate::DR_INVALID;
-      advanced.rfPower  = PHY::RFPower::PA_INVALID;
+      advanced.mac             = 0;
+      advanced.macWidth        = PHY::AddressWidth::AW_INVALID;
+      advanced.dataRate        = PHY::DataRate::DR_INVALID;
+      advanced.rfPower         = PHY::RFPower::PA_INVALID;
+      advanced.verifyRegisters = false;
     }
   };
 
+
+  /**
+   *  Session layer handle describing an entire network stack
+   */
   struct Handle
   {
     /*-------------------------------------------------

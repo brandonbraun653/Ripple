@@ -70,6 +70,24 @@ namespace Ripple::DATALINK
     CTRL_STATIC      = ( 1u << 1 ), /**< Payload should be configured for static length */
   };
 
+  /**
+   *  Describes logical endpoints for data flowing through the network. These
+   *  directly correspond to RX pipes on the radio device.
+   */
+  enum class Endpoint : uint8_t
+  {
+    DEVICE_ROOT,        /**< Root pipe that handles command and control data */
+    NETWORK_SERVICES,   /**< Network housekeeping and internal messages */
+    DATA_FORWARDING,    /**< Data that needs to be forwarded to another device */
+    APPLICATION_DATA_0, /**< Data destined for the user application to consume */
+    APPLICATION_DATA_1, /**< Second pipe for user data to increase throughput */
+
+    NUM_OPTIONS,
+    UNKNOWN
+  };
+  // One RX pipe is dedicated for the TX auto-ack process
+  static_assert( static_cast<size_t>( Endpoint::NUM_OPTIONS ) == ( PHY::MAX_NUM_RX_PIPES - 1 ) );
+
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/

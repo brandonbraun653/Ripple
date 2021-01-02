@@ -5,7 +5,7 @@
  *  Description:
  *    Data link layer thread interface
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 #pragma once
@@ -113,6 +113,38 @@ namespace Ripple::DATALINK
      *  @return bool            If the copy was successful
      */
     bool queryCallbackData( const CallbackId id, void *const data );
+
+    /**
+     *  Assigns the MAC address associated with this device. This address will
+     *  be tied to the DEVICE_ROOT endpoint and serve as the base for all other
+     *  endpoint addresses.
+     *
+     *  @note See RM 7.6 for more info on addressing.
+     *
+     *  @param[in]  mac         The MAC address to assign to the DEVICE_ROOT endpoint
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t setRootEndpointMAC( const PHY::MACAddress &mac );
+
+    /**
+     *  Assigns the address modification byte to the pipe associated with the
+     *  given endpoint. Uses the DEVICE_ROOT endpoint address as a base.
+     *
+     *  @note See RM 7.6 for more info on addressing.
+     *
+     *  @param[in]  endpoint    Which endpoint to modify
+     *  @param[in]  address     Address to give the endpoint
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t setEndpointAddress( const Endpoint endpoint, const uint8_t address );
+
+    /**
+     *  Gets the currently configured MAC address for the given endpoint
+     *
+     *  @param[in]  endpoint    Which endpoint to read
+     *  @return PHY::MACAddress
+     */
+    PHY::MACAddress getEndpointMAC( const Endpoint endpoint );
 
   protected:
     /**
