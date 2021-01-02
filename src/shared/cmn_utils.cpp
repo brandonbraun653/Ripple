@@ -17,13 +17,13 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  bool validateContext( SessionContext session )
+  bool validateContext( Session::Context session )
   {
     if( !session )
     {
       return false;
     }
-    auto context = reinterpret_cast<NetStackHandle *>( session );
+    auto context = reinterpret_cast<Session::Handle *>( session );
 
     /* clang-format off */
     return (
@@ -37,7 +37,7 @@ namespace Ripple
   }
 
 
-  IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d )
+  NET::IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d )
   {
     return ( ( a << 24 ) | ( b << 16 ) | ( c << 8 ) | ( d << 0 ) );
   }

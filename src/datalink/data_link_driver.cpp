@@ -17,7 +17,7 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Handle *getHandle( SessionContext session )
+  Handle *getHandle( Session::Context session )
   {
     if ( !session )
     {
@@ -25,7 +25,7 @@ namespace Ripple::DATALINK
     }
     else
     {
-      auto context  = reinterpret_cast<NetStackHandle *>( session );
+      auto context  = reinterpret_cast<Session::Handle *>( session );
       auto datalink = reinterpret_cast<Handle *>( context->datalink );
 
       return datalink;

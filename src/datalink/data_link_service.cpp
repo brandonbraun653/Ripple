@@ -14,6 +14,7 @@
 #include <Chimera/thread>
 
 /* Ripple Includes */
+#include <Ripple/session>
 #include <Ripple/datalink>
 #include <Ripple/physical>
 
@@ -41,7 +42,7 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Service: Public Methods
   -------------------------------------------------------------------------------*/
-  void Service::run( SessionContext context )
+  void Service::run( Session::Context context )
   {
     using namespace Chimera::Threading;
 
@@ -203,7 +204,7 @@ namespace Ripple::DATALINK
   }
 
 
-  Chimera::Status_t Service::addARPEntry( const IPAddress ip, const MACAddress &mac )
+  Chimera::Status_t Service::addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac )
   {
     this->lock();
     bool result = mAddressCache.insert( ip, mac );
@@ -213,7 +214,7 @@ namespace Ripple::DATALINK
   }
 
 
-  Chimera::Status_t Service::dropARPEntry( const IPAddress ip )
+  Chimera::Status_t Service::dropARPEntry( const NET::IPAddress ip )
   {
     this->lock();
     mAddressCache.remove( ip );
@@ -226,7 +227,7 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Service: Protected Methods
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t Service::initialize( SessionContext context )
+  Chimera::Status_t Service::initialize( Session::Context context )
   {
     /*-------------------------------------------------
     Input protections
@@ -249,7 +250,7 @@ namespace Ripple::DATALINK
   }
 
 
-  Chimera::Status_t Service::powerUpRadio( SessionContext session )
+  Chimera::Status_t Service::powerUpRadio( Session::Context session )
   {
     /*-------------------------------------------------
     Input Protection
@@ -334,12 +335,12 @@ namespace Ripple::DATALINK
   }
 
 
-  void Service::processTXSuccess( SessionContext context )
+  void Service::processTXSuccess( Session::Context context )
   {
   }
 
 
-  void Service::processTXFail( SessionContext context )
+  void Service::processTXFail( Session::Context context )
   {
     PHY::Handle *phyHandle = PHY::getHandle( context );
 
@@ -365,11 +366,11 @@ namespace Ripple::DATALINK
     /*-------------------------------------------------
     Notify the network layer of the failed frame
     -------------------------------------------------*/
-    mDelegateRegistry.call<CallbackId::CB_ERROR_MAX_RETRY>();
+    mDelegateRegistry.call<CallbackId::CB_ERROR_TX_MAX_RETRY>();
   }
 
 
-  void Service::processTXQueue( SessionContext context )
+  void Service::processTXQueue( Session::Context context )
   {
     using namespace Chimera::Threading;
     PHY::Handle *phy = nullptr;
@@ -397,7 +398,7 @@ namespace Ripple::DATALINK
     destination node.
     -------------------------------------------------*/
     const Frame &cacheFrame = mTXQueue.front();
-    MACAddress dstAddress   = 0;
+    PHY::MACAddress dstAddress   = 0;
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
     {
@@ -453,7 +454,7 @@ namespace Ripple::DATALINK
   }
 
 
-  void Service::processRXQueue( SessionContext context )
+  void Service::processRXQueue( Session::Context context )
   {
     using namespace Chimera::Threading;
 

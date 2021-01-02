@@ -18,6 +18,9 @@
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_types.hpp>
 
+#include <Ripple/src/network/net_types.hpp>
+#include <Ripple/src/session/session_types.hpp>
+
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
@@ -29,7 +32,7 @@ namespace Ripple
    *  @param[in]  session       The handle to be checked
    *  @return bool
    */
-  bool validateContext( SessionContext session );
+  bool validateContext( Session::Context session );
 
   /**
    *  Converts series of numbers into the appropriate IP address
@@ -40,7 +43,7 @@ namespace Ripple
    *  @param[in]  d             Fourth octet
    *  @return IPAddress
    */
-  IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
+  NET::IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_COMMON_UTILITIES_HPP */

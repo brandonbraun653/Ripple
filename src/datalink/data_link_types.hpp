@@ -47,14 +47,15 @@ namespace Ripple::DATALINK
   -------------------------------------------------------------------------------*/
   /**
    *  Supported callback identifiers that can be used to register a
-   *  function for invocation on an event.
+   *  function for invocation on an event. Intended to be used by the
+   *  Network layer.
    */
   enum CallbackId : uint8_t
   {
     CB_UNHANDLED,           /**< Default unhandled callback */
     CB_TX_SUCCESS,          /**< A frame completely transmitted (including ACK received) */
     CB_RX_PAYLOAD,          /**< A frame was received */
-    CB_ERROR_MAX_RETRY,     /**< A frame's max transmit retry limit was reached */
+    CB_ERROR_TX_MAX_RETRY,  /**< A frame's max transmit retry limit was reached */
     CB_ERROR_RX_QUEUE_FULL, /**< Notification that the RX queue should be processed */
     CB_ERROR_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
     CB_ERROR_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
@@ -72,6 +73,10 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
+  /**
+   *  Handle to the DataLink layer configuration and runtime state information.
+   *  This gets passed around the stack for interaction with this layer.
+   */
   struct Handle
   {
     /**
@@ -100,11 +105,15 @@ namespace Ripple::DATALINK
     }
   };
 
-
+  /**
+   *  Core data type of the DataLink layer. Defines a packet's transmission
+   *  properties, payload, and other information necessary to implement the
+   *  functionality of this layer.
+   */
   struct Frame
   {
-    IPAddress nextHop;                           /**< Which node this data is going to */
-    uint16_t frameNumber;
+    uint32_t nextHop;                            /**< Which node this data is going to (IPAddress) */
+    uint16_t frameNumber;                        /**< ID of the frame in the network layer */
     uint16_t length;                             /**< Number of bytes being sent */
     uint16_t control;                            /**< Control flags for the transfer */
     PHY::AutoRetransmitCount rtxCount;           /**< Max retransmit attempts */

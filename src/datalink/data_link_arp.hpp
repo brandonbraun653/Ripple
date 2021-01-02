@@ -29,12 +29,8 @@ namespace Ripple::DATALINK
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
-  using ARPMap = std::pair<IPAddress, MACAddress>;
-  using ARPCallback = etl::delegate<void( const IPAddress )>;
-
-  /*-------------------------------------------------------------------------------
-  Public Functions
-  -------------------------------------------------------------------------------*/
+  using ARPMap = std::pair<uint32_t, PHY::MACAddress>;
+  using ARPCallback = etl::delegate<void( const uint32_t )>;
 
 
   /*-------------------------------------------------------------------------------
@@ -65,7 +61,7 @@ namespace Ripple::DATALINK
      *  @param[out] addr      The associated MAC address
      *  @return bool          Whether or not the lookup was successful
      */
-    bool lookup( const IPAddress ip, MACAddress *addr );
+    bool lookup( const uint32_t ip, PHY::MACAddress *addr );
 
     /**
      *  Removes the cache entry associated with the given IP address.
@@ -73,7 +69,7 @@ namespace Ripple::DATALINK
      *
      *  @return void
      */
-    void remove( const IPAddress ip );
+    void remove( const uint32_t ip );
 
     /**
      *  Inserts a new entry into the cache table
@@ -82,7 +78,7 @@ namespace Ripple::DATALINK
      *  @param[in]  addr      MAC address used as the value
      *  @return bool          Whether the insertion was successful
      */
-    bool insert( const IPAddress ip, const MACAddress &addr );
+    bool insert( const uint32_t ip, const PHY::MACAddress &addr );
 
     /**
      *  Register a callback to execute when a lookup fails
@@ -94,7 +90,7 @@ namespace Ripple::DATALINK
 
   private:
     ARPCallback mCacheMissCallback;
-    etl::flat_map<IPAddress, MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
+    etl::flat_map<uint32_t, PHY::MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
   };
 
 }  // namespace Ripple::DATALINK::ARP

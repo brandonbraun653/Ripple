@@ -116,7 +116,7 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Utility Functions
   -------------------------------------------------------------------------------*/
-  Handle *getHandle( SessionContext session )
+  Handle *getHandle( Session::Context session )
   {
     if ( !session )
     {
@@ -124,7 +124,7 @@ namespace Ripple::PHY
     }
     else
     {
-      auto context  = reinterpret_cast<NetStackHandle *>( session );
+      auto context  = reinterpret_cast<Session::Handle *>( session );
       auto physical = reinterpret_cast<PHY::Handle *>( context->physical );
 
       return physical;
@@ -1003,7 +1003,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setPALevel( Handle &handle, const PowerAmplitude level )
+  Chimera::Status_t setPALevel( Handle &handle, const RFPower level )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1030,7 +1030,7 @@ namespace Ripple::PHY
   }
 
 
-  PowerAmplitude getPALevel( Handle &handle )
+  RFPower getPALevel( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1038,7 +1038,7 @@ namespace Ripple::PHY
     if ( !driverReady( handle ) )
     {
       Chimera::insert_debug_breakpoint();
-      return PowerAmplitude::PA_LOW;
+      return RFPower::PA_LOW;
     }
 
     /*-------------------------------------------------
@@ -1047,7 +1047,7 @@ namespace Ripple::PHY
     uint8_t setup                 = readRegister( handle, REG_ADDR_RF_SETUP );
     handle.registerCache.RF_SETUP = setup;
 
-    return static_cast<PowerAmplitude>( ( setup & RF_SETUP_RF_PWR ) >> 1 );
+    return static_cast<RFPower>( ( setup & RF_SETUP_RF_PWR ) >> 1 );
   }
 
 
@@ -1420,7 +1420,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     if ( !driverReady( handle ) )
     {
-      return AddressWidth::AW_UNKNOWN;
+      return AddressWidth::AW_INVALID;
     }
 
     /*-------------------------------------------------
@@ -1442,7 +1442,7 @@ namespace Ripple::PHY
         break;
 
       default:
-        return AddressWidth::AW_UNKNOWN;
+        return AddressWidth::AW_INVALID;
         break;
     };
   }

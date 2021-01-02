@@ -12,6 +12,6 @@
 #ifndef RIPPLE_SESSION_INCLUDES
 #define RIPPLE_SESSION_INCLUDES
 
-#include <Ripple/src/shared/cmn_types.hpp>
+#include <Ripple/src/session/session_types.hpp>
 
 #endif /* !RIPPLE_SESSION_INCLUDES */

@@ -23,6 +23,7 @@
 #include <Ripple/src/datalink/data_link_types.hpp>
 #include <Ripple/src/datalink/data_link_arp.hpp>
 #include <Ripple/src/physical/phy_fsm_controller.hpp>
+#include <Ripple/src/session/session_types.hpp>
 
 namespace Ripple::DATALINK
 {
@@ -58,7 +59,7 @@ namespace Ripple::DATALINK
      *  @param[in]  context     Critical net stack information
      *  @return void
      */
-    void run( SessionContext context );
+    void run( Session::Context context );
 
     /**
      *  Schedules a frame to be transmitted through the physical layer the next time
@@ -84,7 +85,7 @@ namespace Ripple::DATALINK
      *  @param[in]  mac         MAC address associated with the IP
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t addARPEntry( const IPAddress ip, const MACAddress &mac );
+    Chimera::Status_t addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac );
 
     /**
      *  Removes an entry from the layer's ARP table
@@ -92,7 +93,7 @@ namespace Ripple::DATALINK
      *  @param[in]  ip          IP address of entry to remove
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t dropARPEntry( const IPAddress ip );
+    Chimera::Status_t dropARPEntry( const NET::IPAddress ip );
 
     /**
      *  Register a callback to be invoked upon some event that occurs during
@@ -120,7 +121,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t initialize( SessionContext session );
+    Chimera::Status_t initialize( Session::Context session );
 
     /**
      *  Initializes the radio with the user configured settings
@@ -128,7 +129,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t powerUpRadio( SessionContext session );
+    Chimera::Status_t powerUpRadio( Session::Context session );
 
     /**
      *  Callback that will be invoked when the radio's IRQ pin is asserted. This
@@ -145,7 +146,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXSuccess( SessionContext context );
+    void processTXSuccess( Session::Context context );
 
     /**
      *  Handle the IRQ event when a transmission failed
@@ -153,7 +154,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXFail( SessionContext context );
+    void processTXFail( Session::Context context );
 
     /**
      *  Periodic process to transmit data that has been enqueued with the service
@@ -161,7 +162,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXQueue( SessionContext context );
+    void processTXQueue( Session::Context context );
 
     /**
      *  Periodic process to read a frame off the radio and enqueues it
@@ -170,7 +171,7 @@ namespace Ripple::DATALINK
      *  @param[in]  session     User session information
      *  @return void
      */
-    void processRXQueue( SessionContext context );
+    void processRXQueue( Session::Context context );
 
   private:
     /*-------------------------------------------------

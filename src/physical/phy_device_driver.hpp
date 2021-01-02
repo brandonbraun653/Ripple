@@ -18,6 +18,7 @@
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_types.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
+#include <Ripple/src/session/session_types.hpp>
 
 namespace Ripple::PHY
 {
@@ -30,7 +31,7 @@ namespace Ripple::PHY
    *  @param[in]  session       The current session
    *  @return Handle *
    */
-  Handle *getHandle( SessionContext session );
+  Handle *getHandle( Session::Context session );
 
 
   /*-------------------------------------------------------------------------------
@@ -327,15 +328,15 @@ namespace Ripple::PHY
    *  @param[in]  level       Desired power amplifier level
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setPALevel( Handle &handle, const PowerAmplitude level );
+  Chimera::Status_t setPALevel( Handle &handle, const RFPower level );
 
   /**
    *  Get the current power amplitude level
    *
    *  @param[in]  handle      Handle to the device
-   *  @return PowerAmplitude
+   *  @return RFPower
    */
-  PowerAmplitude getPALevel( Handle &handle );
+  RFPower getPALevel( Handle &handle );
 
   /**
    *  Set the TX/RX data rate

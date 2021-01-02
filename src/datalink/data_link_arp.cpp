@@ -10,10 +10,11 @@
 
 /* Ripple Includes */
 #include <Ripple/datalink>
+#include <Ripple/physical>
+#include <Ripple/session>
 
 namespace Ripple::DATALINK
 {
-
   /*-------------------------------------------------------------------------------
   ARPCache Implementation
   -------------------------------------------------------------------------------*/
@@ -35,13 +36,13 @@ namespace Ripple::DATALINK
   }
 
 
-  bool ARPCache::lookup( const IPAddress ip, MACAddress *addr )
+  bool ARPCache::lookup( const uint32_t ip, PHY::MACAddress *addr )
   {
     /*-------------------------------------------------
     Find the registered key. Copy out the MAC if found.
     -------------------------------------------------*/
     bool found = false;
-    MACAddress tmp = 0;
+    PHY::MACAddress tmp = 0;
     if ( auto iter = mCache.find( ip ); iter != mCache.end() )
     {
       tmp = iter->second;
@@ -74,7 +75,7 @@ namespace Ripple::DATALINK
   }
 
 
-  void ARPCache::remove( const IPAddress ip )
+  void ARPCache::remove( const uint32_t ip )
   {
     if( auto iter = mCache.find( ip ); iter != mCache.end() )
     {
@@ -83,7 +84,7 @@ namespace Ripple::DATALINK
   }
 
 
-  bool ARPCache::insert( const IPAddress ip, const MACAddress &addr )
+  bool ARPCache::insert( const uint32_t ip, const PHY::MACAddress &addr )
   {
     /*-------------------------------------------------
     Can't insert if the cache is full or the key exists

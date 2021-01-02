@@ -14,6 +14,7 @@
 
 /* Ripple Includes */
 #include <Ripple/src/datalink/data_link_types.hpp>
+#include <Ripple/src/session/session_types.hpp>
 
 namespace Ripple::DATALINK
 {
@@ -26,7 +27,7 @@ namespace Ripple::DATALINK
    *  @param[in]  session       The current session
    *  @return Handle *
    */
-  Handle *getHandle( SessionContext session );
+  Handle *getHandle( Session::Context session );
 
 }  // namespace Ripple::DATALINK
 

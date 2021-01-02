@@ -24,7 +24,8 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
-  using RFChannel = uint8_t;
+  using RFChannel  = uint8_t;
+  using MACAddress = uint64_t; /**< Hardware address uniquely identifying a pipe in the network */
 
   /*-------------------------------------------------------------------------------
   Constants
@@ -86,12 +87,14 @@ namespace Ripple::PHY
   /**
    *   Definitions for allowed TX power levels
    */
-  enum PowerAmplitude : uint8_t
+  enum RFPower : uint8_t
   {
     PA_MIN  = 0u, /**< -18 dBm */
     PA_LOW  = 2u, /**< -12 dBm */
     PA_HIGH = 4u, /**<  -6 dBm */
-    PA_MAX  = 6u  /**<   0 dBm */
+    PA_MAX  = 6u, /**<   0 dBm */
+
+    PA_INVALID
   };
 
   /**
@@ -99,9 +102,11 @@ namespace Ripple::PHY
    */
   enum DataRate : uint8_t
   {
-    DR_1MBPS,  /**< 1 MBPS */
-    DR_2MBPS,  /**< 2 MBPS */
-    DR_250KBPS /**< 250 KBPS */
+    DR_1MBPS,   /**< 1 MBPS */
+    DR_2MBPS,   /**< 2 MBPS */
+    DR_250KBPS, /**< 250 KBPS */
+
+    DR_INVALID
   };
 
   /**
@@ -129,7 +134,7 @@ namespace Ripple::PHY
     AW_5Byte,
 
     AW_NUM_OPTIONS,
-    AW_UNKNOWN
+    AW_INVALID
   };
 
   /**
@@ -154,9 +159,9 @@ namespace Ripple::PHY
     ART_DELAY_3750uS = 14,
     ART_DELAY_4000uS = 15,
 
-    ART_DELAY_MIN = ART_DELAY_250uS,
-    ART_DELAY_MED = ART_DELAY_2250uS,
-    ART_DELAY_MAX = ART_DELAY_4000uS,
+    ART_DELAY_MIN     = ART_DELAY_250uS,
+    ART_DELAY_MED     = ART_DELAY_2250uS,
+    ART_DELAY_MAX     = ART_DELAY_4000uS,
     ART_DELAY_UNKNOWN = std::numeric_limits<uint8_t>::max()
   };
 
@@ -257,7 +262,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Driver Configuration
     -------------------------------------------------*/
-    PowerAmplitude hwPowerAmplitude;
+    RFPower hwPowerAmplitude;
     DataRate hwDataRate;
     CRCLength hwCRCLength;
     AddressWidth hwAddressWidth;
@@ -294,7 +299,6 @@ namespace Ripple::PHY
 
     void clear()
     {
-
     }
   };
 }    // namespace Ripple::PHY

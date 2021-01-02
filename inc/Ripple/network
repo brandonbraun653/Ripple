@@ -12,4 +12,6 @@
 #ifndef RIPPLE_NETWORK_INCLUDES
 #define RIPPLE_NETWORK_INCLUDES
 
+#include <Ripple/src/network/net_types.hpp>
+
 #endif /* !RIPPLE_NETWORK_INCLUDES */
