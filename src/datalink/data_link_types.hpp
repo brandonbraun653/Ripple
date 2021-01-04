@@ -40,7 +40,7 @@ namespace Ripple::DATALINK
   Aliases
   -------------------------------------------------------------------------------*/
   using IPSubNetLevel = uint16_t;
-  using IPHostId = uint16_t;
+  using IPHostId      = uint16_t;
 
   /*-------------------------------------------------------------------------------
   Enumerations
@@ -55,7 +55,7 @@ namespace Ripple::DATALINK
     CB_UNHANDLED,           /**< Default unhandled callback */
     CB_TX_SUCCESS,          /**< A frame completely transmitted (including ACK received) */
     CB_RX_PAYLOAD,          /**< A frame was received */
-    CB_ERROR_TX_MAX_RETRY,  /**< A frame's max transmit retry limit was reached */
+    CB_ERROR_TX_FAILURE,    /**< A frame's max transmit retry limit was reached */
     CB_ERROR_RX_QUEUE_FULL, /**< Notification that the RX queue should be processed */
     CB_ERROR_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
     CB_ERROR_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
@@ -74,19 +74,19 @@ namespace Ripple::DATALINK
    *  Describes logical endpoints for data flowing through the network. These
    *  directly correspond to RX pipes on the radio device.
    */
-  enum class Endpoint : uint8_t
+  enum Endpoint : uint8_t
   {
-    DEVICE_ROOT,        /**< Root pipe that handles command and control data */
-    NETWORK_SERVICES,   /**< Network housekeeping and internal messages */
-    DATA_FORWARDING,    /**< Data that needs to be forwarded to another device */
-    APPLICATION_DATA_0, /**< Data destined for the user application to consume */
-    APPLICATION_DATA_1, /**< Second pipe for user data to increase throughput */
+    EP_DEVICE_ROOT,        /**< Root pipe that handles command and control data */
+    EP_NETWORK_SERVICES,   /**< Network housekeeping and internal messages */
+    EP_DATA_FORWARDING,    /**< Data that needs to be forwarded to another device */
+    EP_APPLICATION_DATA_0, /**< Data destined for the user application to consume */
+    EP_APPLICATION_DATA_1, /**< Second pipe for user data to increase throughput */
 
-    NUM_OPTIONS,
-    UNKNOWN
+    EP_NUM_OPTIONS,
+    EP_UNKNOWN
   };
   // One RX pipe is dedicated for the TX auto-ack process
-  static_assert( static_cast<size_t>( Endpoint::NUM_OPTIONS ) == ( PHY::MAX_NUM_RX_PIPES - 1 ) );
+  static_assert( EP_NUM_OPTIONS == ( PHY::MAX_NUM_RX_PIPES - 1 ) );
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -104,22 +104,9 @@ namespace Ripple::DATALINK
      */
     size_t hwIRQEventTimeout;
 
-    /**
-     *  If true, configures the system to use dynamic length packets on all pipes.
-     *  If false, uses a static packet length.
-     */
-    bool dynamicPackets;
-
-    /**
-     *  If dynamicPackets is false, this is the on-air length of each packet.
-     */
-    uint8_t staticPacketSize;
-
     void clear()
     {
       hwIRQEventTimeout = 25;
-      dynamicPackets    = true;
-      staticPacketSize  = PHY::MAX_TX_PAYLOAD_SIZE;
     }
   };
 
@@ -130,27 +117,47 @@ namespace Ripple::DATALINK
    */
   struct Frame
   {
-    uint32_t nextHop;                            /**< Which node this data is going to (IPAddress) */
+    /*-------------------------------------------------
+    TX Specific Data
+    -------------------------------------------------*/
+    uint32_t nextHop;                  /**< Which node this data is going to (IPAddress) */
+    PHY::AutoRetransmitCount rtxCount; /**< Max retransmit attempts */
+    PHY::AutoRetransmitDelay rtxDelay; /**< Delay between each retransmission attempt */
+
+    /*-------------------------------------------------
+    RX Specific Data
+    -------------------------------------------------*/
+    PHY::PipeNumber rxPipe; /**< Which pipe the data came from */
+
+    /*-------------------------------------------------
+    Common Data
+    -------------------------------------------------*/
     uint16_t frameNumber;                        /**< ID of the frame in the network layer */
     uint16_t length;                             /**< Number of bytes being sent */
     uint16_t control;                            /**< Control flags for the transfer */
-    PHY::AutoRetransmitCount rtxCount;           /**< Max retransmit attempts */
-    PHY::AutoRetransmitDelay rtxDelay;           /**< Delay between each retransmission attempt */
     uint8_t payload[ PHY::MAX_TX_PAYLOAD_SIZE ]; /**< Buffer for packet payload */
 
     void clear()
     {
-      nextHop = 0;
+      nextHop     = 0;
       frameNumber = 0;
-      length = 0;
-      control = 0;
-      rtxCount = PHY::AutoRetransmitCount::ART_COUNT_INVALID;
-      rtxDelay = PHY::AutoRetransmitDelay::ART_DELAY_UNKNOWN;
+      length      = 0;
+      control     = 0;
+      rtxCount    = PHY::AutoRetransmitCount::ART_COUNT_INVALID;
+      rtxDelay    = PHY::AutoRetransmitDelay::ART_DELAY_UNKNOWN;
+      rxPipe      = PHY::PipeNumber::PIPE_INVALID;
 
       memset( payload, 0, ARRAY_BYTES( payload ) );
     }
   };
 
+
+  struct TransferControlBlock
+  {
+    bool inProgress; /**< TX is ongoing and hasn't been ACK'd yet */
+    size_t timeout;  /**< Timeout for the transfer */
+    size_t start;    /**< Start time for the transfer */
+  };
 
   /*-------------------------------------------------------------------------------
   Aliases

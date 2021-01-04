@@ -15,6 +15,7 @@
 /* Ripple Includes */
 #include <Ripple/src/network/net_types.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
+#include <Ripple/src/physical/phy_device_constants.hpp>
 #include <Ripple/src/shared/cmn_types.hpp>
 
 namespace Ripple::Session
@@ -47,6 +48,8 @@ namespace Ripple::Session
     struct _Avanced
     {
       bool verifyRegisters;       /**< Optionally verify registers are set correctly at runtime */
+      bool staticPayloads;        /**< Optionally enable static payloads (defaults to dynamic) */
+      uint8_t staticPayloadSize;  /**< Fixed length of static payloads, if used */
       PHY::MACAddress mac;        /**< MAC Address for the device */
       PHY::AddressWidth macWidth; /**< Number of bytes used in the MAC address */
       PHY::DataRate dataRate;     /**< RF on-air data rate */
@@ -62,11 +65,13 @@ namespace Ripple::Session
       networkBaud = 0;
       address     = 0;
 
-      advanced.mac             = 0;
-      advanced.macWidth        = PHY::AddressWidth::AW_INVALID;
-      advanced.dataRate        = PHY::DataRate::DR_INVALID;
-      advanced.rfPower         = PHY::RFPower::PA_INVALID;
-      advanced.verifyRegisters = false;
+      advanced.mac               = 0;
+      advanced.macWidth          = PHY::AddressWidth::AW_INVALID;
+      advanced.dataRate          = PHY::DataRate::DR_INVALID;
+      advanced.rfPower           = PHY::RFPower::PA_INVALID;
+      advanced.verifyRegisters   = false;
+      advanced.staticPayloads    = false;
+      advanced.staticPayloadSize = static_cast<uint8_t>( PHY::MAX_TX_PAYLOAD_SIZE );
     }
   };
 

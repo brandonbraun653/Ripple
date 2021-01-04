@@ -71,6 +71,7 @@ namespace Ripple::PHY::FSM
       /*-------------------------------------------------
       Delay the minimum RX settling time
       -------------------------------------------------*/
+      // TODO: I believe this can be removed. The hardware enforces this limit?
       Chimera::blockDelayMicroseconds( 130 );
       return true;
     }
@@ -89,6 +90,7 @@ namespace Ripple::PHY::FSM
       /*-------------------------------------------------
       Delay the minimum TX settling time
       -------------------------------------------------*/
+      // TODO: I believe this can be removed. The hardware enforces this limit?
       Chimera::blockDelayMicroseconds( 130 );
       return true;
     }
@@ -102,6 +104,9 @@ namespace Ripple::PHY::FSM
 
   bool RadioControl::transitionToSTBYMode()
   {
+    /*-------------------------------------------------
+    RM 6.1.3.1
+    -------------------------------------------------*/
     if ( setChipEnableState( Chimera::GPIO::State::LOW ) )
     {
       return true;

@@ -63,14 +63,13 @@ namespace Ripple::PHY
 
   enum PipeNumber : uint8_t
   {
-    PIPE_NUM_0   = 0u,
-    PIPE_NUM_1   = 1u,
-    PIPE_NUM_2   = 2u,
-    PIPE_NUM_3   = 3u,
-    PIPE_NUM_4   = 4u,
-    PIPE_NUM_5   = 5u,
-    PIPE_NUM_MAX = 6u,
-    PIPE_NUM_ALL = PIPE_NUM_MAX,
+    PIPE_NUM_0,
+    PIPE_NUM_1,
+    PIPE_NUM_2,
+    PIPE_NUM_3,
+    PIPE_NUM_4,
+    PIPE_NUM_5,
+    PIPE_NUM_ALL,
     PIPE_INVALID = std::numeric_limits<uint8_t>::max()
   };
 
@@ -89,10 +88,10 @@ namespace Ripple::PHY
    */
   enum RFPower : uint8_t
   {
-    PA_MIN  = 0u, /**< -18 dBm */
-    PA_LOW  = 2u, /**< -12 dBm */
-    PA_HIGH = 4u, /**<  -6 dBm */
-    PA_MAX  = 6u, /**<   0 dBm */
+    PA_LVL_0, /**< -18 dBm */
+    PA_LVL_1, /**< -12 dBm */
+    PA_LVL_2, /**<  -6 dBm */
+    PA_LVL_3, /**<   0 dBm */
 
     PA_INVALID
   };
@@ -106,6 +105,7 @@ namespace Ripple::PHY
     DR_2MBPS,   /**< 2 MBPS */
     DR_250KBPS, /**< 250 KBPS */
 
+    DR_NUM_OPTIONS,
     DR_INVALID
   };
 
@@ -262,6 +262,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Driver Configuration
     -------------------------------------------------*/
+    uint8_t hwStaticPayloadWidth;
     RFPower hwPowerAmplitude;
     DataRate hwDataRate;
     CRCLength hwCRCLength;
@@ -269,6 +270,11 @@ namespace Ripple::PHY
     AutoRetransmitDelay hwRTXDelay;
     RFChannel hwRFChannel;
     bfISRMask hwISRMask;
+
+    void clear()
+    {
+
+    }
   };
 
 
@@ -290,7 +296,9 @@ namespace Ripple::PHY
     Driver State
     -------------------------------------------------*/
     bool opened;                                 /**< Whether or not the driver has been enabled/openend */
+    bool verifyRegisters;                        /**< Runtime verification of register setting updates */
     uint8_t flags;                               /**< Flags tracking runtime device settings */
+    uint8_t lastStatus;                          /**< Debug variable to track last status register returned in transaction */
     RegisterMap registerCache;                   /**< Tracks the system state as reads/writes occur */
     uint8_t txBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal transmit buffer */
     uint8_t rxBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal receive buffer */
@@ -299,6 +307,16 @@ namespace Ripple::PHY
 
     void clear()
     {
+      cfg.clear();
+
+      opened = false;
+      verifyRegisters = false;
+      flags = 0;
+      lastStatus = 0;
+      cachedPipe0RXAddr = 0;
+      memset( &registerCache, 0, sizeof( RegisterMap ) );
+      memset( txBuffer, 0, ARRAY_BYTES( txBuffer ) );
+      memset( rxBuffer, 0, ARRAY_BYTES( rxBuffer ) );
     }
   };
 }    // namespace Ripple::PHY

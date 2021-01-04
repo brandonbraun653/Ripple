@@ -12,6 +12,7 @@
 #ifndef RIPPLE_SESSION_INCLUDES
 #define RIPPLE_SESSION_INCLUDES
 
+#include <Ripple/src/session/session_driver.hpp>
 #include <Ripple/src/session/session_types.hpp>
 
 #endif /* !RIPPLE_SESSION_INCLUDES */

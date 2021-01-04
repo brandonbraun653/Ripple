@@ -282,6 +282,17 @@ namespace Ripple::PHY
   Data Setters/Getters
   -------------------------------------------------------------------------------*/
   /**
+   *  Reads every register on the device and updates the handle's register
+   *  map cache with the data.
+   *
+   *  @warning  This is a time consuming operation, meant for debugging only.
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @return void
+   */
+  void readAllRegisters( Handle &handle );
+
+  /**
    *  Reads the status register
    *
    *  @param[in]  handle      Handle to the device
@@ -328,7 +339,7 @@ namespace Ripple::PHY
    *  @param[in]  level       Desired power amplifier level
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t setPALevel( Handle &handle, const RFPower level );
+  Chimera::Status_t setRFPower( Handle &handle, const RFPower level );
 
   /**
    *  Get the current power amplitude level
@@ -336,7 +347,7 @@ namespace Ripple::PHY
    *  @param[in]  handle      Handle to the device
    *  @return RFPower
    */
-  RFPower getPALevel( Handle &handle );
+  RFPower getRFPower( Handle &handle );
 
   /**
    *  Set the TX/RX data rate
@@ -451,6 +462,15 @@ namespace Ripple::PHY
    *  @return AddressWidth
    */
   AddressWidth getAddressWidth( Handle &handle );
+
+  /**
+   *  Gets the address associated with the RX pipe
+   *
+   *  @param[in]  handle      Handle to the device
+   *  @param[in]  pipe        Which pipe to read
+   *  @return MACAddress
+   */
+  MACAddress getRXPipeAddress( Handle &handle, const PipeNumber pipe );
 
   /**
    *  Set the CRC length used for RF packet transactions

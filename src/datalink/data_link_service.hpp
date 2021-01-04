@@ -116,19 +116,19 @@ namespace Ripple::DATALINK
 
     /**
      *  Assigns the MAC address associated with this device. This address will
-     *  be tied to the DEVICE_ROOT endpoint and serve as the base for all other
+     *  be tied to the EP_DEVICE_ROOT endpoint and serve as the base for all other
      *  endpoint addresses.
      *
      *  @note See RM 7.6 for more info on addressing.
      *
-     *  @param[in]  mac         The MAC address to assign to the DEVICE_ROOT endpoint
+     *  @param[in]  mac         The MAC address to assign to the EP_DEVICE_ROOT endpoint
      *  @return Chimera::Status_t
      */
     Chimera::Status_t setRootEndpointMAC( const PHY::MACAddress &mac );
 
     /**
      *  Assigns the address modification byte to the pipe associated with the
-     *  given endpoint. Uses the DEVICE_ROOT endpoint address as a base.
+     *  given endpoint. Uses the EP_DEVICE_ROOT endpoint address as a base.
      *
      *  @note See RM 7.6 for more info on addressing.
      *
@@ -174,45 +174,39 @@ namespace Ripple::DATALINK
 
     /**
      *  Handle the IRQ event when a transmission succeeded
-     *
-     *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXSuccess( Session::Context context );
+    void processTXSuccess();
 
     /**
      *  Handle the IRQ event when a transmission failed
-     *
-     *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXFail( Session::Context context );
+    void processTXFail();
 
     /**
      *  Periodic process to transmit data that has been enqueued with the service
-     *
-     *  @param[in]  session     User session information
      *  @return void
      */
-    void processTXQueue( Session::Context context );
+    void processTXQueue();
 
     /**
      *  Periodic process to read a frame off the radio and enqueues it
      *  for handling by higher layers.
      *
-     *  @param[in]  session     User session information
      *  @return void
      */
-    void processRXQueue( Session::Context context );
+    void processRXQueue();
 
   private:
     /*-------------------------------------------------
     Class State Data
     -------------------------------------------------*/
     bool mSystemEnabled;                    /**< Gating signal for the ISR handler to prevent spurrious interrupts */
-    bool mTXInProgress;                     /**< TX is ongoing and hasn't been ACK'd yet */
     volatile bool pendingEvent;             /**< Signal flag set by an ISR that an event occurred */
     Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
+    Session::Context mContext;              /**< User context for the network stack */
+    TransferControlBlock mTCB;              /**< TX control block */
 
     /*-------------------------------------------------
     Helper for tracking/invoking callbacks

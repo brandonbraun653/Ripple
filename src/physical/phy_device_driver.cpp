@@ -57,49 +57,20 @@ namespace Ripple::PHY
   };
 
   static const uint8_t rxPipeAddressRegister[ MAX_NUM_PIPES ] = {
-    REG_ADDR_RX_ADDR_P0,
-    REG_ADDR_RX_ADDR_P1,
-    REG_ADDR_RX_ADDR_P2,
-    REG_ADDR_RX_ADDR_P3,
-    REG_ADDR_RX_ADDR_P4,
-    REG_ADDR_RX_ADDR_P5
+    REG_ADDR_RX_ADDR_P0, REG_ADDR_RX_ADDR_P1, REG_ADDR_RX_ADDR_P2, REG_ADDR_RX_ADDR_P3, REG_ADDR_RX_ADDR_P4, REG_ADDR_RX_ADDR_P5
   };
 
   static const uint8_t rxPipePayloadWidthRegister[ MAX_NUM_PIPES ] = {
-    REG_ADDR_RX_PW_P0,
-    REG_ADDR_RX_PW_P1,
-    REG_ADDR_RX_PW_P2,
-    REG_ADDR_RX_PW_P3,
-    REG_ADDR_RX_PW_P4,
-    REG_ADDR_RX_PW_P5
+    REG_ADDR_RX_PW_P0, REG_ADDR_RX_PW_P1, REG_ADDR_RX_PW_P2, REG_ADDR_RX_PW_P3, REG_ADDR_RX_PW_P4, REG_ADDR_RX_PW_P5
   };
 
-  static const uint8_t rxPipeEnableBitField[ MAX_NUM_PIPES ] = {
-    EN_RXADDR_P0,
-    EN_RXADDR_P1,
-    EN_RXADDR_P2,
-    EN_RXADDR_P3,
-    EN_RXADDR_P4,
-    EN_RXADDR_P5
-  };
+  static const uint8_t rxPipeEnableBitField[ MAX_NUM_PIPES ] = { EN_RXADDR_P0, EN_RXADDR_P1, EN_RXADDR_P2,
+                                                                 EN_RXADDR_P3, EN_RXADDR_P4, EN_RXADDR_P5 };
 
-  static const uint8_t rxPipeEnableDPLMask[ MAX_NUM_PIPES ] = {
-    DYNPD_DPL_P0,
-    DYNPD_DPL_P1,
-    DYNPD_DPL_P2,
-    DYNPD_DPL_P3,
-    DYNPD_DPL_P4,
-    DYNPD_DPL_P5
-  };
+  static const uint8_t rxPipeEnableDPLMask[ MAX_NUM_PIPES ] = { DYNPD_DPL_P0, DYNPD_DPL_P1, DYNPD_DPL_P2,
+                                                                DYNPD_DPL_P3, DYNPD_DPL_P4, DYNPD_DPL_P5 };
 
-  static const uint8_t rxPipeEnableAAMask[ MAX_NUM_PIPES ] = {
-    EN_AA_P0,
-    EN_AA_P1,
-    EN_AA_P2,
-    EN_AA_P3,
-    EN_AA_P4,
-    EN_AA_P5
-  };
+  static const uint8_t rxPipeEnableAAMask[ MAX_NUM_PIPES ] = { EN_AA_P0, EN_AA_P1, EN_AA_P2, EN_AA_P3, EN_AA_P4, EN_AA_P5 };
   /* clang-format on */
 
   /*-------------------------------------------------------------------------------
@@ -144,13 +115,13 @@ namespace Ripple::PHY
     all the hardware IO drivers appropriately. Try to
     communicate with the device.
     -------------------------------------------------*/
-    handle.opened = true; // Temporarily set to true to the read/write can work
+    handle.opened = true;    // Temporarily set to true to the read/write can work
     handle.cfg    = cfg;
 
     writeRegister( handle, REG_ADDR_RF_CH, TestChannel );
     uint8_t val = readRegister( handle, REG_ADDR_RF_CH );
 
-    if( val == TestChannel )
+    if ( val == TestChannel )
     {
       return Chimera::Status::OK;
     }
@@ -468,7 +439,7 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( !( pipe < PIPE_NUM_MAX ) && !( pipe == PIPE_NUM_ALL ) )
+    else if ( pipe > PIPE_NUM_ALL )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -479,7 +450,7 @@ namespace Ripple::PHY
     uint8_t en_aa_mask = 0;
     uint8_t dynpd_mask = 0;
 
-    if( pipe == PIPE_NUM_ALL )
+    if ( pipe == PIPE_NUM_ALL )
     {
       en_aa_mask = EN_AA_Mask;
       dynpd_mask = DYNPD_Mask;
@@ -515,7 +486,7 @@ namespace Ripple::PHY
       setRegisterBits( handle, REG_ADDR_EN_AA, en_aa_mask );
       setRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
 
-      handle.flags |= DEV_FEATURES_ACTIVE;
+      handle.flags |= ( DEV_FEATURES_ACTIVE | DEV_DYNAMIC_PAYLOADS );
     }
     else if ( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
     {
@@ -526,7 +497,7 @@ namespace Ripple::PHY
       clrRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
       clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
 
-      handle.flags &= ~DEV_FEATURES_ACTIVE;
+      handle.flags &= ~( DEV_FEATURES_ACTIVE | DEV_DYNAMIC_PAYLOADS );
     }
 
     return Chimera::Status::OK;
@@ -650,7 +621,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Set the power state
     -------------------------------------------------*/
-    if( state )
+    if ( state )
     {
       setRegisterBits( handle, REG_ADDR_CONFIG, CONFIG_PWR_UP );
     }
@@ -675,6 +646,10 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
+
+    // TODO: This function can be optimized if known whether AUTO-ACK is needed for
+    //       the pipe's transmission. These are some of the largest transactions minus
+    //       packet read/write.
 
     /*-------------------------------------------------
     Cache the currently configured RX address
@@ -732,7 +707,7 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( !( pipe < PIPE_NUM_MAX ) )
+    else if ( pipe >= PIPE_NUM_ALL )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -740,7 +715,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Assign the address for the pipe to listen against
     -------------------------------------------------*/
-    size_t addressBytes  = 0u;
+    size_t addressBytes    = 0u;
     MACAddress addressMask = 0u;
 
     if ( ( pipe == PIPE_NUM_0 ) || ( pipe == PIPE_NUM_1 ) )
@@ -748,7 +723,7 @@ namespace Ripple::PHY
       /*-------------------------------------------------
       Write only as many address bytes as set in SETUP_AW
       -------------------------------------------------*/
-      addressBytes = getAddressWidth( handle );
+      addressBytes = handle.cfg.hwAddressWidth;
       addressMask  = 0xFFFFFFFFFFu;
       writeRegister( handle, rxPipeAddressRegister[ pipe ], &address, addressBytes );
 
@@ -764,13 +739,12 @@ namespace Ripple::PHY
     }
     else
     {
+      /*------------------------------------------------
+      Pipe 2-5 only need the first bytes assigned as the
+      rest of their address bytes come from PIPE_NUM_1.
+      ------------------------------------------------*/
       addressBytes = 1u;
       addressMask  = 0xFFu;
-
-      /*------------------------------------------------
-      These pipes only need the first bytes assigned as
-      they take the rest of their address from PIPE_NUM_0.
-      ------------------------------------------------*/
       writeRegister( handle, rxPipeAddressRegister[ pipe ], &address, addressBytes );
     }
 
@@ -791,8 +765,8 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Write the payload width, then turn the pipe on
     -------------------------------------------------*/
-    uint8_t payloadSize = DFLT_PAYLOAD_SIZE;
-    if( handle.flags & DEV_DYNAMIC_PAYLOADS )
+    uint8_t payloadSize = handle.cfg.hwStaticPayloadWidth;
+    if ( handle.flags & DEV_DYNAMIC_PAYLOADS )
     {
       // TODO: Verify if this still allows for dynamic payloads. Datasheet says zero == disabled, but
       //       it might be what makes this mode work for some of the cheaper chinese clones.
@@ -815,7 +789,7 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if( !( pipe < PIPE_NUM_MAX ) )
+    else if ( pipe >= PIPE_NUM_ALL )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -846,7 +820,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     If using dynamic payloads, disable it
     -------------------------------------------------*/
-    if( handle.flags & DEV_DYNAMIC_PAYLOADS )
+    if ( handle.flags & DEV_DYNAMIC_PAYLOADS )
     {
       clrRegisterBits( handle, REG_ADDR_DYNPD, rxPipeEnableDPLMask[ pipe ] );
       clrRegisterBits( handle, REG_ADDR_EN_AA, rxPipeEnableAAMask[ pipe ] );
@@ -879,7 +853,7 @@ namespace Ripple::PHY
     State prevState = State::LOW;
     handle.cePin->getState( prevState );
 
-    if( prevState == State::HIGH )
+    if ( prevState == State::HIGH )
     {
       handle.cePin->setState( State::LOW );
     }
@@ -893,7 +867,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Reset the CE pin back to original state if needed.
     -------------------------------------------------*/
-    if( prevState == State::HIGH )
+    if ( prevState == State::HIGH )
     {
       handle.cePin->setState( prevState );
     }
@@ -920,7 +894,7 @@ namespace Ripple::PHY
     Select the appropriate write command
     -------------------------------------------------*/
     uint8_t cmd = CMD_W_TX_PAYLOAD;
-    if( type == PayloadType::PAYLOAD_NO_ACK )
+    if ( type == PayloadType::PAYLOAD_NO_ACK )
     {
       cmd = CMD_W_TX_PAYLOAD_NO_ACK;
     }
@@ -943,7 +917,7 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if ( !buffer || !length || !( pipe < PIPE_NUM_MAX ) )
+    else if ( !buffer || !length || ( pipe >= PIPE_NUM_ALL ) )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -961,6 +935,52 @@ namespace Ripple::PHY
   /*-------------------------------------------------------------------------------
   Data Setters/Getters
   -------------------------------------------------------------------------------*/
+  void readAllRegisters( Handle &handle )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------
+    Read the single byte registers first
+    -------------------------------------------------*/
+    handle.registerCache.CONFIG      = readRegister( handle, REG_ADDR_CONFIG );
+    handle.registerCache.EN_AA       = readRegister( handle, REG_ADDR_EN_AA );
+    handle.registerCache.EN_RX_ADDR  = readRegister( handle, REG_ADDR_EN_RXADDR );
+    handle.registerCache.SETUP_AW    = readRegister( handle, REG_ADDR_SETUP_AW );
+    handle.registerCache.SETUP_RETR  = readRegister( handle, REG_ADDR_SETUP_RETR );
+    handle.registerCache.RF_CH       = readRegister( handle, REG_ADDR_RF_CH );
+    handle.registerCache.RF_SETUP    = readRegister( handle, REG_ADDR_RF_SETUP );
+    handle.registerCache.STATUS      = readRegister( handle, REG_ADDR_STATUS );
+    handle.registerCache.OBSERVE_TX  = readRegister( handle, REG_ADDR_OBSERVE_TX );
+    handle.registerCache.RPD         = readRegister( handle, REG_ADDR_CD );
+    handle.registerCache.RX_PW_P0    = readRegister( handle, REG_ADDR_RX_PW_P0 );
+    handle.registerCache.RX_PW_P1    = readRegister( handle, REG_ADDR_RX_PW_P1 );
+    handle.registerCache.RX_PW_P2    = readRegister( handle, REG_ADDR_RX_PW_P2 );
+    handle.registerCache.RX_PW_P3    = readRegister( handle, REG_ADDR_RX_PW_P3 );
+    handle.registerCache.RX_PW_P4    = readRegister( handle, REG_ADDR_RX_PW_P4 );
+    handle.registerCache.RX_PW_P5    = readRegister( handle, REG_ADDR_RX_PW_P5 );
+    handle.registerCache.FIFO_STATUS = readRegister( handle, REG_ADDR_FIFO_STATUS );
+    handle.registerCache.DYNPD       = readRegister( handle, REG_ADDR_DYNPD );
+    handle.registerCache.FEATURE     = readRegister( handle, REG_ADDR_FEATURE );
+    handle.registerCache.RX_ADDR_P2  = readRegister( handle, REG_ADDR_RX_ADDR_P2 );
+    handle.registerCache.RX_ADDR_P3  = readRegister( handle, REG_ADDR_RX_ADDR_P3 );
+    handle.registerCache.RX_ADDR_P4  = readRegister( handle, REG_ADDR_RX_ADDR_P4 );
+    handle.registerCache.RX_ADDR_P5  = readRegister( handle, REG_ADDR_RX_ADDR_P5 );
+
+    /*-------------------------------------------------
+    Read the multi-byte registers next
+    -------------------------------------------------*/
+    readRegister( handle, REG_ADDR_TX_ADDR, &handle.registerCache.TX_ADDR, handle.cfg.hwAddressWidth );
+    readRegister( handle, REG_ADDR_RX_ADDR_P0, &handle.registerCache.RX_ADDR_P0, handle.cfg.hwAddressWidth );
+    readRegister( handle, REG_ADDR_RX_ADDR_P1, &handle.registerCache.RX_ADDR_P1, handle.cfg.hwAddressWidth );
+  }
+
+
   Reg8_t getStatusRegister( Handle &handle )
   {
     /*-------------------------------------------------
@@ -1003,7 +1023,7 @@ namespace Ripple::PHY
   }
 
 
-  Chimera::Status_t setPALevel( Handle &handle, const RFPower level )
+  Chimera::Status_t setRFPower( Handle &handle, const RFPower level )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1014,11 +1034,36 @@ namespace Ripple::PHY
     }
 
     /*-------------------------------------------------
-    Merge bits from level into setup according to a mask
-    https://graphics.stanford.edu/~seander/bithacks.html#MaskedMerge
+    Get the current RF power setting and clear it
     -------------------------------------------------*/
-    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP );
-    setup ^= ( setup ^ static_cast<uint8_t>( level ) ) & RF_SETUP_RF_PWR_Msk;
+    uint8_t setup = readRegister( handle, REG_ADDR_RF_SETUP ) & ~RF_SETUP_RF_PWR;
+
+    /*-------------------------------------------------
+    Assign the appropriate power level
+    -------------------------------------------------*/
+    switch( level )
+    {
+      /* -12dBm */
+      case RFPower::PA_LVL_1:
+        setup |= ( 0x01 << RF_SETUP_RF_PWR_Pos ) & RF_SETUP_RF_PWR_Msk;
+        break;
+
+      /* -6dBm */
+      case RFPower::PA_LVL_2:
+        setup |= ( 0x02 << RF_SETUP_RF_PWR_Pos ) & RF_SETUP_RF_PWR_Msk;
+        break;
+
+      /* 0dBm */
+      case RFPower::PA_LVL_3:
+        setup |= ( 0x03 << RF_SETUP_RF_PWR_Pos ) & RF_SETUP_RF_PWR_Msk;
+        break;
+
+      /* -18dBm */
+      case RFPower::PA_LVL_0:
+      default:
+        setup |= ( 0x00 << RF_SETUP_RF_PWR_Pos ) & RF_SETUP_RF_PWR_Msk;
+        break;
+    };
 
     /*-------------------------------------------------
     Update the register setting
@@ -1030,7 +1075,7 @@ namespace Ripple::PHY
   }
 
 
-  RFPower getPALevel( Handle &handle )
+  RFPower getRFPower( Handle &handle )
   {
     /*-------------------------------------------------
     Entrance Checks
@@ -1038,7 +1083,7 @@ namespace Ripple::PHY
     if ( !driverReady( handle ) )
     {
       Chimera::insert_debug_breakpoint();
-      return RFPower::PA_LOW;
+      return RFPower::PA_INVALID;
     }
 
     /*-------------------------------------------------
@@ -1047,7 +1092,38 @@ namespace Ripple::PHY
     uint8_t setup                 = readRegister( handle, REG_ADDR_RF_SETUP );
     handle.registerCache.RF_SETUP = setup;
 
-    return static_cast<RFPower>( ( setup & RF_SETUP_RF_PWR ) >> 1 );
+    /*-------------------------------------------------
+    Return the appropriate level
+    -------------------------------------------------*/
+    setup &= RF_SETUP_RF_PWR_Msk;
+    setup >>= RF_SETUP_RF_PWR_Pos;
+
+    switch( setup )
+    {
+      /* -18dBm */
+      case 0:
+        return RFPower::PA_LVL_0;
+        break;
+
+      /* -12dBm */
+      case 1:
+        return RFPower::PA_LVL_1;
+        break;
+
+      /* -6dBm */
+      case 2:
+        return RFPower::PA_LVL_2;
+        break;
+
+      /* 0dBm */
+      case 3:
+        return RFPower::PA_LVL_3;
+        break;
+
+      default:
+        return RFPower::PA_INVALID;
+        break;
+    };
   }
 
 
@@ -1448,6 +1524,45 @@ namespace Ripple::PHY
   }
 
 
+  MACAddress getRXPipeAddress( Handle &handle, const PipeNumber pipe )
+  {
+    /*-------------------------------------------------
+    Entrance Checks
+    -------------------------------------------------*/
+    if ( !driverReady( handle ) || ( pipe >= PIPE_NUM_ALL ) )
+    {
+      return 0;
+    }
+
+    /*-------------------------------------------------
+    Read out the proper number of bytes
+    -------------------------------------------------*/
+    MACAddress mac = 0;
+
+    if ( pipe == PIPE_NUM_0 )
+    {
+      readRegister( handle, REG_ADDR_RX_ADDR_P0, &mac, handle.cfg.hwAddressWidth );
+    }
+    else
+    {
+      readRegister( handle, REG_ADDR_RX_ADDR_P1, &mac, handle.cfg.hwAddressWidth );
+    }
+
+    /*-------------------------------------------------
+    Read out the single byte modifier to the PIPE_NUM_1
+    address shared among the remaining pipes.
+    -------------------------------------------------*/
+    if ( pipe >= PIPE_NUM_2 )
+    {
+      uint8_t modifier = readRegister( handle, rxPipeAddressRegister[ pipe ] );
+      mac &= ~0xFF;
+      mac |= modifier;
+    }
+
+    return mac;
+  }
+
+
   Chimera::Status_t setCRCLength( Handle &handle, const CRCLength length )
   {
     /*-------------------------------------------------
@@ -1529,7 +1644,7 @@ namespace Ripple::PHY
     {
       return Chimera::Status::NOT_AVAILABLE;
     }
-    else if ( !( pipe < ARRAY_COUNT( rxPipePayloadWidthRegister ) ) || !( size <= MAX_TX_PAYLOAD_SIZE ) )
+    else if ( ( pipe > PIPE_NUM_ALL ) || ( size > MAX_TX_PAYLOAD_SIZE ) )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -1539,7 +1654,7 @@ namespace Ripple::PHY
     -------------------------------------------------*/
     if ( pipe == PIPE_NUM_ALL )
     {
-      for ( auto x = 0; x < PIPE_NUM_MAX; x++ )
+      for ( auto x = 0; x < PIPE_NUM_ALL; x++ )
       {
         writeRegister( handle, rxPipePayloadWidthRegister[ x ], static_cast<uint8_t>( size ) );
       }
@@ -1575,7 +1690,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
-    if ( !driverReady( handle ) || rxFifoEmpty( handle ) )
+    if ( !driverReady( handle ) )
     {
       return PipeNumber::PIPE_INVALID;
     }
@@ -1583,8 +1698,25 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Read the status register to get appropriate pipe
     -------------------------------------------------*/
-    uint8_t sts = getStatusRegister( handle );
-    return static_cast<PipeNumber>( ( sts & STATUS_RX_P_NO_Msk ) >> STATUS_RX_P_NO_Pos );
+    uint8_t pipe = ( getStatusRegister( handle ) & STATUS_RX_P_NO_Msk ) >> STATUS_RX_P_NO_Pos;
+
+    switch( pipe )
+    {
+      /*-------------------------------------------------
+      Not Used (0b110) or RX FIFO Empty (0b111)
+      -------------------------------------------------*/
+      case 6:
+      case 7:
+        return PipeNumber::PIPE_INVALID;
+        break;
+
+      /*-------------------------------------------------
+      Some pipe has data (0b000 - 0b101)
+      -------------------------------------------------*/
+      default:
+        return static_cast<PipeNumber>( pipe );
+        break;
+    };
   }
 
 

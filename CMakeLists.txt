@@ -3,6 +3,7 @@ include("${COMMON_TOOL_ROOT}/cmake/utility/embedded.cmake")
 add_subdirectory(src/datalink)
 add_subdirectory(src/network)
 add_subdirectory(src/physical)
+add_subdirectory(src/session)
 add_subdirectory(src/shared)
 
 # ====================================================
@@ -11,6 +12,7 @@ add_subdirectory(src/shared)
 set(all_libraries
   ripple_datalink
   ripple_physical
+  ripple_session
   ripple_shared
   ripple_network
 )
