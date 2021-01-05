@@ -3,7 +3,7 @@
  *    data_link_service.hpp
  *
  *  Description:
- *    Data link layer thread interface
+ *    Ripple data link layer service interface
  *
  *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
@@ -16,6 +16,7 @@
 #include <Chimera/thread>
 
 /* ETL Includes */
+#include <etl/delegate.h>
 #include <etl/delegate_service.h>
 
 /* Ripple Includes */
@@ -24,6 +25,7 @@
 #include <Ripple/src/datalink/data_link_arp.hpp>
 #include <Ripple/src/physical/phy_fsm_controller.hpp>
 #include <Ripple/src/session/session_types.hpp>
+
 
 namespace Ripple::DATALINK
 {
@@ -54,7 +56,9 @@ namespace Ripple::DATALINK
     ~Service();
 
     /**
-     *  Main thread that executes the datalink layer services
+     *  Main thread that executes the datalink layer services. This method should be
+     *  bound to a delegate that can be executed by the Chimera::Threading module. If
+     *  this thread is not created, the Service will not execute.
      *
      *  @param[in]  context     Critical net stack information
      *  @return void
@@ -185,15 +189,13 @@ namespace Ripple::DATALINK
     void processTXFail();
 
     /**
-     *  Periodic process to transmit data that has been enqueued with the service
+     *  Periodic process to transmit a frame enqueued with the service
      *  @return void
      */
     void processTXQueue();
 
     /**
-     *  Periodic process to read a frame off the radio and enqueues it
-     *  for handling by higher layers.
-     *
+     *  Periodic process to read a frame from the radio and queue it
      *  @return void
      */
     void processRXQueue();
@@ -222,19 +224,19 @@ namespace Ripple::DATALINK
     Chimera::Threading::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
 
     /*-------------------------------------------------
-    Lookup table for known devices
+    Lookup table for known device IP->MAC mappings
     -------------------------------------------------*/
     ARPCache mAddressCache;
 
     /*-------------------------------------------------
-    FSM Controller
+    Finite State Machine Controller
     -------------------------------------------------*/
     PHY::FSM::RadioControl mFSMControl;
     PHY::FSM::PoweredOff _fsmState_PoweredOff;
     PHY::FSM::Standby1 _fsmState_Standby1;
     PHY::FSM::RXMode _fsmState_RXMode;
     PHY::FSM::TXMode _fsmState_TXMode;
-    etl::ifsm_state* _fsmStateList[ PHY::FSM::StateId::NUMBER_OF_STATES ];
+    etl::ifsm_state *_fsmStateList[ PHY::FSM::StateId::NUMBER_OF_STATES ];
   };
 }    // namespace Ripple::DATALINK
 

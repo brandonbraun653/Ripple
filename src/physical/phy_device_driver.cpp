@@ -9,6 +9,7 @@
  *******************************************************************************/
 
 /* Chimera Includes */
+#include <Chimera/assert>
 #include <Chimera/common>
 
 /* Ripple Includes */
@@ -432,6 +433,12 @@ namespace Ripple::PHY
 
   Chimera::Status_t toggleDynamicPayloads( Handle &handle, const PipeNumber pipe, const bool state )
   {
+    /*-------------------------------------------------------------------------------
+    For now, only static payloads are allowed due to counterfeit chips not working
+    at all with dynamic payloads. Maybe one day I'll switch to the real Nordic chip.
+    -------------------------------------------------------------------------------*/
+    RT_HARD_ASSERT( state == false );
+
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
@@ -445,20 +452,25 @@ namespace Ripple::PHY
     }
 
     /*-------------------------------------------------
-    Determine mask to apply to EN_AA & DYNPD registers
+    Determine mask to apply to DYNPD registers
     -------------------------------------------------*/
-    uint8_t en_aa_mask = 0;
     uint8_t dynpd_mask = 0;
 
     if ( pipe == PIPE_NUM_ALL )
     {
-      en_aa_mask = EN_AA_Mask;
       dynpd_mask = DYNPD_Mask;
     }
     else
     {
-      en_aa_mask = rxPipeEnableAAMask[ pipe ];
       dynpd_mask = rxPipeEnableDPLMask[ pipe ];
+    }
+
+    /*-------------------------------------------------
+    Send the activate command to enable features
+    -------------------------------------------------*/
+    if ( !( handle.flags & DEV_FEATURES_ACTIVE ) )
+    {
+      toggleFeatures( handle, true );
     }
 
     /*-------------------------------------------------
@@ -467,37 +479,31 @@ namespace Ripple::PHY
     if ( state )
     {
       /*-------------------------------------------------
-      Send the activate command to enable features
-      -------------------------------------------------*/
-      if ( !( handle.flags & DEV_FEATURES_ACTIVE ) )
-      {
-        toggleFeatures( handle, true );
-      }
-
-      /*-------------------------------------------------
       Enable the dynamic payload feature bit
       -------------------------------------------------*/
       setRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
 
       /*-------------------------------------------------
-      Enable dynamic payload on all pipes. This requires that
-      auto-acknowledge be enabled.
+      Enable dynamic payload on the pipe. This requires
+      that auto-acknowledge be enabled.
       -------------------------------------------------*/
-      setRegisterBits( handle, REG_ADDR_EN_AA, en_aa_mask );
       setRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
 
-      handle.flags |= ( DEV_FEATURES_ACTIVE | DEV_DYNAMIC_PAYLOADS );
+      handle.flags |=  DEV_DYNAMIC_PAYLOADS;
     }
-    else if ( !state && ( handle.flags & DEV_FEATURES_ACTIVE ) )
+    else
     {
+      clrRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
+
       /*-------------------------------------------------
       Disable for all pipes
       -------------------------------------------------*/
-      clrRegisterBits( handle, REG_ADDR_EN_AA, en_aa_mask );
-      clrRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
-      clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
+      if ( pipe == PIPE_NUM_ALL )
+      {
+        clrRegisterBits( handle, REG_ADDR_FEATURE, FEATURE_EN_DPL );
+      }
 
-      handle.flags &= ~( DEV_FEATURES_ACTIVE | DEV_DYNAMIC_PAYLOADS );
+      handle.flags &= ~DEV_DYNAMIC_PAYLOADS;
     }
 
     return Chimera::Status::OK;
@@ -832,8 +838,6 @@ namespace Ripple::PHY
 
   Chimera::Status_t readPayload( Handle &handle, void *const buffer, const size_t length )
   {
-    using namespace Chimera::GPIO;
-
     /*-------------------------------------------------
     Entrance Checks
     -------------------------------------------------*/
@@ -847,32 +851,13 @@ namespace Ripple::PHY
     }
 
     /*-------------------------------------------------
-    The chip enable pin must be low to read out data.
-    This places the device in Standby-1 mode.
-    -------------------------------------------------*/
-    State prevState = State::LOW;
-    handle.cePin->getState( prevState );
-
-    if ( prevState == State::HIGH )
-    {
-      handle.cePin->setState( State::LOW );
-    }
-
-    /*-------------------------------------------------
-    Read out the payload
+    Read out the payload. This assumes the device has
+    already been placed into Standby-1 mode.
     -------------------------------------------------*/
     size_t readLength = std::min( length, MAX_TX_PAYLOAD_SIZE );
-    readCommand( handle, CMD_R_RX_PAYLOAD, buffer, readLength );
+    uint8_t statusReg = readCommand( handle, CMD_R_RX_PAYLOAD, buffer, readLength );
 
-    /*-------------------------------------------------
-    Reset the CE pin back to original state if needed.
-    -------------------------------------------------*/
-    if ( prevState == State::HIGH )
-    {
-      handle.cePin->setState( prevState );
-    }
-
-    return Chimera::Status::OK;
+    return ( statusReg != PHY::INVALID_STATUS_REG ) ? Chimera::Status::OK : Chimera::Status::FAIL;
   }
 
 

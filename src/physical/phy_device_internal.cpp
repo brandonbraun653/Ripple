@@ -232,7 +232,7 @@ namespace Ripple::PHY
     /*-------------------------------------------------
     Structure the command sequence
     -------------------------------------------------*/
-    size_t cmdLen        = 1;
+    size_t cmdLen        = 1 + length;  // +1 for the command byte
     handle.txBuffer[ 0 ] = cmd;
     memset( &handle.txBuffer[ 1 ], CMD_NOP, ARRAY_BYTES( Handle::txBuffer ) - 1 );
 

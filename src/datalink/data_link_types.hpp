@@ -60,6 +60,7 @@ namespace Ripple::DATALINK
     CB_ERROR_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
     CB_ERROR_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
     CB_ERROR_ARP_RESOLVE,   /**< ARP could not resolve the destination address */
+    CB_ERROR_ARP_LIMIT,     /**< ARP cache has reached the max storage entries */
 
     CB_NUM_OPTIONS
   };
@@ -104,9 +105,25 @@ namespace Ripple::DATALINK
      */
     size_t hwIRQEventTimeout;
 
+    /**
+     *  Tracks the number of RX queue overflow events that have occurred since
+     *  powerup. Useful to see if the datalink layer has enough bandwidth to
+     *  process the queue or if the network layer isn't emptying it fast enough.
+     */
+    size_t rxQueueOverflows;
+
+    /**
+     *  Tracks the number of TX queue overflow events that have occurred since
+     *  powerup. Useful to see if the datalink layer is being overloaded or too
+     *  much data is being pumped in by the network layer.
+     */
+    size_t txQueueOverflows;
+
     void clear()
     {
       hwIRQEventTimeout = 25;
+      rxQueueOverflows  = 0;
+      txQueueOverflows  = 0;
     }
   };
 

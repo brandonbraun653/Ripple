@@ -1,14 +1,15 @@
 /********************************************************************************
  *  File Name:
- *    link_thread.cpp
+ *    data_link_service.cpp
  *
  *  Description:
- *    Implements the data link layer thread functions
+ *    Implements the Ripple data link layer service
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 /* Chimera Includes */
+#include <Chimera/assert>
 #include <Chimera/common>
 #include <Chimera/system>
 #include <Chimera/thread>
@@ -17,7 +18,6 @@
 #include <Ripple/session>
 #include <Ripple/datalink>
 #include <Ripple/physical>
-
 #include <Ripple/src/physical/phy_device_internal.hpp>
 
 
@@ -32,13 +32,8 @@ namespace Ripple::DATALINK
   static constexpr PHY::PipeNumber PIPE_APP_DATA_0   = PHY::PIPE_NUM_4;
   static constexpr PHY::PipeNumber PIPE_APP_DATA_1   = PHY::PIPE_NUM_5;
 
-  static const PHY::PipeNumber sEndpointPipes[] = {
-    PIPE_DEVICE_ROOT,
-    PIPE_NET_SERVICES,
-    PIPE_DATA_FWD,
-    PIPE_APP_DATA_0,
-    PIPE_APP_DATA_1
-  };
+  static const PHY::PipeNumber sEndpointPipes[] = { PIPE_DEVICE_ROOT, PIPE_NET_SERVICES, PIPE_DATA_FWD, PIPE_APP_DATA_0,
+                                                    PIPE_APP_DATA_1 };
   static_assert( ARRAY_COUNT( sEndpointPipes ) == EP_NUM_OPTIONS );
   static_assert( PIPE_DEVICE_ROOT == PHY::PIPE_NUM_1 );
 
@@ -69,12 +64,14 @@ namespace Ripple::DATALINK
     mThreadId = this_thread::id();
 
     /*-------------------------------------------------
-    Verify the drivers have been registered
+    Verify the handles used in the entire datalink
+    service have been registered correctly.
     -------------------------------------------------*/
-    PHY::Handle *phyHandle     = PHY::getHandle( context );
-    DATALINK::Handle *dlHandle = DATALINK::getHandle( context );
+    PHY::Handle *physical      = PHY::getHandle( context );
+    DATALINK::Handle *datalink = DATALINK::getHandle( context );
+    Session::Handle *session   = Session::getHandle( context );
 
-    if ( !phyHandle || !dlHandle )
+    if ( !physical || !datalink || !session )
     {
       Chimera::System::softwareReset();
     }
@@ -83,9 +80,9 @@ namespace Ripple::DATALINK
       mContext = context;
     }
 
-
     /*-------------------------------------------------
-    Prepare the service to run
+    Establish communication with the radio and set up
+    user configuration properties.
     -------------------------------------------------*/
     if ( this->initialize( mContext ) == Chimera::Status::OK )
     {
@@ -97,7 +94,6 @@ namespace Ripple::DATALINK
       Chimera::System::softwareReset();
     }
 
-
     /*-------------------------------------------------
     Execute the service
     -------------------------------------------------*/
@@ -108,10 +104,10 @@ namespace Ripple::DATALINK
       GPIO interrupt tied to the IRQ pin, or by another
       task informing that it's time to process data.
       -------------------------------------------------*/
-      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, dlHandle->hwIRQEventTimeout ) )
+      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, datalink->hwIRQEventTimeout ) )
       {
         pendingEvent      = false;
-        uint8_t eventMask = PHY::getISREvent( *phyHandle );
+        uint8_t eventMask = PHY::getISREvent( *physical );
 
         /*-------------------------------------------------
         The last packet failed to transmit correctly
@@ -142,7 +138,7 @@ namespace Ripple::DATALINK
       Handle packet TX timeouts. Getting here means there
       is likely a setup issue with the hardware.
       -------------------------------------------------*/
-      if( mTCB.inProgress && ( ( Chimera::millis() - mTCB.start ) > mTCB.timeout ) )
+      if ( mTCB.inProgress && ( ( Chimera::millis() - mTCB.start ) > mTCB.timeout ) )
       {
         processTXFail();
       }
@@ -150,31 +146,27 @@ namespace Ripple::DATALINK
       /*-------------------------------------------------
       Another thread may have woken this one to process
       new frame queue data. Check if any is available.
-
       Handle RX first to keep the HW FIFOs empty.
       -------------------------------------------------*/
-      // processRXQueue();
+      processRXQueue();
       processTXQueue();
-
-      // if( Chimera::millis() > 1000 )
-      // {
-      //   PHY::readAllRegisters( *phyHandle );
-
-      //   continue;
-      // }
     }
   }
 
 
   Chimera::Status_t Service::enqueueFrame( const Frame &frame )
   {
-    /*-------------------------------------------------
-    Check if enough room is available
-    -------------------------------------------------*/
     mTXMutex.lock();
+
+    /*-------------------------------------------------
+    Process the error handler if the queue is full
+    -------------------------------------------------*/
     if ( mTXQueue.full() )
     {
       mTXMutex.unlock();
+
+      DATALINK::getHandle( mContext )->txQueueOverflows++;
+      mDelegateRegistry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
       return Chimera::Status::FULL;
     }
 
@@ -210,16 +202,30 @@ namespace Ripple::DATALINK
 
   Chimera::Status_t Service::addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac )
   {
+    /*-------------------------------------------------
+    Attempt to insert the new entry
+    -------------------------------------------------*/
     this->lock();
-    bool result = mAddressCache.insert( ip, mac );
+    bool success = mAddressCache.insert( ip, mac );
     this->unlock();
 
-    return result ? Chimera::Status::OK : Chimera::Status::FAIL;
+    /*-------------------------------------------------
+    Invoke the error callback on failure
+    -------------------------------------------------*/
+    if ( !success )
+    {
+      mDelegateRegistry.call<CallbackId::CB_ERROR_ARP_LIMIT>();
+    }
+
+    return success ? Chimera::Status::OK : Chimera::Status::FAIL;
   }
 
 
   Chimera::Status_t Service::dropARPEntry( const NET::IPAddress ip )
   {
+    /*-------------------------------------------------
+    Does nothing if the entry doesn't exist
+    -------------------------------------------------*/
     this->lock();
     mAddressCache.remove( ip );
     this->unlock();
@@ -257,6 +263,7 @@ namespace Ripple::DATALINK
 
   bool Service::queryCallbackData( const CallbackId id, void *const data )
   {
+    // TODO: Once the network layer needs this
     return false;
   }
 
@@ -266,7 +273,7 @@ namespace Ripple::DATALINK
     PHY::Handle *phyHandle = PHY::getHandle( mContext );
 
     auto result = PHY::openReadPipe( *phyHandle, sEndpointPipes[ EP_DEVICE_ROOT ], mac );
-    if( result == Chimera::Status::OK )
+    if ( result == Chimera::Status::OK )
     {
       Session::getHandle( mContext )->radioConfig.advanced.mac = mac;
     }
@@ -282,7 +289,7 @@ namespace Ripple::DATALINK
     /*-------------------------------------------------
     Can't set the root address directly in this func
     -------------------------------------------------*/
-    if( ( endpoint >= EP_NUM_OPTIONS ) || ( endpoint == EP_DEVICE_ROOT ) )
+    if ( ( endpoint >= EP_NUM_OPTIONS ) || ( endpoint == EP_DEVICE_ROOT ) )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
@@ -304,7 +311,7 @@ namespace Ripple::DATALINK
 
   PHY::MACAddress Service::getEndpointMAC( const Endpoint endpoint )
   {
-    if( endpoint >= Endpoint::EP_NUM_OPTIONS )
+    if ( endpoint >= Endpoint::EP_NUM_OPTIONS )
     {
       return 0;
     }
@@ -379,6 +386,7 @@ namespace Ripple::DATALINK
 
     /* Allow the network driver to decide at runtime if a packet requires an ACK response */
     result |= PHY::toggleDynamicAck( *physical, true );
+    result |= PHY::toggleAutoAck( *physical, true, PHY::PIPE_NUM_ALL );
 
     /* Static/Dynamic Payloads */
     if ( session->radioConfig.advanced.staticPayloads )
@@ -479,7 +487,7 @@ namespace Ripple::DATALINK
     (RM 8.4) First transition back to Standby-1 mode, then clear event flags and flush
     the TX FIFO. Otherwise, the IRQ will continuously fire.
     -------------------------------------------------------------------------------*/
-    if( failedFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
+    if ( failedFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
     {
       PHY::flushTX( *phyHandle );
       PHY::clrISREvent( *phyHandle, PHY::bfISRMask::ISR_MSK_MAX_RT );
@@ -520,8 +528,8 @@ namespace Ripple::DATALINK
     Look up the hardware address associated with the
     destination node.
     -------------------------------------------------*/
-    const Frame &cacheFrame = mTXQueue.front();
-    PHY::MACAddress dstAddress   = 0;
+    const Frame &cacheFrame    = mTXQueue.front();
+    PHY::MACAddress dstAddress = 0;
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
     {
@@ -548,21 +556,16 @@ namespace Ripple::DATALINK
 
     /*-------------------------------------------------
     Determine the reliability required on the TX. This
-    assumes hardware is initialized with DynamicACK and
-    the proper payload length settings are set.
+    assumes hardware is initialized with DynamicACK,
+    the proper payload length settings are set, and any
+    pipes needing auto-ack are enabled.
     -------------------------------------------------*/
-    PHY::PayloadType txType;
+    PHY::PayloadType txType = PHY::PayloadType::PAYLOAD_NO_ACK;
+
     if ( cacheFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
     {
       txType = PHY::PayloadType::PAYLOAD_REQUIRES_ACK;
       PHY::setRetries( *phy, cacheFrame.rtxDelay, cacheFrame.rtxCount );
-
-      // TODO: Does TX actually need this? Just RX right?
-      PHY::toggleAutoAck( *phy, true, PHY::PIPE_NUM_0 );
-    }
-    else
-    {
-      txType = PHY::PayloadType::PAYLOAD_NO_ACK;
     }
 
     /*-------------------------------------------------
@@ -574,12 +577,6 @@ namespace Ripple::DATALINK
     mTCB.start      = Chimera::millis();
 
     PHY::writePayload( *phy, cacheFrame.payload, cacheFrame.length, txType );
-
-
-    //PHY::readAllRegisters( *phy );
-
-
-
     mFSMControl.receive( PHY::FSM::MsgStartTX() );
 
     mTXMutex.unlock();
@@ -590,67 +587,89 @@ namespace Ripple::DATALINK
 
   void Service::processRXQueue()
   {
-    using namespace Chimera::Threading;
-
     /*-------------------------------------------------
-    Try to acquire the lock. Normally it will be free.
+    Ensure it is safe to process the RX Queue/FIFO
     -------------------------------------------------*/
-    if ( !mRXMutex.try_lock_for( TIMEOUT_1MS ) )
+    if ( mTCB.inProgress )
     {
+      /*-------------------------------------------------
+      TX-ing and RX-ing are exclusive. Play nice.
+      -------------------------------------------------*/
+      return;
+    }
+    else if ( !mRXMutex.try_lock_for( Chimera::Threading::TIMEOUT_1MS ) )
+    {
+      /*-------------------------------------------------
+      Who is holding the RX lock for more than 1 ms? This
+      is likely a thread lock condition.
+      -------------------------------------------------*/
+      Chimera::insert_debug_breakpoint();
       return;
     }
     else if ( mRXQueue.full() )
     {
       /*-------------------------------------------------
-      Try and dump data out of the queue
+      Give the network layer an opportunity to pull data
       -------------------------------------------------*/
-      mRXMutex.unlock();
       mDelegateRegistry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
-      return;
     }
-    else if ( mTCB.inProgress )
-    {
-      /*-------------------------------------------------
-      TX-ing and RX-ing are exclusive. Play nice.
-      -------------------------------------------------*/
-      mRXMutex.unlock();
-      return;
-    }
-
-    PHY::Handle *physical = PHY::getHandle( mContext );
-    Session::Handle *session = Session::getHandle( mContext );
 
     /*-------------------------------------------------
-    Acknowledge the event
+    Acquire the contexts used for the RX procedure
+    -------------------------------------------------*/
+    PHY::Handle *physical      = PHY::getHandle( mContext );
+    DATALINK::Handle *datalink = DATALINK::getHandle( mContext );
+    Session::Handle *session   = Session::getHandle( mContext );
+
+    /*-------------------------------------------------
+    Transition to Standby-1 mode, else the data cannot
+    be read from the RX FIFO (RM Appendix A)
+    -------------------------------------------------*/
+    mFSMControl.receive( PHY::FSM::MsgGoToSTBY() );
+
+    /*-------------------------------------------------
+    Acknowledge the RX event
     -------------------------------------------------*/
     PHY::clrISREvent( *physical, PHY::bfISRMask::ISR_MSK_RX_DR );
 
     /*-------------------------------------------------
-    Figure out which pipe the next packet belongs to
+    Read out all available data, regardless of whether
+    or not the queue can store the information. Without
+    this, the network will stall.
     -------------------------------------------------*/
     PHY::PipeNumber pipe = PHY::getAvailablePayloadPipe( *physical );
-
-    while( pipe != PHY::PipeNumber::PIPE_INVALID )
+    while ( pipe != PHY::PipeNumber::PIPE_INVALID )
     {
       /*-------------------------------------------------
-      Read out the data associated with the frame
+      Prepare a clean frame to copy data into. The more
+      complex aspects of the payload will be decoded in
+      the network layer.
       -------------------------------------------------*/
       Frame tempFrame;
       tempFrame.clear();
       tempFrame.rxPipe = pipe;
 
-      if( session->radioConfig.advanced.staticPayloads )
+      /*-------------------------------------------------
+      Read out the data associated with the frame
+      -------------------------------------------------*/
+      if ( session->radioConfig.advanced.staticPayloads )
       {
         PHY::readPayload( *physical, tempFrame.payload, physical->cfg.hwStaticPayloadWidth );
       }
-      else // Dynamic payloads
+      else    // Dynamic payloads
       {
+        /*-------------------------------------------------
+        Make noise if this is configured. Currently not
+        supported but may be in the future.
+        -------------------------------------------------*/
+        RT_HARD_ASSERT( false );
         size_t bytes = PHY::getAvailablePayloadSize( *physical, pipe );
         PHY::readPayload( *physical, tempFrame.payload, bytes );
       }
 
       /*-------------------------------------------------
-      Enqueue the frame if possible
+      Enqueue the frame if possible, call the network
+      handler if not. Otherwise the data is simply lost.
       -------------------------------------------------*/
       if ( !mRXQueue.full() )
       {
@@ -658,15 +677,27 @@ namespace Ripple::DATALINK
       }
       else
       {
+        datalink->rxQueueOverflows++;
         mDelegateRegistry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
-        break;
+
+        if ( !mRXQueue.full() )
+        {
+          mRXQueue.push( tempFrame );
+        }
+        // else data is lost
       }
 
       /*-------------------------------------------------
-      Check for more data to pull
+      Check for more data to read from the RX FIFO
       -------------------------------------------------*/
       pipe = PHY::getAvailablePayloadPipe( *physical );
     }
+
+    /*-------------------------------------------------
+    Go back to listening. The TX process is mutually
+    exclusive, so it's ok to transition to this state.
+    -------------------------------------------------*/
+    mFSMControl.receive( PHY::FSM::MsgStartRX() );
 
     /*-------------------------------------------------
     Let the network layer know data is ready

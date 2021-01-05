@@ -1,11 +1,11 @@
 /********************************************************************************
  *  File Name:
- *    link
+ *    datalink
  *
  *  Description:
  *    Public header includes for accessing the Ripple link layer
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  ********************************************************************************/
 
 #pragma once
@@ -15,6 +15,5 @@
 #include <Ripple/src/datalink/data_link_driver.hpp>
 #include <Ripple/src/datalink/data_link_service.hpp>
 #include <Ripple/src/datalink/data_link_types.hpp>
-#include <Ripple/src/datalink/data_link_utility.hpp>
 
 #endif /* !RIPPLE_LINK_INCLUDES */
