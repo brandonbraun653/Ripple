@@ -95,6 +95,21 @@ namespace Ripple::Session
     -------------------------------------------------*/
     RadioConfig radioConfig;
   };
+
+  /**
+   *  Holds all resources necessary to describe and implement
+   *  a socket connection
+   */
+  struct Socket
+  {
+
+  };
+
+
+  struct Connection
+  {
+
+  };
 }    // namespace Ripple::Session
 
 #endif /* !RIPPLE_SESSION_TYPES_HPP */

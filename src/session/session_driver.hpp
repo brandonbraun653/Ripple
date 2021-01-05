@@ -3,7 +3,6 @@
  *    session_driver.hpp
  *
  *  Description:
- *    Interface for the Session layer
  *
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
@@ -18,7 +17,7 @@
 namespace Ripple::Session
 {
   /*-------------------------------------------------------------------------------
-  Public Methods
+  Public Functions
   -------------------------------------------------------------------------------*/
   /**
    *  Gets the session layer handle from the context information
@@ -28,6 +27,16 @@ namespace Ripple::Session
    */
   Handle *getHandle( Context context );
 
+  /*-------------------------------------------------------------------------------
+  Classes
+  -------------------------------------------------------------------------------*/
+  class Manager
+  {
+  public:
+    Manager();
+    ~Manager();
+  private:
+  };
 }  // namespace Ripple::Session
 
 #endif  /* !RIPPLE_SESSION_HPP */
