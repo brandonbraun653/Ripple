@@ -20,7 +20,7 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Data Link Layer
   -------------------------------------------------------------------------------*/
-  namespace DATALINK
+  namespace DataLink
   {
     static constexpr size_t TX_QUEUE_ELEMENTS = 15;
     static constexpr size_t RX_QUEUE_ELEMENTS = 15;

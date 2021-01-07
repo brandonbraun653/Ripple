@@ -22,7 +22,7 @@
 /* Project Includes */
 #include <Ripple/src/physical/phy_device_types.hpp>
 
-namespace Ripple::PHY::FSM
+namespace Ripple::Physical::FSM
 {
   /*-------------------------------------------------------------------------------
   Constants
@@ -215,6 +215,6 @@ namespace Ripple::PHY::FSM
     etl::fsm_state_id_t on_event_unknown( etl::imessage_router &sender, const etl::imessage &event );
   };
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLE_PHYSICAL_FSM_HPP */

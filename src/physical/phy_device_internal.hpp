@@ -19,7 +19,7 @@
 /* Ripple Includes */
 #include <Ripple/src/physical/phy_device_types.hpp>
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Aliases
@@ -169,6 +169,6 @@ namespace Ripple::PHY
    */
   StatusReg_t clrRegisterBits( Handle &handle, const uint8_t addr, const uint8_t mask );
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLY_PHYSICAL_INTERNAL_HPP */

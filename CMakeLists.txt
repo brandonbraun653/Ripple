@@ -5,16 +5,18 @@ add_subdirectory(src/network)
 add_subdirectory(src/physical)
 add_subdirectory(src/session)
 add_subdirectory(src/shared)
+add_subdirectory(src/transport)
 
 # ====================================================
 # All Drivers
 # ====================================================
 set(all_libraries
   ripple_datalink
+  ripple_network
   ripple_physical
   ripple_session
   ripple_shared
-  ripple_network
+  ripple_transport
 )
 
 # ====================================================

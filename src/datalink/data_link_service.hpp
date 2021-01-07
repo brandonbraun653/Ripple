@@ -27,20 +27,20 @@
 #include <Ripple/src/session/session_types.hpp>
 
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   Constants
   -------------------------------------------------------------------------------*/
   static constexpr size_t THREAD_STACK          = STACK_BYTES( 1024 );
-  static constexpr std::string_view THREAD_NAME = "datalink";
+  static constexpr std::string_view THREAD_NAME = "DataLink";
 
 
   /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
   /**
-   *  Thread class that performs the datalink layer services, whose primary
+   *  Thread class that performs the DataLink layer services, whose primary
    *  responsibilities are to:
    *
    *    1. Control data TX/RX on the physical medium
@@ -56,7 +56,7 @@ namespace Ripple::DATALINK
     ~Service();
 
     /**
-     *  Main thread that executes the datalink layer services. This method should be
+     *  Main thread that executes the DataLink layer services. This method should be
      *  bound to a delegate that can be executed by the Chimera::Threading module. If
      *  this thread is not created, the Service will not execute.
      *
@@ -89,7 +89,7 @@ namespace Ripple::DATALINK
      *  @param[in]  mac         MAC address associated with the IP
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t addARPEntry( const NET::IPAddress ip, const PHY::MACAddress &mac );
+    Chimera::Status_t addARPEntry( const NET::IPAddress ip, const Physical::MACAddress &mac );
 
     /**
      *  Removes an entry from the layer's ARP table
@@ -128,7 +128,7 @@ namespace Ripple::DATALINK
      *  @param[in]  mac         The MAC address to assign to the EP_DEVICE_ROOT endpoint
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t setRootEndpointMAC( const PHY::MACAddress &mac );
+    Chimera::Status_t setRootEndpointMAC( const Physical::MACAddress &mac );
 
     /**
      *  Assigns the address modification byte to the pipe associated with the
@@ -146,9 +146,9 @@ namespace Ripple::DATALINK
      *  Gets the currently configured MAC address for the given endpoint
      *
      *  @param[in]  endpoint    Which endpoint to read
-     *  @return PHY::MACAddress
+     *  @return Physical::MACAddress
      */
-    PHY::MACAddress getEndpointMAC( const Endpoint endpoint );
+    Physical::MACAddress getEndpointMAC( const Endpoint endpoint );
 
   protected:
     /**
@@ -231,13 +231,13 @@ namespace Ripple::DATALINK
     /*-------------------------------------------------
     Finite State Machine Controller
     -------------------------------------------------*/
-    PHY::FSM::RadioControl mFSMControl;
-    PHY::FSM::PoweredOff _fsmState_PoweredOff;
-    PHY::FSM::Standby1 _fsmState_Standby1;
-    PHY::FSM::RXMode _fsmState_RXMode;
-    PHY::FSM::TXMode _fsmState_TXMode;
-    etl::ifsm_state *_fsmStateList[ PHY::FSM::StateId::NUMBER_OF_STATES ];
+    Physical::FSM::RadioControl mFSMControl;
+    Physical::FSM::PoweredOff _fsmState_PoweredOff;
+    Physical::FSM::Standby1 _fsmState_Standby1;
+    Physical::FSM::RXMode _fsmState_RXMode;
+    Physical::FSM::TXMode _fsmState_TXMode;
+    etl::ifsm_state *_fsmStateList[ Physical::FSM::StateId::NUMBER_OF_STATES ];
   };
-}    // namespace Ripple::DATALINK
+}    // namespace Ripple::DataLink
 
 #endif /* !RIPPLE_DATA_LINK_THREAD_HPP */

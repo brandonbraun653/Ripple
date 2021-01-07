@@ -18,7 +18,7 @@
 #include <Ripple/src/physical/phy_device_internal.hpp>
 #include <Ripple/src/physical/phy_device_register.hpp>
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Private Functions
@@ -283,4 +283,4 @@ namespace Ripple::PHY
     return writeRegister( handle, addr, current );
   }
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical

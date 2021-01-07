@@ -5,11 +5,14 @@
  *  Description:
  *    Public header includes for accessing the Ripple transport layer
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  ********************************************************************************/
 
 #pragma once
 #ifndef RIPPLE_TRANSPORT_INCLUDES
 #define RIPPLE_TRANSPORT_INCLUDES
+
+#include <Ripple/src/transport/transport_service.hpp>
+#include <Ripple/src/transport/transport_types.hpp>
 
 #endif /* !RIPPLE_TRANSPORT_INCLUDES */

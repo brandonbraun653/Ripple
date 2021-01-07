@@ -3,7 +3,7 @@
  *    data_link_driver.cpp
  *
  *  Description:
- *    Datalink driver implementation
+ *    DataLink driver implementation
  *
  *  2020 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
@@ -12,7 +12,7 @@
 #include <Ripple/physical>
 #include <Ripple/datalink>
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   Public Functions
@@ -26,10 +26,10 @@ namespace Ripple::DATALINK
     else
     {
       auto context  = reinterpret_cast<Session::Handle *>( session );
-      auto datalink = reinterpret_cast<Handle *>( context->datalink );
+      auto DataLink = reinterpret_cast<Handle *>( context->datalink );
 
-      return datalink;
+      return DataLink;
     }
   }
 
-}  // namespace Ripple::DATALINK
+}  // namespace Ripple::DataLink

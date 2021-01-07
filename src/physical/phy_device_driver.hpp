@@ -20,7 +20,7 @@
 #include <Ripple/src/physical/phy_device_types.hpp>
 #include <Ripple/src/session/session_types.hpp>
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Utility Functions
@@ -528,6 +528,6 @@ namespace Ripple::PHY
    */
   size_t getAvailablePayloadSize( Handle &handle, const PipeNumber pipe );
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLE_PHYSICAL_DEVICE_DRIVER_HPP */

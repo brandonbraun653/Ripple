@@ -18,7 +18,7 @@
 /* Chimera Includes */
 #include <Chimera/spi>
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------
   Driver Configuration
@@ -44,6 +44,6 @@ namespace Ripple::PHY
   static constexpr size_t MIN_ADDR_BYTES      = 3;
   static constexpr size_t MAX_ADDR_BYTES      = 5;
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLE_PHYSICAL_DEVICE_CONSTANTS_HPP */

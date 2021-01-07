@@ -3,20 +3,20 @@
  *    data_link_driver.hpp
  *
  *  Description:
- *    Driver interface for the datalink layer
+ *    Driver interface for the DataLink layer
  *
  *  2020 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_DATALINK_DRIVER_INTERFACE_HPP
-#define RIPPLE_DATALINK_DRIVER_INTERFACE_HPP
+#ifndef RIPPLE_DataLink_DRIVER_INTERFACE_HPP
+#define RIPPLE_DataLink_DRIVER_INTERFACE_HPP
 
 /* Ripple Includes */
 #include <Ripple/src/datalink/data_link_types.hpp>
 #include <Ripple/src/session/session_types.hpp>
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   Public Functions
@@ -29,6 +29,6 @@ namespace Ripple::DATALINK
    */
   Handle *getHandle( Session::Context session );
 
-}  // namespace Ripple::DATALINK
+}  // namespace Ripple::DataLink
 
-#endif  /* !RIPPLE_DATALINK_DRIVER_INTERFACE_HPP */
+#endif  /* !RIPPLE_DataLink_DRIVER_INTERFACE_HPP */

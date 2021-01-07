@@ -19,7 +19,7 @@
 #include <Chimera/spi>
 
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Aliases
@@ -319,6 +319,6 @@ namespace Ripple::PHY
       memset( rxBuffer, 0, ARRAY_BYTES( rxBuffer ) );
     }
   };
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLE_PHYSICAL_DEVICE_TYPES_HPP */

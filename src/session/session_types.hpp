@@ -12,6 +12,10 @@
 #ifndef RIPPLE_SESSION_TYPES_HPP
 #define RIPPLE_SESSION_TYPES_HPP
 
+/* ETL Includes */
+#include <etl/callback_service.h>
+#include <etl/delegate.h>
+
 /* Ripple Includes */
 #include <Ripple/src/network/net_types.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
@@ -24,6 +28,28 @@ namespace Ripple::Session
   Aliases
   -------------------------------------------------------------------------------*/
   using Context = void *; /**< Opaque pointer to the Handle */
+
+  /*-------------------------------------------------------------------------------
+  Enumerations
+  -------------------------------------------------------------------------------*/
+  /**
+   *  Supported callback identifiers that can be used to register a
+   *  function for invocation on an event. Intended to be used by the
+   *  Session layer.
+   */
+  enum CallbackId : uint8_t
+  {
+    CB_UNHANDLED,         /**< Handler for an unregistered callback event */
+    CB_SERVICE_OVERRUN,   /**< The service thread is using nearly all its time allocation */
+
+    CB_NUM_OPTIONS
+  };
+
+  enum class SocketType
+  {
+    STREAM, /**< Views data as a stream of bytes */
+    PACKET, /**< Views data as a collection of packets */
+  };
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -50,10 +76,10 @@ namespace Ripple::Session
       bool verifyRegisters;       /**< Optionally verify registers are set correctly at runtime */
       bool staticPayloads;        /**< Optionally enable static payloads (defaults to dynamic) */
       uint8_t staticPayloadSize;  /**< Fixed length of static payloads, if used */
-      PHY::MACAddress mac;        /**< MAC Address for the device */
-      PHY::AddressWidth macWidth; /**< Number of bytes used in the MAC address */
-      PHY::DataRate dataRate;     /**< RF on-air data rate */
-      PHY::RFPower rfPower;       /**< RF transmission power */
+      Physical::MACAddress mac;        /**< MAC Address for the device */
+      Physical::AddressWidth macWidth; /**< Number of bytes used in the MAC address */
+      Physical::DataRate dataRate;     /**< RF on-air data rate */
+      Physical::RFPower rfPower;       /**< RF transmission power */
     } advanced;
 
     /*-------------------------------------------------
@@ -66,12 +92,12 @@ namespace Ripple::Session
       address     = 0;
 
       advanced.mac               = 0;
-      advanced.macWidth          = PHY::AddressWidth::AW_INVALID;
-      advanced.dataRate          = PHY::DataRate::DR_INVALID;
-      advanced.rfPower           = PHY::RFPower::PA_INVALID;
+      advanced.macWidth          = Physical::AddressWidth::AW_INVALID;
+      advanced.dataRate          = Physical::DataRate::DR_INVALID;
+      advanced.rfPower           = Physical::RFPower::PA_INVALID;
       advanced.verifyRegisters   = false;
       advanced.staticPayloads    = false;
-      advanced.staticPayloadSize = static_cast<uint8_t>( PHY::MAX_TX_PAYLOAD_SIZE );
+      advanced.staticPayloadSize = static_cast<uint8_t>( Physical::MAX_TX_PAYLOAD_SIZE );
     }
   };
 
@@ -97,18 +123,32 @@ namespace Ripple::Session
   };
 
   /**
-   *  Holds all resources necessary to describe and implement
-   *  a socket connection
+   *  Holds all resources necessary to receive and transmit
+   *  data on a socket endpoint.
    */
-  struct Socket
+  struct SocketBuffer
   {
-
+    /**
+     *  Type of socket, indicating how the data buffers are managed
+     *  internally. Stream sockets are very different from packet sockets.
+     */
+    SocketType type;
+    void * rxBuffer;  /**< Buffer for RX data */
+    size_t rxLength;  /**< Number of bytes in the buffer */
+    void *txBuffer;   /**< Buffer for TX data */
+    size_t txLength;  /**< Number of bytes in the buffer */
   };
 
-
+  /**
+   *  Represents a connection to a remote endpoint
+   */
   struct Connection
   {
-
+    bool established;           /**< Whether or not the connection is live */
+    SocketBuffer *socketBuffer; /**< Host socket associated with the connection */
+    NET::IPAddress destIP;      /**< Destination device IP address */
+    NET::Port destPort;         /**< Destination device port */
+    NET::Port hostPort;         /**< Port associated with the host */
   };
 }    // namespace Ripple::Session
 

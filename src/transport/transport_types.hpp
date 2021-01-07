@@ -1,42 +1,42 @@
 /********************************************************************************
  *  File Name:
- *    session_driver.hpp
+ *    transport_types.hpp
  *
  *  Description:
+ *    Types and definitions associated with the Transport layer
  *
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_SESSION_HPP
-#define RIPPLE_SESSION_HPP
+#ifndef RIPPLE_TRANSPORT_TYPES_HPP
+#define RIPPLE_TRANSPORT_TYPES_HPP
 
-/* Ripple Includes */
-#include <Ripple/src/session/session_types.hpp>
+/* STL Includes */
+#include <cstdint>
 
-namespace Ripple::Session
+namespace Ripple::Transport
 {
   /*-------------------------------------------------------------------------------
-  Public Functions
+  Enumerations
   -------------------------------------------------------------------------------*/
-  /**
-   *  Gets the session layer handle from the context information
-   *
-   *  @param[in]  context       User context
-   *  @return Handle *
-   */
-  Handle *getHandle( Context context );
+  enum CallbackId : uint8_t
+  {
+    CB_UNHANDLED,
+    CB_SERVICE_OVERRUN,
+
+    CB_NUM_OPTIONS
+  };
+
 
   /*-------------------------------------------------------------------------------
-  Classes
+  Structures
   -------------------------------------------------------------------------------*/
-  class Manager
+  struct Handle
   {
-  public:
-    Manager();
-    ~Manager();
-  private:
+    uint8_t dummy;
   };
-}  // namespace Ripple::Session
 
-#endif  /* !RIPPLE_SESSION_HPP */
+}  // namespace Ripple::Transport
+
+#endif  /* !RIPPLE_TRANSPORT_TYPES_HPP */

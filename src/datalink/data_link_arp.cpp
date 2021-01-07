@@ -13,7 +13,7 @@
 #include <Ripple/physical>
 #include <Ripple/session>
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   ARPCache Implementation
@@ -36,13 +36,13 @@ namespace Ripple::DATALINK
   }
 
 
-  bool ARPCache::lookup( const uint32_t ip, PHY::MACAddress *addr )
+  bool ARPCache::lookup( const uint32_t ip, Physical::MACAddress *addr )
   {
     /*-------------------------------------------------
     Find the registered key. Copy out the MAC if found.
     -------------------------------------------------*/
     bool found = false;
-    PHY::MACAddress tmp = 0;
+    Physical::MACAddress tmp = 0;
     if ( auto iter = mCache.find( ip ); iter != mCache.end() )
     {
       tmp = iter->second;
@@ -84,7 +84,7 @@ namespace Ripple::DATALINK
   }
 
 
-  bool ARPCache::insert( const uint32_t ip, const PHY::MACAddress &addr )
+  bool ARPCache::insert( const uint32_t ip, const Physical::MACAddress &addr )
   {
     /*-------------------------------------------------
     Can't insert if the cache is full or the key exists
@@ -104,4 +104,4 @@ namespace Ripple::DATALINK
     mCacheMissCallback = func;
   }
 
-}  // namespace Ripple::DATALINK
+}  // namespace Ripple::DataLink

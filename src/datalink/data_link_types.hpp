@@ -9,8 +9,8 @@
  *******************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_DATALINK_TYPES_HPP
-#define RIPPLE_DATALINK_TYPES_HPP
+#ifndef RIPPLE_DataLink_TYPES_HPP
+#define RIPPLE_DataLink_TYPES_HPP
 
 /* STL Includes */
 #include <array>
@@ -29,7 +29,7 @@
 #include <Ripple/src/physical/phy_device_constants.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   Constants
@@ -87,7 +87,7 @@ namespace Ripple::DATALINK
     EP_UNKNOWN
   };
   // One RX pipe is dedicated for the TX auto-ack process
-  static_assert( EP_NUM_OPTIONS == ( PHY::MAX_NUM_RX_PIPES - 1 ) );
+  static_assert( EP_NUM_OPTIONS == ( Physical::MAX_NUM_RX_PIPES - 1 ) );
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -99,7 +99,7 @@ namespace Ripple::DATALINK
   struct Handle
   {
     /**
-     * Time to wait for a hardware IRQ event (ms) to instruct the datalink
+     * Time to wait for a hardware IRQ event (ms) to instruct the DataLink
      * layer it has new events to process. This also has the effect of setting
      * the minimum polling rate for processing the transmit and receive queues.
      */
@@ -107,14 +107,14 @@ namespace Ripple::DATALINK
 
     /**
      *  Tracks the number of RX queue overflow events that have occurred since
-     *  powerup. Useful to see if the datalink layer has enough bandwidth to
+     *  powerup. Useful to see if the DataLink layer has enough bandwidth to
      *  process the queue or if the network layer isn't emptying it fast enough.
      */
     size_t rxQueueOverflows;
 
     /**
      *  Tracks the number of TX queue overflow events that have occurred since
-     *  powerup. Useful to see if the datalink layer is being overloaded or too
+     *  powerup. Useful to see if the DataLink layer is being overloaded or too
      *  much data is being pumped in by the network layer.
      */
     size_t txQueueOverflows;
@@ -138,13 +138,13 @@ namespace Ripple::DATALINK
     TX Specific Data
     -------------------------------------------------*/
     uint32_t nextHop;                  /**< Which node this data is going to (IPAddress) */
-    PHY::AutoRetransmitCount rtxCount; /**< Max retransmit attempts */
-    PHY::AutoRetransmitDelay rtxDelay; /**< Delay between each retransmission attempt */
+    Physical::AutoRetransmitCount rtxCount; /**< Max retransmit attempts */
+    Physical::AutoRetransmitDelay rtxDelay; /**< Delay between each retransmission attempt */
 
     /*-------------------------------------------------
     RX Specific Data
     -------------------------------------------------*/
-    PHY::PipeNumber rxPipe; /**< Which pipe the data came from */
+    Physical::PipeNumber rxPipe; /**< Which pipe the data came from */
 
     /*-------------------------------------------------
     Common Data
@@ -152,7 +152,7 @@ namespace Ripple::DATALINK
     uint16_t frameNumber;                        /**< ID of the frame in the network layer */
     uint16_t length;                             /**< Number of bytes being sent */
     uint16_t control;                            /**< Control flags for the transfer */
-    uint8_t payload[ PHY::MAX_TX_PAYLOAD_SIZE ]; /**< Buffer for packet payload */
+    uint8_t payload[ Physical::MAX_TX_PAYLOAD_SIZE ]; /**< Buffer for packet payload */
 
     void clear()
     {
@@ -160,9 +160,9 @@ namespace Ripple::DATALINK
       frameNumber = 0;
       length      = 0;
       control     = 0;
-      rtxCount    = PHY::AutoRetransmitCount::ART_COUNT_INVALID;
-      rtxDelay    = PHY::AutoRetransmitDelay::ART_DELAY_UNKNOWN;
-      rxPipe      = PHY::PipeNumber::PIPE_INVALID;
+      rtxCount    = Physical::AutoRetransmitCount::ART_COUNT_INVALID;
+      rtxDelay    = Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN;
+      rxPipe      = Physical::PipeNumber::PIPE_INVALID;
 
       memset( payload, 0, ARRAY_BYTES( payload ) );
     }
@@ -182,7 +182,7 @@ namespace Ripple::DATALINK
   /**
    *  Buffer type that can hold the raw data coming in and out of PHY layer
    */
-  using RawBuffer = std::array<uint8_t, PHY::MAX_TX_PAYLOAD_SIZE>;
+  using RawBuffer = std::array<uint8_t, Physical::MAX_TX_PAYLOAD_SIZE>;
 
   /**
    *  Queue that is optimized to hold up to 255 elements at a time. Note
@@ -190,6 +190,6 @@ namespace Ripple::DATALINK
    */
   template<const size_t SIZE>
   using FrameQueue = etl::queue<Frame, SIZE, etl::memory_model::MEMORY_MODEL_SMALL>;
-}    // namespace Ripple::DATALINK
+}    // namespace Ripple::DataLink
 
-#endif /* !RIPPLE_DATALINK_TYPES_HPP */
+#endif /* !RIPPLE_DataLink_TYPES_HPP */

@@ -47,7 +47,7 @@ namespace Ripple::NET
     uint8_t data[ 22 ];     /**< Storage for the packet's user data */
   };
 
-  static_assert( sizeof( Datagram ) <= PHY::MAX_TX_PAYLOAD_SIZE );
+  static_assert( sizeof( Datagram ) <= Physical::MAX_TX_PAYLOAD_SIZE );
   static_assert( offsetof( Datagram, source ) == 0 );
   static_assert( offsetof( Datagram, destination ) == 4 );
   static_assert( offsetof( Datagram, fragmentId ) == 8 );

@@ -9,8 +9,8 @@
  *******************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_DATALINK_ARP_HPP
-#define RIPPLE_DATALINK_ARP_HPP
+#ifndef RIPPLE_DataLink_ARP_HPP
+#define RIPPLE_DataLink_ARP_HPP
 
 /* STL Includes */
 #include <array>
@@ -24,12 +24,12 @@
 #include <Ripple/src/shared/cmn_types.hpp>
 #include <Ripple/src/shared/cmn_memory_config.hpp>
 
-namespace Ripple::DATALINK
+namespace Ripple::DataLink
 {
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
-  using ARPMap = std::pair<uint32_t, PHY::MACAddress>;
+  using ARPMap = std::pair<uint32_t, Physical::MACAddress>;
   using ARPCallback = etl::delegate<void( const uint32_t )>;
 
 
@@ -61,7 +61,7 @@ namespace Ripple::DATALINK
      *  @param[out] addr      The associated MAC address
      *  @return bool          Whether or not the lookup was successful
      */
-    bool lookup( const uint32_t ip, PHY::MACAddress *addr );
+    bool lookup( const uint32_t ip, Physical::MACAddress *addr );
 
     /**
      *  Removes the cache entry associated with the given IP address.
@@ -78,7 +78,7 @@ namespace Ripple::DATALINK
      *  @param[in]  addr      MAC address used as the value
      *  @return bool          Whether the insertion was successful
      */
-    bool insert( const uint32_t ip, const PHY::MACAddress &addr );
+    bool insert( const uint32_t ip, const Physical::MACAddress &addr );
 
     /**
      *  Register a callback to execute when a lookup fails
@@ -90,9 +90,9 @@ namespace Ripple::DATALINK
 
   private:
     ARPCallback mCacheMissCallback;
-    etl::flat_map<uint32_t, PHY::MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
+    etl::flat_map<uint32_t, Physical::MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
   };
 
-}  // namespace Ripple::DATALINK::ARP
+}  // namespace Ripple::DataLink::ARP
 
-#endif  /* !RIPPLE_DATALINK_ARP_HPP */
+#endif  /* !RIPPLE_DataLink_ARP_HPP */

@@ -17,7 +17,7 @@
 #include <Ripple/src/physical/phy_device_internal.hpp>
 
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Private Structures
@@ -97,7 +97,7 @@ namespace Ripple::PHY
     else
     {
       auto context  = reinterpret_cast<Session::Handle *>( session );
-      auto physical = reinterpret_cast<PHY::Handle *>( context->physical );
+      auto physical = reinterpret_cast<Physical::Handle *>( context->physical );
 
       return physical;
     }
@@ -857,7 +857,7 @@ namespace Ripple::PHY
     size_t readLength = std::min( length, MAX_TX_PAYLOAD_SIZE );
     uint8_t statusReg = readCommand( handle, CMD_R_RX_PAYLOAD, buffer, readLength );
 
-    return ( statusReg != PHY::INVALID_STATUS_REG ) ? Chimera::Status::OK : Chimera::Status::FAIL;
+    return ( statusReg != Physical::INVALID_STATUS_REG ) ? Chimera::Status::OK : Chimera::Status::FAIL;
   }
 
 
@@ -1731,4 +1731,4 @@ namespace Ripple::PHY
     }
   }
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical

@@ -19,7 +19,7 @@
 #include <Chimera/common>
 
 /* Ripple Includes */
-#include <Ripple/src/session/session_driver.hpp>
+#include <Ripple/src/session/session_service.hpp>
 #include <Ripple/src/network/net_types.hpp>
 
 
@@ -29,14 +29,24 @@ namespace Ripple
   Public Functions
   -------------------------------------------------------------------------------*/
   /**
-   *  Opens a socket on the host device using statically allocated memory.
+   *  Opens a stream socket on the host device using statically allocated memory.
    *
    *  @param[in]  mgr       The session instance managing all connections
    *  @param[in]  sock      Statically allocated socket resources. Must exist while the socket is open.
-   *  @param[in]  port      Which port to terminate
+   *  @param[in]  port      Which port to open
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openSocket( Session::Manager &mgr, Session::Socket &sock, const NET::Port port );
+  Chimera::Status_t openStreamSocket( Session::Service &mgr, Session::SocketBuffer &sock, const NET::Port port );
+
+  /**
+   *  Opens a packet socket on the host device using statically allocated memory.
+   *
+   *  @param[in]  mgr       The session instance managing all connections
+   *  @param[in]  sock      Statically allocated socket resources. Must exist while the socket is open.
+   *  @param[in]  port      Which port to open
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t openPacketSocket( Session::Service &mgr, Session::SocketBuffer &sock, const NET::Port port );
 
   /**
    *  Closes a previously opened socket on the host device
@@ -45,7 +55,7 @@ namespace Ripple
    *  @param[in]  port      Which port to terminate
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeSocket( Session::Manager &mgr, const NET::Port port );
+  Chimera::Status_t closeSocket( Session::Service &mgr, const NET::Port port );
 
   /**
    *  Opens a connection to a remote device on the network
@@ -56,7 +66,7 @@ namespace Ripple
    *  @param[in]  port      Port of the remote device to connect to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openConnection( Session::Manager &mgr, Session::Connection &conn, const NET::IPAddress ip, const NET::Port port );
+  Chimera::Status_t openRemoteConnection( Session::Service &mgr, Session::Connection &conn, const NET::IPAddress ip, const NET::Port port );
 
   /**
    *  Closes a connection to a remote device on the network
@@ -65,7 +75,7 @@ namespace Ripple
    *  @param[in]  conn      Connection being disconnected from
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeConnection( Session::Manager &mgr, Session::Connection &conn );
+  Chimera::Status_t closeRemoteConnection( Session::Service &mgr, Session::Connection &conn );
 
   /**
    *  Writes a number of bytes into a connection stream
@@ -76,7 +86,7 @@ namespace Ripple
    *  @param[in]  bytes     Number of bytes to write
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t write( Session::Manager &mgr, const Session::Connection &conn, const void *const data, const size_t bytes );
+  Chimera::Status_t write( Session::Service &mgr, const Session::Connection &conn, const void *const data, const size_t bytes );
 
   /**
    *  Reads a number of bytes out from the connection stream
@@ -87,16 +97,18 @@ namespace Ripple
    *  @param[in]  bytes     Number of bytes to read
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t read( Session::Manager &mgr, const Session::Connection &conn, void *const data, const size_t bytes );
+  Chimera::Status_t read( Session::Service &mgr, const Session::Connection &conn, void *const data, const size_t bytes );
 
   /**
-   *  Queries the number of bytes available to read from the the connection
+   *  Queries the number of bytes available to read from the the connection.
+   *  Depending on the socket type (Stream/Packet) used in the connection,
+   *  the number of bytes available will mean different things.
    *
    *  @param[in]  mgr       The session instance managing all connections
    *  @param[in]  conn      Connection handle describing where to read data from
    *  @return size_t
    */
-  size_t available( Session::Manager &mgr, const Session::Connection &conn );
+  size_t available( Session::Service &mgr, const Session::Connection &conn );
 
 }  // namespace Ripple
 

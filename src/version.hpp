@@ -20,7 +20,7 @@ namespace Thor::HLD
   /**
    *  CHANGELOG:
    *
-   *  v0.1.0: Implemented a stable datalink layer and ported/improved the
+   *  v0.1.0: Implemented a stable DataLink layer and ported/improved the
    *          previous NRF24L01 driver from the first cut of this project at:
    *          https://github.com/brandonbraun653/RF24Node
    */

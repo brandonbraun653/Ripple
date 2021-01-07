@@ -15,7 +15,7 @@
 /* STL Includes */
 #include <cstdint>
 
-namespace Ripple::PHY
+namespace Ripple::Physical
 {
   /*-------------------------------------------------------------------------------
   Command Instructions
@@ -344,6 +344,6 @@ namespace Ripple::PHY
   static constexpr uint8_t FEATURE_EN_DYN_ACK_Msk = 1u << FEATURE_EN_DYN_ACK_Pos;
   static constexpr uint8_t FEATURE_EN_DYN_ACK     = FEATURE_EN_DYN_ACK_Msk;
 
-}    // namespace Ripple::PHY
+}    // namespace Ripple::Physical
 
 #endif /* !RIPPLE_PHYSICAL_DEVICE_REGISTERS_HPP */

@@ -18,7 +18,7 @@
 #include <Ripple/physical>
 #include <Ripple/src/physical/phy_device_internal.hpp>
 
-namespace Ripple::PHY::FSM
+namespace Ripple::Physical::FSM
 {
   /*-------------------------------------------------------------------------------
   Classes: System Controller Behaviors
@@ -328,4 +328,4 @@ namespace Ripple::PHY::FSM
     return STATE_ID;
   }
 
-}  // namespace Ripple::PHY
+}  // namespace Ripple::Physical
