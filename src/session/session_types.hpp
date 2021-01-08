@@ -17,7 +17,7 @@
 #include <etl/delegate.h>
 
 /* Ripple Includes */
-#include <Ripple/src/network/net_types.hpp>
+#include <Ripple/src/network/network_types.hpp>
 #include <Ripple/src/physical/phy_device_types.hpp>
 #include <Ripple/src/physical/phy_device_constants.hpp>
 #include <Ripple/src/shared/cmn_types.hpp>
@@ -65,7 +65,7 @@ namespace Ripple::Session
     -------------------------------------------------*/
     uint8_t channel;        /**< Radio channel number in range [1, 255] */
     size_t networkBaud;     /**< Desired effective link speed in kbps */
-    NET::IPAddress address; /**< Static address of this device */
+    Network::IPAddress address; /**< Static address of this device */
 
     /*-------------------------------------------------
     Advanced Properties:
@@ -146,9 +146,9 @@ namespace Ripple::Session
   {
     bool established;           /**< Whether or not the connection is live */
     SocketBuffer *socketBuffer; /**< Host socket associated with the connection */
-    NET::IPAddress destIP;      /**< Destination device IP address */
-    NET::Port destPort;         /**< Destination device port */
-    NET::Port hostPort;         /**< Port associated with the host */
+    Network::IPAddress destIP;      /**< Destination device IP address */
+    Network::Port destPort;         /**< Destination device port */
+    Network::Port hostPort;         /**< Port associated with the host */
   };
 }    // namespace Ripple::Session
 

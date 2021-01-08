@@ -18,7 +18,7 @@
 /* Ripple Includes */
 #include <Ripple/src/shared/cmn_types.hpp>
 
-#include <Ripple/src/network/net_types.hpp>
+#include <Ripple/src/network/network_types.hpp>
 #include <Ripple/src/session/session_types.hpp>
 
 namespace Ripple
@@ -43,7 +43,7 @@ namespace Ripple
    *  @param[in]  d             Fourth octet
    *  @return IPAddress
    */
-  NET::IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
+  Network::IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_COMMON_UTILITIES_HPP */

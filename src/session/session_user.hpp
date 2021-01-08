@@ -36,7 +36,7 @@ namespace Ripple
    *  @param[in]  port      Which port to open
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openStreamSocket( Session::Service &mgr, Session::SocketBuffer &sock, const NET::Port port );
+  Chimera::Status_t openStreamSocket( Session::Service &mgr, Session::SocketBuffer &sock, const Network::Port port );
 
   /**
    *  Opens a packet socket on the host device using statically allocated memory.
@@ -46,7 +46,7 @@ namespace Ripple
    *  @param[in]  port      Which port to open
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openPacketSocket( Session::Service &mgr, Session::SocketBuffer &sock, const NET::Port port );
+  Chimera::Status_t openPacketSocket( Session::Service &mgr, Session::SocketBuffer &sock, const Network::Port port );
 
   /**
    *  Closes a previously opened socket on the host device
@@ -55,7 +55,7 @@ namespace Ripple
    *  @param[in]  port      Which port to terminate
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t closeSocket( Session::Service &mgr, const NET::Port port );
+  Chimera::Status_t closeSocket( Session::Service &mgr, const Network::Port port );
 
   /**
    *  Opens a connection to a remote device on the network
@@ -66,7 +66,7 @@ namespace Ripple
    *  @param[in]  port      Port of the remote device to connect to
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t openRemoteConnection( Session::Service &mgr, Session::Connection &conn, const NET::IPAddress ip, const NET::Port port );
+  Chimera::Status_t openRemoteConnection( Session::Service &mgr, Session::Connection &conn, const Network::IPAddress ip, const Network::Port port );
 
   /**
    *  Closes a connection to a remote device on the network

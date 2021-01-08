@@ -1,6 +1,6 @@
 /********************************************************************************
  *  File Name:
- *    net_types.hpp
+ *    network_types.hpp
  *
  *  Description:
  *    Types and definitions associated with the Network layer
@@ -21,7 +21,8 @@
 /* Ripple Includes */
 #include <Ripple/src/physical/phy_device_constants.hpp>
 
-namespace Ripple::NET
+
+namespace Ripple::Network
 {
   /*-------------------------------------------------------------------------------
   Aliases
@@ -85,6 +86,6 @@ namespace Ripple::NET
   static constexpr uint8_t CTL_LENGTH_MSK = ( 0x1F << CTL_LENGTH_POS );
 
 
-}  // namespace Ripple::NET
+}  // namespace Ripple::Network
 
 #endif  /* !RIPPLE_NETWORK_TYPES_HPP */

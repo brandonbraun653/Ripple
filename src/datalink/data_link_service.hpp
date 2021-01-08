@@ -89,7 +89,7 @@ namespace Ripple::DataLink
      *  @param[in]  mac         MAC address associated with the IP
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t addARPEntry( const NET::IPAddress ip, const Physical::MACAddress &mac );
+    Chimera::Status_t addARPEntry( const Network::IPAddress ip, const Physical::MACAddress &mac );
 
     /**
      *  Removes an entry from the layer's ARP table
@@ -97,7 +97,7 @@ namespace Ripple::DataLink
      *  @param[in]  ip          IP address of entry to remove
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t dropARPEntry( const NET::IPAddress ip );
+    Chimera::Status_t dropARPEntry( const Network::IPAddress ip );
 
     /**
      *  Register a callback to be invoked upon some event that occurs during

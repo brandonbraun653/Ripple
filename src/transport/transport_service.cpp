@@ -30,7 +30,7 @@ namespace Ripple::Transport
     }
     else
     {
-      auto context  = reinterpret_cast<Session::Handle *>( session );
+      auto context   = reinterpret_cast<Session::Handle *>( session );
       auto transport = reinterpret_cast<Handle *>( context->transport );
 
       return transport;
@@ -63,6 +63,11 @@ namespace Ripple::Transport
     mThreadId = this_thread::id();
 
     /*-------------------------------------------------
+    Initialize the service
+    -------------------------------------------------*/
+    initMemoryPool();
+
+    /*-------------------------------------------------
     Run the service
     -------------------------------------------------*/
     size_t lastWakeup  = 0;
@@ -70,7 +75,7 @@ namespace Ripple::Transport
     size_t nextWakeup  = 0;
     size_t currentTick = 0;
 
-    while( 1 )
+    while ( 1 )
     {
       /*-------------------------------------------------
       Block this thread until periodic process timeout
@@ -138,6 +143,27 @@ namespace Ripple::Transport
   }
 
 
+  bool Service::fragmentSortCompare( Network::Datagram &datagram )
+  {
+  }
 
 
-}  // namespace Ripple::Transport
+  void Service::initMemoryPool()
+  {
+    /*-------------------------------------------------
+    Clear out the pool to be empty
+    -------------------------------------------------*/
+    mDatagramPool.release_all();
+
+    /*-------------------------------------------------
+    Assign the shared memory pool to the transmit and
+    receive fragment buffers.
+    -------------------------------------------------*/
+    for ( auto x = 0; x < DataLink::EP_NUM_OPTIONS; x++ )
+    {
+      mEPTXData[ x ].set_pool( mDatagramPool );
+      mEPRXData[ x ].set_pool( mDatagramPool );
+    }
+  }
+
+}    // namespace Ripple::Transport

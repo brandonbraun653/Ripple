@@ -200,7 +200,7 @@ namespace Ripple::DataLink
   }
 
 
-  Chimera::Status_t Service::addARPEntry( const NET::IPAddress ip, const Physical::MACAddress &mac )
+  Chimera::Status_t Service::addARPEntry( const Network::IPAddress ip, const Physical::MACAddress &mac )
   {
     /*-------------------------------------------------
     Attempt to insert the new entry
@@ -221,7 +221,7 @@ namespace Ripple::DataLink
   }
 
 
-  Chimera::Status_t Service::dropARPEntry( const NET::IPAddress ip )
+  Chimera::Status_t Service::dropARPEntry( const Network::IPAddress ip )
   {
     /*-------------------------------------------------
     Does nothing if the entry doesn't exist

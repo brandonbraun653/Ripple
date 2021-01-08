@@ -19,11 +19,13 @@
 /* ETL Includes */
 #include <etl/delegate.h>
 #include <etl/delegate_service.h>
+#include <etl/vector.h>
 
 /* Ripple Includes */
+#include <Ripple/src/shared/cmn_memory_config.hpp>
 #include <Ripple/src/session/session_types.hpp>
 #include <Ripple/src/transport/transport_types.hpp>
-
+#include <Ripple/src/datalink/data_link_types.hpp>
 
 namespace Ripple::Transport
 {
@@ -86,11 +88,50 @@ namespace Ripple::Transport
      */
     Chimera::Status_t registerCallback( const CallbackId id, etl::delegate<void( size_t )> func );
 
+    /**
+     *  Writes a number of bytes to an endpoint
+     *
+     *  @param[in]  ep          The endpoint to write to
+     *  @param[in]  data        Data to write
+     *  @param[in]  size        How many bytes to write
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t writeEndpoint( const DataLink::Endpoint ep, const void *const data, const size_t size );
+
+    /**
+     *  Reads a number of bytes from an endpoint
+     *
+     *  @param[in]  ep          The endpoint to read from
+     *  @param[out] data        Buffer to write into
+     *  @param[in]  size        How many bytes to read out. Data buffer must be able to hold this.
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t readEndpoint( const DataLink::Endpoint ep, void *const data, const size_t size );
+
+    /**
+     *  Checks the number of bytes available for reading. This will only
+     *  succeed if a full packet has been received on an endpoint.
+     *
+     *  @param[in]  ep          The endpoint to query for sizing
+     *  @param[out] bytes       If valid, how many bytes can be read
+     *  @return bool            Validity status
+     */
+    bool bytesAvailable( const DataLink::Endpoint ep, size_t *const bytes );
 
   private:
     /*-------------------------------------------------
     Private Functions
     -------------------------------------------------*/
+    /**
+     *  Comparison function used to sort a list of frag
+     */
+    bool fragmentSortCompare( Network::Datagram &datagram );
+
+    /**
+     *  Initializes the memory pool for datagrams
+     *  @return void
+     */
+    void initMemoryPool();
 
     /*-------------------------------------------------
     Private Data
@@ -99,6 +140,24 @@ namespace Ripple::Transport
     size_t mServiceStarvedThreshold;        /**< Thread delay time that indicates the process is starved for processing */
     Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
     Session::Context mContext;              /**< User context for the network stack */
+
+    /**
+     *  Raw memory pool for storing all Datagram messages that are
+     *  incoming or outgoing over the radio link.
+     */
+    DatagramPool<DATAGRAM_MESSAGE_POOL_SIZE> mDatagramPool;
+
+    /**
+     *  Primary storage for fragmented packets, divided up into endpoints. Each
+     *  list in the vector shares a single memory pool such that there is no dynamic
+     *  allocation, but this does mean that very active endpoints can tie up
+     *  resources quickly, leaving few memory blocks for other endpoints. However,
+     *  the advantage is that resources are easily reallocated at runtime to the
+     *  endpoints with the most amount of data, which is very efficient. The user
+     *  does not have to specify the exact amount of memory per endpoint.
+     */
+    etl::vector<DatagramList, DataLink::EP_NUM_OPTIONS> mEPTXData;
+    etl::vector<DatagramList, DataLink::EP_NUM_OPTIONS> mEPRXData;
 
 
     /**
