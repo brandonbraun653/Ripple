@@ -19,6 +19,7 @@
 /* ETL Includes */
 #include <etl/list.h>
 #include <etl/pool.h>
+#include <etl/delegate.h>
 
 /* Ripple Includes */
 #include <Ripple/src/network/network_types.hpp>
@@ -36,6 +37,7 @@ namespace Ripple::Transport
   template<const size_t SIZE>
   using DatagramPool = etl::pool<DatagramList::pool_type, SIZE>;
 
+  using EPCallback = etl::delegate<void( DataLink::Endpoint )>;
 
   /*-------------------------------------------------------------------------------
   Constants
@@ -44,6 +46,12 @@ namespace Ripple::Transport
   static constexpr uint8_t FRAGMENT_ID_FIRST     = 1;
   static constexpr uint8_t FRAGMENT_ID_LAST      = 254;
   static constexpr uint8_t FRAGMENT_ID_TERMINATE = 255;
+
+  /**
+   *  Set the upper limit on the packet length the network will
+   *  attempt to fragment and transmit.
+   */
+  static constexpr size_t MAX_PACKET_SIZE = 4096;
 
   /*-------------------------------------------------------------------------------
   Enumerations

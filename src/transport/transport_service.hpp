@@ -89,14 +89,16 @@ namespace Ripple::Transport
     Chimera::Status_t registerCallback( const CallbackId id, etl::delegate<void( size_t )> func );
 
     /**
-     *  Writes a number of bytes to an endpoint
+     *  Writes a number of bytes to an endpoint and invokes a callback when the data is
+     *  transfered successfully to the destination. Non-blocking.
      *
      *  @param[in]  ep          The endpoint to write to
      *  @param[in]  data        Data to write
      *  @param[in]  size        How many bytes to write
+     *  @param[in]  onComplete  Callback to be invoked when the data is successfully transfered
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t writeEndpoint( const DataLink::Endpoint ep, const void *const data, const size_t size );
+    Chimera::Status_t writeEndpoint( const DataLink::Endpoint ep, const void *const data, const size_t size, EPCallback &onComplete );
 
     /**
      *  Reads a number of bytes from an endpoint

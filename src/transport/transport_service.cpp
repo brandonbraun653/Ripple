@@ -16,6 +16,7 @@
 
 /* Ripple Includes  */
 #include <Ripple/transport>
+#include <Ripple/network>
 
 namespace Ripple::Transport
 {
@@ -38,7 +39,7 @@ namespace Ripple::Transport
   }
 
   /*-------------------------------------------------------------------------------
-  Service Class Implementation
+  Service Class Public Methods
   -------------------------------------------------------------------------------*/
   Service::Service() :
       mContext( nullptr ), mUpdateRate( Chimera::Threading::TIMEOUT_50MS ),
@@ -61,6 +62,19 @@ namespace Ripple::Transport
     -------------------------------------------------*/
     this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
     mThreadId = this_thread::id();
+
+    /*-------------------------------------------------
+    Verify the handles used in the entire DataLink
+    service have been registered correctly.
+    -------------------------------------------------*/
+    if ( !session )
+    {
+      Chimera::System::softwareReset();
+    }
+    else
+    {
+      mContext = context;
+    }
 
     /*-------------------------------------------------
     Initialize the service
@@ -143,6 +157,72 @@ namespace Ripple::Transport
   }
 
 
+  Chimera::Status_t Service::writeEndpoint( const DataLink::Endpoint ep, const void *const data, const size_t size,
+                                            EPCallback &onComplete )
+  {
+    using namespace DataLink;
+
+    /*-------------------------------------------------
+    Input protection
+    -------------------------------------------------*/
+    if ( !( ep < EP_NUM_OPTIONS ) || !data || !size || ( size > MAX_PACKET_SIZE ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    this->lock();
+
+    /*-------------------------------------------------
+    Verify there is enough space to buffer the data
+    -------------------------------------------------*/
+    constexpr size_t maxUserPayload = ARRAY_BYTES( Network::Datagram::data );
+    const size_t availUserBytes     = mEPTXData[ ep ].available() * maxUserPayload;
+
+    if ( size > availUserBytes )
+    {
+      this->unlock();
+      mDelegateRegistry.call<CallbackId::CB_EP_NO_MEMORY>();
+      return Chimera::Status::MEMORY;
+    }
+
+    /*-------------------------------------------------
+    Calculate the number of fragments to split into
+    -------------------------------------------------*/
+    const size_t partial_datagram = ( availUserBytes % maxUserPayload ) ? 1 : 0;
+    const size_t numDatagrams     = ( availUserBytes / maxUserPayload ) + partial_datagram;
+
+    /*-------------------------------------------------
+    Push fragments into the buffer
+    -------------------------------------------------*/
+    size_t bytesRemaining = size;
+    size_t bytesToCopy = 0;
+    size_t bytesWritten = 0;
+
+    for( auto fragment = 0; fragment < numDatagrams; fragment++ )
+    {
+      /* Protect against underflow */
+      RT_HARD_ASSERT( bytesRemaining < MAX_PACKET_SIZE );
+
+      bytesToCopy = std::min<size_t>( bytesRemaining, maxUserPayload );
+
+      /*-------------------------------------------------
+      Figure out how many bytes are packed in the message
+      -------------------------------------------------*/
+      Network::Datagram tmp;
+
+      memcpy( tmp.data, data + bytesWritten, bytesToCopy );
+
+      tmp.source
+
+
+    };
+
+
+  }
+
+  /*-------------------------------------------------------------------------------
+  Service Class Private Methods
+  -------------------------------------------------------------------------------*/
   bool Service::fragmentSortCompare( Network::Datagram &datagram )
   {
   }
