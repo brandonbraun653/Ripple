@@ -67,7 +67,7 @@ namespace Ripple::Transport
     Verify the handles used in the entire DataLink
     service have been registered correctly.
     -------------------------------------------------*/
-    if ( !session )
+    if ( !context )
     {
       Chimera::System::softwareReset();
     }
@@ -212,7 +212,7 @@ namespace Ripple::Transport
 
       memcpy( tmp.data, data + bytesWritten, bytesToCopy );
 
-      tmp.source
+      //tmp.source
 
 
     };

@@ -22,6 +22,7 @@
 #include <etl/delegate.h>
 
 /* Ripple Includes */
+#include <Ripple/src/datalink/data_link_types.hpp>
 #include <Ripple/src/network/network_types.hpp>
 
 namespace Ripple::Transport
