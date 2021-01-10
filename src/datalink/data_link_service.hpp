@@ -49,7 +49,7 @@ namespace Ripple::DataLink
    *
    *  A Frame is the primary data type this layer understands how to process.
    */
-  class Service : Chimera::Threading::Lockable
+  class Service : Chimera::Threading::LockableCRTP<Service>
   {
   public:
     Service();
@@ -201,6 +201,9 @@ namespace Ripple::DataLink
     void processRXQueue();
 
   private:
+    friend Chimera::Threading::LockableCRTP<Service>;
+    Chimera::Threading::RecursiveTimedMutex mClsMutex;
+
     /*-------------------------------------------------
     Class State Data
     -------------------------------------------------*/

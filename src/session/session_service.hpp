@@ -53,7 +53,7 @@ namespace Ripple::Session
    *  of the methods here are not meant to be called directly by the user but
    *  rather by higher level session methods that control Process activation.
    */
-  class Service : public Chimera::Threading::Lockable
+  class Service : public Chimera::Threading::LockableCRTP<Service>
   {
   public:
     Service();
@@ -98,6 +98,9 @@ namespace Ripple::Session
     bool joinNetwork( const size_t timeout );
 
   private:
+    friend Chimera::Threading::LockableCRTP<Service>;
+    Chimera::Threading::RecursiveTimedMutex mClsMutex;
+
     /*-------------------------------------------------
     Private Methods
     -------------------------------------------------*/
