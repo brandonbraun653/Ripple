@@ -284,10 +284,10 @@ namespace Ripple::Physical
     Physical Interface
     -------------------------------------------------*/
     /* IO Drivers */
-    Chimera::SPI::Driver_sPtr spi;     /**< Reference to the SPI driver instance */
-    Chimera::GPIO::Driver_sPtr cePin;  /**< Reference to the Chip Enable pin instance */
-    Chimera::GPIO::Driver_sPtr irqPin; /**< Reference to the IRQ pin instance */
-    Chimera::GPIO::Driver_sPtr csPin;  /**< Chip select GPIO configuration */
+    Chimera::SPI::Driver_rPtr spi;     /**< Reference to the SPI driver instance */
+    Chimera::GPIO::Driver_rPtr cePin;  /**< Reference to the Chip Enable pin instance */
+    Chimera::GPIO::Driver_rPtr irqPin; /**< Reference to the IRQ pin instance */
+    Chimera::GPIO::Driver_rPtr csPin;  /**< Chip select GPIO configuration */
 
     /* Config options */
     DeviceConfig cfg; /**< Configuration options */
