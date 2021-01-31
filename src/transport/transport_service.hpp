@@ -55,7 +55,7 @@ namespace Ripple::Transport
    *  connection oriented communication, reliability, flow control, segmentation, and
    *  multiplexing.
    */
-  class Service : public Chimera::Threading::LockableCRTP<Service>
+  class Service : public Chimera::Threading::Lockable<Service>
   {
   public:
     Service();
@@ -121,8 +121,8 @@ namespace Ripple::Transport
     bool bytesAvailable( const DataLink::Endpoint ep, size_t *const bytes );
 
   private:
-    friend Chimera::Threading::LockableCRTP<Service>;
-    Chimera::Threading::RecursiveTimedMutex mClsMutex;
+    friend Chimera::Threading::Lockable<Service>;
+
 
     /*-------------------------------------------------
     Private Functions
