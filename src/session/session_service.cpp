@@ -31,8 +31,8 @@ namespace Ripple::Session
   Service Class Implementation
   -------------------------------------------------------------------------------*/
   Service::Service() :
-      mContext( nullptr ), mUpdateRate( Chimera::Threading::TIMEOUT_50MS ),
-      mServiceStarvedThreshold( 2 * Chimera::Threading::TIMEOUT_1MS )
+      mContext( nullptr ), mUpdateRate( Chimera::Thread::TIMEOUT_50MS ),
+      mServiceStarvedThreshold( 2 * Chimera::Thread::TIMEOUT_1MS )
   {
   }
 
@@ -44,13 +44,13 @@ namespace Ripple::Session
 
   void Service::run( Session::Context context )
   {
-    using namespace Chimera::Threading;
+    using namespace Chimera::Thread;
 
     /*-------------------------------------------------
     Wait for this thread to be told to initialize
     -------------------------------------------------*/
     this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
-    mThreadId = this_thread::id();
+    mTaskId = this_thread::id();
 
     /*-------------------------------------------------
     Verify the handles used in the entire DataLink

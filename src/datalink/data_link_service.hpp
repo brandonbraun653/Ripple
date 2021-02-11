@@ -49,7 +49,7 @@ namespace Ripple::DataLink
    *
    *  A Frame is the primary data type this layer understands how to process.
    */
-  class Service : Chimera::Threading::Lockable<Service>
+  class Service : Chimera::Thread::Lockable<Service>
   {
   public:
     Service();
@@ -57,7 +57,7 @@ namespace Ripple::DataLink
 
     /**
      *  Main thread that executes the DataLink layer services. This method should be
-     *  bound to a delegate that can be executed by the Chimera::Threading module. If
+     *  bound to a delegate that can be executed by the Chimera::Thread module. If
      *  this thread is not created, the Service will not execute.
      *
      *  @param[in]  context     Critical net stack information
@@ -201,7 +201,7 @@ namespace Ripple::DataLink
     void processRXQueue();
 
   private:
-    friend Chimera::Threading::Lockable<Service>;
+    friend Chimera::Thread::Lockable<Service>;
 
 
     /*-------------------------------------------------
@@ -209,7 +209,7 @@ namespace Ripple::DataLink
     -------------------------------------------------*/
     bool mSystemEnabled;                    /**< Gating signal for the ISR handler to prevent spurrious interrupts */
     volatile bool pendingEvent;             /**< Signal flag set by an ISR that an event occurred */
-    Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
+    Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
     Session::Context mContext;              /**< User context for the network stack */
     TransferControlBlock mTCB;              /**< TX control block */
 
@@ -222,9 +222,9 @@ namespace Ripple::DataLink
     TX/RX Queues
     -------------------------------------------------*/
     FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;           /**< Queue for data destined for the physical layer */
-    Chimera::Threading::RecursiveTimedMutex mTXMutex; /**< Thread safety lock */
+    Chimera::Thread::RecursiveTimedMutex mTXMutex; /**< Thread safety lock */
     FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;           /**< Queue for data coming from the physical layer */
-    Chimera::Threading::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
+    Chimera::Thread::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
 
     /*-------------------------------------------------
     Lookup table for known device IP->MAC mappings

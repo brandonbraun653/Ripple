@@ -53,7 +53,7 @@ namespace Ripple::Session
    *  of the methods here are not meant to be called directly by the user but
    *  rather by higher level session methods that control Process activation.
    */
-  class Service : public Chimera::Threading::Lockable<Service>
+  class Service : public Chimera::Thread::Lockable<Service>
   {
   public:
     Service();
@@ -98,7 +98,7 @@ namespace Ripple::Session
     bool joinNetwork( const size_t timeout );
 
   private:
-    friend Chimera::Threading::Lockable<Service>;
+    friend Chimera::Thread::Lockable<Service>;
 
 
     /*-------------------------------------------------
@@ -123,7 +123,7 @@ namespace Ripple::Session
     -------------------------------------------------*/
     size_t mUpdateRate;                     /**< Main thread periodic update rate ms */
     size_t mServiceStarvedThreshold;        /**< Thread delay time that indicates the process is starved for processing */
-    Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
+    Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
     Session::Context mContext;              /**< User context for the network stack */
 
     /**

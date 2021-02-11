@@ -55,13 +55,13 @@ namespace Ripple::DataLink
   -------------------------------------------------------------------------------*/
   void Service::run( Session::Context context )
   {
-    using namespace Chimera::Threading;
+    using namespace Chimera::Thread;
 
     /*-------------------------------------------------
     Wait for this thread to be told to initialize
     -------------------------------------------------*/
     this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
-    mThreadId = this_thread::id();
+    mTaskId = this_thread::id();
 
     /*-------------------------------------------------
     Verify the handles used in the entire DataLink
@@ -423,7 +423,7 @@ namespace Ripple::DataLink
 
   void Service::irqPinAsserted( void *arg )
   {
-    using namespace Chimera::Threading;
+    using namespace Chimera::Thread;
 
     /*-------------------------------------------------
     Let the user space thread know it has an event to
@@ -432,7 +432,7 @@ namespace Ripple::DataLink
     if ( mSystemEnabled )
     {
       pendingEvent = true;
-      sendTaskMsg( mThreadId, TSK_MSG_WAKEUP, TIMEOUT_DONT_WAIT );
+      sendTaskMsg( mTaskId, TSK_MSG_WAKEUP, TIMEOUT_DONT_WAIT );
     }
   }
 
@@ -503,7 +503,7 @@ namespace Ripple::DataLink
 
   void Service::processTXQueue()
   {
-    using namespace Chimera::Threading;
+    using namespace Chimera::Thread;
     Physical::Handle *phy = nullptr;
 
     /*-------------------------------------------------
@@ -597,7 +597,7 @@ namespace Ripple::DataLink
       -------------------------------------------------*/
       return;
     }
-    else if ( !mRXMutex.try_lock_for( Chimera::Threading::TIMEOUT_1MS ) )
+    else if ( !mRXMutex.try_lock_for( Chimera::Thread::TIMEOUT_1MS ) )
     {
       /*-------------------------------------------------
       Who is holding the RX lock for more than 1 ms? This

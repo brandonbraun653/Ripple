@@ -27,7 +27,7 @@ namespace Ripple::Physical
                                     const size_t length )
   {
     using namespace Chimera::GPIO;
-    using namespace Chimera::Threading;
+    using namespace Chimera::Thread;
 
     /*-------------------------------------------------
     Input protection. Ignore txBuffer/rxBuffer as they

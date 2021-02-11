@@ -55,7 +55,7 @@ namespace Ripple::Transport
    *  connection oriented communication, reliability, flow control, segmentation, and
    *  multiplexing.
    */
-  class Service : public Chimera::Threading::Lockable<Service>
+  class Service : public Chimera::Thread::Lockable<Service>
   {
   public:
     Service();
@@ -121,7 +121,7 @@ namespace Ripple::Transport
     bool bytesAvailable( const DataLink::Endpoint ep, size_t *const bytes );
 
   private:
-    friend Chimera::Threading::Lockable<Service>;
+    friend Chimera::Thread::Lockable<Service>;
 
 
     /*-------------------------------------------------
@@ -143,7 +143,7 @@ namespace Ripple::Transport
     -------------------------------------------------*/
     size_t mUpdateRate;                     /**< Main thread periodic update rate ms */
     size_t mServiceStarvedThreshold;        /**< Thread delay time that indicates the process is starved for processing */
-    Chimera::Threading::ThreadId mThreadId; /**< Thread registration ID */
+    Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
     Session::Context mContext;              /**< User context for the network stack */
 
     /**
