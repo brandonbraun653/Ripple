@@ -44,6 +44,15 @@ namespace Ripple
    *  @return IPAddress
    */
   Network::IPAddress constructIP( const uint8_t a, const uint8_t b, const uint8_t c, const uint8_t d );
+
+  /**
+   *  Instruct a Ripple task to halt execution until told to continue
+   *  via some task message from another thread.
+   *
+   *  @return void
+   */
+  void TaskWaitInit();
+
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_COMMON_UTILITIES_HPP */

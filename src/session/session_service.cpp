@@ -16,6 +16,7 @@
 
 /* Ripple Includes */
 #include <Ripple/session>
+#include <Ripple/shared>
 
 namespace Ripple::Session
 {
@@ -49,7 +50,8 @@ namespace Ripple::Session
     /*-------------------------------------------------
     Wait for this thread to be told to initialize
     -------------------------------------------------*/
-    this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
+    Ripple::TaskWaitInit();
+    this_thread::set_name( "Session_Service" );
     mTaskId = this_thread::id();
 
     /*-------------------------------------------------

@@ -18,6 +18,7 @@
 #include <Ripple/session>
 #include <Ripple/datalink>
 #include <Ripple/physical>
+#include <Ripple/shared>
 #include <Ripple/src/physical/phy_device_internal.hpp>
 
 
@@ -33,7 +34,7 @@ namespace Ripple::DataLink
   static constexpr Physical::PipeNumber PIPE_APP_DATA_1   = Physical::PIPE_NUM_5;
 
   static const Physical::PipeNumber sEndpointPipes[] = { PIPE_DEVICE_ROOT, PIPE_NET_SERVICES, PIPE_DATA_FWD, PIPE_APP_DATA_0,
-                                                    PIPE_APP_DATA_1 };
+                                                         PIPE_APP_DATA_1 };
   static_assert( ARRAY_COUNT( sEndpointPipes ) == EP_NUM_OPTIONS );
   static_assert( PIPE_DEVICE_ROOT == Physical::PIPE_NUM_1 );
 
@@ -60,14 +61,15 @@ namespace Ripple::DataLink
     /*-------------------------------------------------
     Wait for this thread to be told to initialize
     -------------------------------------------------*/
-    this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
+    Ripple::TaskWaitInit();
+    this_thread::set_name( "DataLink_Service" );
     mTaskId = this_thread::id();
 
     /*-------------------------------------------------
     Verify the handles used in the entire DataLink
     service have been registered correctly.
     -------------------------------------------------*/
-    Physical::Handle *physical      = Physical::getHandle( context );
+    Physical::Handle *physical = Physical::getHandle( context );
     DataLink::Handle *DataLink = DataLink::getHandle( context );
     Session::Handle *session   = Session::getHandle( context );
 
@@ -392,7 +394,8 @@ namespace Ripple::DataLink
     if ( session->radioConfig.advanced.staticPayloads )
     {
       result |= Physical::toggleDynamicPayloads( *physical, Physical::PIPE_NUM_ALL, false );
-      result |= Physical::setStaticPayloadSize( *physical, session->radioConfig.advanced.staticPayloadSize, Physical::PIPE_NUM_ALL );
+      result |=
+          Physical::setStaticPayloadSize( *physical, session->radioConfig.advanced.staticPayloadSize, Physical::PIPE_NUM_ALL );
     }
     else
     {
@@ -528,7 +531,7 @@ namespace Ripple::DataLink
     Look up the hardware address associated with the
     destination node.
     -------------------------------------------------*/
-    const Frame &cacheFrame    = mTXQueue.front();
+    const Frame &cacheFrame         = mTXQueue.front();
     Physical::MACAddress dstAddress = 0;
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
@@ -617,7 +620,7 @@ namespace Ripple::DataLink
     /*-------------------------------------------------
     Acquire the contexts used for the RX procedure
     -------------------------------------------------*/
-    Physical::Handle *physical      = Physical::getHandle( mContext );
+    Physical::Handle *physical = Physical::getHandle( mContext );
     DataLink::Handle *DataLink = DataLink::getHandle( mContext );
     Session::Handle *session   = Session::getHandle( mContext );
 

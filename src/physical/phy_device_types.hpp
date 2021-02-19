@@ -5,7 +5,7 @@
  *  Description:
  *    Types and declarations for the RF24 hardware controller
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 #pragma once
@@ -18,6 +18,13 @@
 #include <Chimera/gpio>
 #include <Chimera/spi>
 
+/* Ripple Includes */
+#include <Ripple/src/physical/phy_device_constants.hpp>
+
+#if defined( SIMULATOR )
+#include <mutex>
+#include <zmq.hpp>
+#endif /* SIMULATOR */
 
 namespace Ripple::Physical
 {
@@ -34,21 +41,27 @@ namespace Ripple::Physical
   static constexpr size_t MAX_SPI_DATA_LEN = 32;
 
   /**
-   *  Maximum number of bytes that will go out on the wire
-   *  during a single SPI transaction. This accounts for the
-   *  max frame length (32 bytes) + a command (1 byte )
+   *  Maximum number of bytes that will go out on the wire during a single SPI
+   *  transaction. This accounts for max frame length (32 bytes) + command (1 byte).
    */
   static constexpr size_t MAX_SPI_TRANSACTION_LEN = 33;
 
   /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
+  /**
+   *  Payload classification type. Used to inform the hardware what
+   *  kinds of bits to set during data packing.
+   */
   enum class PayloadType : uint8_t
   {
     PAYLOAD_REQUIRES_ACK,
     PAYLOAD_NO_ACK
   };
 
+  /**
+   *  Compact way to represent multiple pipes in a single field
+   */
   enum PipeBitField_t : uint8_t
   {
     PIPE_BF_0 = ( 1u << 0 ),
@@ -61,6 +74,9 @@ namespace Ripple::Physical
     PIPE_BF_MASK = 0x3Fu
   };
 
+  /**
+   *  Identification of individual pipes as opposed to PipeBitField_t
+   */
   enum PipeNumber : uint8_t
   {
     PIPE_NUM_0,
@@ -73,9 +89,8 @@ namespace Ripple::Physical
     PIPE_INVALID = std::numeric_limits<uint8_t>::max()
   };
 
-
   /**
-   *   Modes the transceiver may be in
+   *  Modes the transceiver may be in
    */
   enum TranscieverMode : uint8_t
   {
@@ -84,7 +99,7 @@ namespace Ripple::Physical
   };
 
   /**
-   *   Definitions for allowed TX power levels
+   *  Definitions for allowed TX power levels
    */
   enum RFPower : uint8_t
   {
@@ -97,7 +112,7 @@ namespace Ripple::Physical
   };
 
   /**
-   *   Definitions for allowed data rates
+   *  Definitions for allowed data rates
    */
   enum DataRate : uint8_t
   {
@@ -110,7 +125,7 @@ namespace Ripple::Physical
   };
 
   /**
-   *   Definitions for CRC settings
+   *  Definitions for CRC settings
    */
   enum CRCLength : uint8_t
   {
@@ -123,9 +138,8 @@ namespace Ripple::Physical
   };
 
   /**
-   *   Definitions for how many address bytes to use. The
-   *   numerical value here is NOT the number of bytes. This is the
-   *   register level definition.
+   *  Definitions for how many address bytes to use. The numerical value here
+   *  is NOT the number of bytes. This is the register level definition.
    */
   enum AddressWidth : uint8_t
   {
@@ -138,7 +152,7 @@ namespace Ripple::Physical
   };
 
   /**
-   *   Definitions for the auto retransmit delay register field
+   *  Definitions for the auto retransmit delay register field
    */
   enum AutoRetransmitDelay : uint8_t
   {
@@ -165,6 +179,9 @@ namespace Ripple::Physical
     ART_DELAY_UNKNOWN = std::numeric_limits<uint8_t>::max()
   };
 
+  /**
+   *  Number of transmit retry attempts that will be made before giving up
+   */
   enum AutoRetransmitCount : uint8_t
   {
     ART_COUNT_DISABLED,
@@ -186,6 +203,9 @@ namespace Ripple::Physical
     ART_COUNT_INVALID
   };
 
+  /**
+   *  Compact way to represent multiple ISR events in a single field
+   */
   enum bfISRMask : uint8_t
   {
     ISR_NONE       = 0,
@@ -196,6 +216,9 @@ namespace Ripple::Physical
     ISR_MSK_ALL = ISR_MSK_MAX_RT | ISR_MSK_RX_DR | ISR_MSK_TX_DS
   };
 
+  /**
+   *  Compact way to represent several command and control options in a single field
+   */
   enum bfControlFlags : uint8_t
   {
     DEV_PLUS_VARIANT     = ( 1u << 0 ), /**< Device is a + variation of NRF24L01 */
@@ -273,11 +296,31 @@ namespace Ripple::Physical
 
     void clear()
     {
-
     }
   };
 
 
+#if defined( SIMULATOR )
+  /**
+   *  Network configuration and control options with ZeroMQ. This is
+   *  what forms the virtual hardware.
+   */
+  struct ZMQConfig
+  {
+    std::recursive_mutex lock;                 /**< Thread safety lock */
+    zmq::context_t context;                    /**< Communication context */
+    zmq::socket_t txPipe;                      /**< TX Pipe Endpoint */
+    zmq::socket_t rxPipes[ MAX_NUM_RX_PIPES ]; /**< RX Pipe Endpoints */
+
+    std::string txEndpoint;
+    std::string rxEndpoints[ MAX_NUM_RX_PIPES ];
+  };
+#endif /* SIMULATOR */
+
+  /**
+   *  Core structure for the physical module. This contains all state information
+   *  regarding a PHY driver for a single radio.
+   */
   struct Handle
   {
     /*-------------------------------------------------
@@ -290,7 +333,7 @@ namespace Ripple::Physical
     Chimera::GPIO::Driver_rPtr csPin;  /**< Chip select GPIO configuration */
 
     /* Config options */
-    DeviceConfig cfg; /**< Configuration options */
+    DeviceConfig cfg;
 
     /*-------------------------------------------------
     Driver State
@@ -303,16 +346,25 @@ namespace Ripple::Physical
     uint8_t txBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal transmit buffer */
     uint8_t rxBuffer[ MAX_SPI_TRANSACTION_LEN ]; /**< Internal receive buffer */
     uint64_t cachedPipe0RXAddr;                  /**< RX address cache when Pipe 0 need to become TX */
-    // TBD
 
+    /*-------------------------------------------------
+    Virtual Driver
+    -------------------------------------------------*/
+#if defined( SIMULATOR )
+    ZMQConfig netCfg;
+#endif /* SIMULATOR */
+
+    /*-------------------------------------------------
+    Helper Functions
+    -------------------------------------------------*/
     void clear()
     {
       cfg.clear();
 
-      opened = false;
-      verifyRegisters = false;
-      flags = 0;
-      lastStatus = 0;
+      opened            = false;
+      verifyRegisters   = false;
+      flags             = 0;
+      lastStatus        = 0;
       cachedPipe0RXAddr = 0;
       memset( &registerCache, 0, sizeof( RegisterMap ) );
       memset( txBuffer, 0, ARRAY_BYTES( txBuffer ) );

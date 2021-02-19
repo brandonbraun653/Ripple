@@ -5,8 +5,10 @@
  *  Description:
  *    Implements the physical device driver for an NRF24L01 module
  *
- *  2020 | Brandon Braun | brandonbraun653@gmail.com
+ *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
+
+#if defined( EMBEDDED )
 
 /* Chimera Includes */
 #include <Chimera/assert>
@@ -1732,3 +1734,5 @@ namespace Ripple::Physical
   }
 
 }    // namespace Ripple::Physical
+
+#endif  /* EMBEDDED */

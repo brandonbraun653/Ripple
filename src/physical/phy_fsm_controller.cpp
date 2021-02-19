@@ -31,9 +31,12 @@ namespace Ripple::Physical::FSM
 
   bool RadioControl::setPowerUpState( const bool state )
   {
+#if defined( SIMULATOR )
+    return true;
+#else    // Hardware
     StatusReg_t result;
 
-    if( state )
+    if ( state )
     {
       result = setRegisterBits( *mHandle, REG_ADDR_CONFIG, CONFIG_PWR_UP );
       mHandle->registerCache.CONFIG |= CONFIG_PWR_UP;
@@ -44,23 +47,28 @@ namespace Ripple::Physical::FSM
     }
 
     return ( result != INVALID_STATUS_REG );
+#endif   /* SIMULATOR */
   }
 
 
   bool RadioControl::setTranscieverMode( const TranscieverMode mode )
   {
+#if defined( SIMULATOR )
+    return true;
+#else    // Hardware
     StatusReg_t result;
 
-    if( mode == TranscieverMode::RECEIVE )
+    if ( mode == TranscieverMode::RECEIVE )
     {
       result = setRegisterBits( *mHandle, REG_ADDR_CONFIG, CONFIG_PRIM_RX );
     }
-    else // Transmit
+    else    // Transmit
     {
       result = clrRegisterBits( *mHandle, REG_ADDR_CONFIG, CONFIG_PRIM_RX );
     }
 
     return ( result != INVALID_STATUS_REG );
+#endif   /* SIMULATOR */
   }
 
 
@@ -68,11 +76,6 @@ namespace Ripple::Physical::FSM
   {
     if ( setTranscieverMode( TranscieverMode::RECEIVE ) && setChipEnableState( Chimera::GPIO::State::HIGH ) )
     {
-      /*-------------------------------------------------
-      Delay the minimum RX settling time
-      -------------------------------------------------*/
-      // TODO: I believe this can be removed. The hardware enforces this limit?
-      Chimera::blockDelayMicroseconds( 130 );
       return true;
     }
     else
@@ -87,11 +90,6 @@ namespace Ripple::Physical::FSM
   {
     if ( setTranscieverMode( TranscieverMode::TRANSMIT ) && setChipEnableState( Chimera::GPIO::State::HIGH ) )
     {
-      /*-------------------------------------------------
-      Delay the minimum TX settling time
-      -------------------------------------------------*/
-      // TODO: I believe this can be removed. The hardware enforces this limit?
-      Chimera::blockDelayMicroseconds( 130 );
       return true;
     }
     else

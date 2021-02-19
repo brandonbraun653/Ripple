@@ -17,6 +17,7 @@
 /* Ripple Includes  */
 #include <Ripple/transport>
 #include <Ripple/network>
+#include <Ripple/shared>
 
 namespace Ripple::Transport
 {
@@ -60,7 +61,7 @@ namespace Ripple::Transport
     /*-------------------------------------------------
     Wait for this thread to be told to initialize
     -------------------------------------------------*/
-    this_thread::pendTaskMsg( TSK_MSG_WAKEUP );
+    Ripple::TaskWaitInit();
     mTaskId = this_thread::id();
 
     /*-------------------------------------------------

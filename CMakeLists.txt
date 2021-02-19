@@ -52,6 +52,6 @@ add_target_variants(build_ripple_core)
 # ====================================================
 # Public include location
 add_library(ripple_inc INTERFACE)
-target_include_directories(ripple_inc INTERFACE "./../" "./inc")
+target_include_directories(ripple_inc INTERFACE "./../" "./inc" "./lib/zeromq")
 target_link_libraries(ripple_inc INTERFACE ctre_inc)
 export(TARGETS ripple_inc FILE "${PROJECT_BINARY_DIR}/Ripple/ripple_inc.cmake")
