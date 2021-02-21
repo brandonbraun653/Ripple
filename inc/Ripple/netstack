@@ -1,0 +1,17 @@
+/********************************************************************************
+ *  File Name:
+ *    netstack
+ *
+ *  Description:
+ *    Public header includes for all of Ripple
+ *
+ *  2021 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_NET_STACK_INCLUDES
+#define RIPPLE_NET_STACK_INCLUDES
+
+#include <Ripple/src/userif/user_init.hpp>
+
+#endif /* !RIPPLE_NET_STACK_INCLUDES */
