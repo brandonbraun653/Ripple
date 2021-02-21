@@ -39,7 +39,7 @@ namespace Ripple::NetIf
   class IARP
   {
   public:
-    ~IARP();
+    virtual ~IARP() = default;
 
     /**
      *  Adds a new entry to the ARP table
@@ -87,7 +87,7 @@ namespace Ripple::NetIf
   class INetIf : public Chimera::Callback::DelegateService<INetIf, CallbackId>
   {
   public:
-    ~INetIf();
+    virtual ~INetIf() = default;
 
     /**
      *  Performs the interface initialization sequence. This method is called when the network

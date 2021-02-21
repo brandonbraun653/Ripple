@@ -386,7 +386,7 @@ namespace Ripple::NetIf::NRF24::Physical
     Virtual Driver
     -------------------------------------------------*/
 #if defined( SIMULATOR )
-    ZMQConfig netCfg;
+    ZMQConfig *netCfg;
 #endif /* SIMULATOR */
 
     /*-------------------------------------------------

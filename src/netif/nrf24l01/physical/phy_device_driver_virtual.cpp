@@ -28,7 +28,7 @@ namespace Ripple::NetIf::NRF24::Physical
   -------------------------------------------------------------------------------*/
   Chimera::Status_t openDevice( const DeviceConfig &cfg, Handle &handle )
   {
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Store the common configuration items
@@ -39,19 +39,19 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the "device" context with a thread pool
     -------------------------------------------------*/
-    handle.netCfg.context = zmq::context_t( MAX_NUM_PIPES );
+    handle.netCfg->context = zmq::context_t( MAX_NUM_PIPES );
 
     /*-------------------------------------------------
     Initialize the TX pipe
     -------------------------------------------------*/
-    handle.netCfg.txPipe = zmq::socket_t( handle.netCfg.context, zmq::socket_type::push );
+    handle.netCfg->txPipe = zmq::socket_t( handle.netCfg->context, zmq::socket_type::push );
 
     /*-------------------------------------------------
     Initialize the RX pipes
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
-      handle.netCfg.rxPipes[ pipe ] = zmq::socket_t( handle.netCfg.context, zmq::socket_type::pull );
+      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pull );
     }
 
     return Chimera::Status::OK;
@@ -60,25 +60,25 @@ namespace Ripple::NetIf::NRF24::Physical
 
   Chimera::Status_t closeDevice( Handle &handle )
   {
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Destroy the TX pipe
     -------------------------------------------------*/
-    handle.netCfg.txPipe.close();
+    handle.netCfg->txPipe.close();
 
     /*-------------------------------------------------
     Destroy all RX pipes
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
-      handle.netCfg.rxPipes[ pipe ].close();
+      handle.netCfg->rxPipes[ pipe ].close();
     }
 
     /*-------------------------------------------------
     Destroy the "device" context
     -------------------------------------------------*/
-    handle.netCfg.context.close();
+    handle.netCfg->context.close();
 
     return Chimera::Status::OK;
   }
@@ -177,19 +177,19 @@ namespace Ripple::NetIf::NRF24::Physical
   Chimera::Status_t openWritePipe( Handle &handle, const MACAddress address )
   {
     using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Open the TX pipe
     -------------------------------------------------*/
     std::string ep = "ipc:///ripple/tx_endpoint/" + std::to_string( address );
-    handle.netCfg.txPipe.connect( ep );
+    handle.netCfg->txPipe.connect( ep );
     getRootSink()->flog( Level::LVL_DEBUG, "Connect TX pipe to MAC %#016x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
     -------------------------------------------------*/
-    handle.netCfg.txEndpoint = ep;
+    handle.netCfg->txEndpoint = ep;
     return Chimera::Status::OK;
   }
 
@@ -197,18 +197,18 @@ namespace Ripple::NetIf::NRF24::Physical
   Chimera::Status_t closeWritePipe( Handle &handle )
   {
     using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Disconnect from the remote pipe
     -------------------------------------------------*/
-    handle.netCfg.txPipe.disconnect( handle.netCfg.txEndpoint );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n", handle.netCfg.txEndpoint.c_str() );
+    handle.netCfg->txPipe.disconnect( handle.netCfg->txEndpoint );
+    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n", handle.netCfg->txEndpoint.c_str() );
 
     /*-------------------------------------------------
     Reset the cached endpoint information
     -------------------------------------------------*/
-    handle.netCfg.txEndpoint = "";
+    handle.netCfg->txEndpoint = "";
     return Chimera::Status::OK;
   }
 
@@ -216,19 +216,19 @@ namespace Ripple::NetIf::NRF24::Physical
   Chimera::Status_t openReadPipe( Handle &handle, const PipeNumber pipe, const MACAddress address )
   {
     using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Open an RX pipe and listen for data
     -------------------------------------------------*/
     std::string ep = "ipc:///ripple/rx_endpoint/" + std::to_string( address );
-    handle.netCfg.rxPipes[ pipe ].bind( ep );
+    handle.netCfg->rxPipes[ pipe ].bind( ep );
     getRootSink()->flog( Level::LVL_DEBUG, "Open RX pipe on MAC %#016x with ZMQ Endpoint: %s\r\n", address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
     -------------------------------------------------*/
-    handle.netCfg.rxEndpoints[ pipe ] = ep;
+    handle.netCfg->rxEndpoints[ pipe ] = ep;
     return Chimera::Status::OK;
   }
 
@@ -236,18 +236,18 @@ namespace Ripple::NetIf::NRF24::Physical
   Chimera::Status_t closeReadPipe( Handle &handle, const PipeNumber pipe )
   {
     using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg.lock );
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
     Disconnect the pipe
     -------------------------------------------------*/
-    handle.netCfg.rxPipes[ pipe ].disconnect( handle.netCfg.rxEndpoints[ pipe ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Closed RX pipe on ZMQ Endpoint: %s\r\n", handle.netCfg.rxEndpoints[ pipe ].c_str() );
+    handle.netCfg->rxPipes[ pipe ].disconnect( handle.netCfg->rxEndpoints[ pipe ] );
+    getRootSink()->flog( Level::LVL_DEBUG, "Closed RX pipe on ZMQ Endpoint: %s\r\n", handle.netCfg->rxEndpoints[ pipe ].c_str() );
 
     /*-------------------------------------------------
     Reset the cached endpoint information
     -------------------------------------------------*/
-    handle.netCfg.rxEndpoints[ pipe ] = "";
+    handle.netCfg->rxEndpoints[ pipe ] = "";
     return Chimera::Status::OK;
   }
 
