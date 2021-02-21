@@ -27,6 +27,11 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Constants
   -------------------------------------------------------------------------------*/
+  static constexpr size_t THREAD_STACK_BYTES    = 1024;
+  static constexpr size_t THREAD_STACK_WORDS    = STACK_BYTES( THREAD_STACK_BYTES );
+  static constexpr std::string_view THREAD_NAME = "DataLink";
+
+
   static constexpr Physical::PipeNumber PIPE_DEVICE_ROOT  = Physical::PIPE_NUM_1;
   static constexpr Physical::PipeNumber PIPE_NET_SERVICES = Physical::PIPE_NUM_2;
   static constexpr Physical::PipeNumber PIPE_DATA_FWD     = Physical::PIPE_NUM_3;
@@ -90,7 +95,18 @@ namespace Ripple::NetIf::NRF24::DataLink
     TaskDelegate dlFunc = TaskDelegate::create<DataLink, &DataLink::run>( *this );
 
     Task datalink;
-    datalink.initialize( dlFunc, nullptr, Priority::LEVEL_4, THREAD_STACK, THREAD_NAME.cbegin() );
+    TaskConfig cfg;
+
+    cfg.arg                                   = nullptr;
+    cfg.function                              = dlFunc;
+    cfg.priority                              = Priority::LEVEL_4;
+    cfg.stackWords                            = THREAD_STACK_WORDS;
+    cfg.type                                  = TaskInitType::STATIC;
+    cfg.specialization.staticTask.stackBuffer = context->malloc( THREAD_STACK_BYTES );
+    cfg.specialization.staticTask.stackSize   = THREAD_STACK_BYTES;
+    memcpy( cfg.name.data(), THREAD_NAME.cbegin(), THREAD_NAME.size() );
+
+    datalink.create( cfg );
     mTaskId = datalink.start();
     sendTaskMsg( mTaskId, ITCMsg::TSK_MSG_WAKEUP, TIMEOUT_DONT_WAIT );
 
@@ -167,7 +183,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   size_t DataLink::linkSpeed() const
   {
-    return 1000;
+    return 1024; // 1kB per second
   }
 
 
@@ -183,6 +199,9 @@ namespace Ripple::NetIf::NRF24::DataLink
   -------------------------------------------------------------------------------*/
   Chimera::Status_t DataLink::addARPEntry( const IPAddress &ip, const void *const mac, const size_t size )
   {
+    /*-------------------------------------------------
+    Copy over the mac address if the size matches
+    -------------------------------------------------*/
     if( size != sizeof( Physical::MACAddress ) )
     {
       return Chimera::Status::FAIL;
@@ -195,7 +214,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     Attempt to insert the new entry
     -------------------------------------------------*/
     this->lock();
-
     bool success = mAddressCache.insert( ip, addr );
     this->unlock();
 
@@ -208,7 +226,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     }
 
     return success ? Chimera::Status::OK : Chimera::Status::FAIL;
-
   }
 
 
@@ -225,15 +242,28 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  void * DataLink::arpLookUp( const IPAddress &ip, size_t &size )
+  bool DataLink::arpLookUp( const IPAddress &ip, void *const mac, const size_t size )
   {
-    size = 0;
-    return nullptr;
+    /*-------------------------------------------------
+    Input protection
+    -------------------------------------------------*/
+    if( !mac || ( size != sizeof( Physical::MACAddress ) ) )
+    {
+      return false;
+    }
+
+    this->lock();
+    bool result = mAddressCache.lookup( ip, reinterpret_cast<Physical::MACAddress *>( mac ) );
+    this->unlock();
+
+    return result;
   }
 
 
   IPAddress DataLink::arpLookUp( const void *const mac, const size_t size )
   {
+    // Currently not supported but might be in the future?
+    RT_HARD_ASSERT( false );
     return 0;
   }
 

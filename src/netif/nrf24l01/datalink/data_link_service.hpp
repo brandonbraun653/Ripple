@@ -29,13 +29,6 @@
 namespace Ripple::NetIf::NRF24::DataLink
 {
   /*-------------------------------------------------------------------------------
-  Constants
-  -------------------------------------------------------------------------------*/
-  static constexpr size_t THREAD_STACK          = STACK_BYTES( 1024 );
-  static constexpr std::string_view THREAD_NAME = "DataLink";
-
-
-  /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
   /**
@@ -59,19 +52,19 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------------------------------------*/
     bool powerUp( Context_rPtr context ) final override;
     void powerDn() final override;
-    Chimera::Status_t recv( Message& msg ) final override;
-    Chimera::Status_t send( Message& msg, const IPAddress &ip ) final override;
-    IARP * addressResolver() final override;
+    Chimera::Status_t recv( Message &msg ) final override;
+    Chimera::Status_t send( Message &msg, const IPAddress &ip ) final override;
+    IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t linkSpeed() const final override;
-    size_t lastActive() const  final override;
+    size_t lastActive() const final override;
 
     /*-------------------------------------------------------------------------------
     ARP Interface
     -------------------------------------------------------------------------------*/
     Chimera::Status_t addARPEntry( const IPAddress &ip, const void *const mac, const size_t size ) final override;
     Chimera::Status_t dropARPEntry( const IPAddress &ip ) final override;
-    void * arpLookUp( const IPAddress &ip, size_t &size ) final override;
+    bool arpLookUp( const IPAddress &ip, void *const mac, const size_t size ) final override;
     IPAddress arpLookUp( const void *const mac, const size_t size ) final override;
 
     /*-------------------------------------------------------------------------------
@@ -169,15 +162,14 @@ namespace Ripple::NetIf::NRF24::DataLink
   private:
     friend Chimera::Thread::Lockable<DataLink>;
 
-
     /*-------------------------------------------------
     Class State Data
     -------------------------------------------------*/
-    bool mSystemEnabled;                    /**< Gating signal for the ISR handler to prevent spurrious interrupts */
-    volatile bool pendingEvent;             /**< Signal flag set by an ISR that an event occurred */
-    Chimera::Thread::TaskId mTaskId;        /**< Thread registration ID */
-
-    TransferControlBlock mTCB;              /**< TX control block */
+    bool mSystemEnabled;             /**< Gating signal for the ISR handler to prevent spurious interrupts */
+    volatile bool pendingEvent;      /**< Signal flag set by an ISR that an event occurred */
+    Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
+    TransferControlBlock mTCB;       /**< TX control block */
+    size_t mLastActive;              /**< Last time the system did some TX/RX activity */
 
     /*-------------------------------------------------
     Helper for tracking/invoking callbacks
@@ -187,9 +179,9 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     TX/RX Queues
     -------------------------------------------------*/
-    FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;           /**< Queue for data destined for the physical layer */
+    FrameQueue<TX_QUEUE_ELEMENTS> mTXQueue;        /**< Queue for data destined for the physical layer */
     Chimera::Thread::RecursiveTimedMutex mTXMutex; /**< Thread safety lock */
-    FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;           /**< Queue for data coming from the physical layer */
+    FrameQueue<RX_QUEUE_ELEMENTS> mRXQueue;        /**< Queue for data coming from the physical layer */
     Chimera::Thread::RecursiveTimedMutex mRXMutex; /**< Thread safety lock */
 
     /*-------------------------------------------------
@@ -222,6 +214,6 @@ namespace Ripple::NetIf::NRF24::DataLink
    */
   DataLink *createNetIf( Context_rPtr context );
 
-}    // namespace Ripple::DataLink
+}    // namespace Ripple::NetIf::NRF24::DataLink
 
 #endif /* !RIPPLE_DATA_LINK_THREAD_HPP */

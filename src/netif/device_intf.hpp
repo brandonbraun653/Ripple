@@ -63,10 +63,11 @@ namespace Ripple::NetIf
      *  Looks up the interface specific MAC address attached to IP address
      *
      *  @param[in]  ip          IP address to key off of
-     *  @param[out] size        Size of the stored MAC address buffer
-     *  @return void *          Pointer to the MAC address buffer
+     *  @param[out] mac         Pointer to the MAC address buffer to be modified
+     *  @param[in]  size        Size of the MAC address type
+     *  @return bool
      */
-    virtual void * arpLookUp( const IPAddress &ip, size_t &size ) = 0;
+    virtual bool arpLookUp( const IPAddress &ip, void *const mac, const size_t size ) = 0;
 
     /**
      *  Looks up the IP address for a given interface specific MAC address
