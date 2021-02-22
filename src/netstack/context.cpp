@@ -33,7 +33,9 @@ namespace Ripple
 
   void * Context::malloc( const size_t size )
   {
-    void * mem =  mHeap.malloc( size );
+    this->lock();
+    void *mem = mHeap.malloc( size );
+    this->unlock();
 
     if( !mem )
     {
@@ -46,7 +48,15 @@ namespace Ripple
 
   void Context::free( void *pv )
   {
+    this->lock();
     mHeap.free( pv );
+    this->unlock();
+  }
+
+
+  size_t Context::availableMemory() const
+  {
+    return mHeap.available();
   }
 
 }    // namespace Ripple

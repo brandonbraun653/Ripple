@@ -5,6 +5,7 @@ gen_static_lib_variants(
     ripple_netif_nrf24_datalink
   SOURCES
     data_link_arp.cpp
+    data_link_frame.cpp
     data_link_service.cpp
   PRV_LIBRARIES
     aurora_intf_inc

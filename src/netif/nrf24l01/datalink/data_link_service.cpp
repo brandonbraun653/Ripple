@@ -8,6 +8,9 @@
  *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
+/* Sprout Includes */
+#include <sprout/math.hpp>
+
 /* Aurora Includes */
 #include <Aurora/logging>
 
@@ -52,7 +55,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Use placement new to allocate a handle on the heap
     -------------------------------------------------*/
     RT_HARD_ASSERT( context );
-    return new( context->malloc( sizeof( DataLink ) ) ) DataLink();
+    return new ( context->malloc( sizeof( DataLink ) ) ) DataLink();
   }
 
 
@@ -83,7 +86,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     First turn on the hardware drivers
     -------------------------------------------------*/
     getRootSink()->flog( Level::LVL_DEBUG, "Initializing NRF24...\r\n" );
-    if( powerUpRadio( mPhyHandle ) != Chimera::Status::OK )
+    if ( powerUpRadio( mPhyHandle ) != Chimera::Status::OK )
     {
       getRootSink()->flog( Level::LVL_DEBUG, "Failed initializing NRF24\r\n" );
       return false;
@@ -118,58 +121,97 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   void DataLink::powerDn()
   {
-
   }
 
 
-  Chimera::Status_t DataLink::recv( Message& msg )
+  Chimera::Status_t DataLink::recv( MsgFrag &msg )
   {
-    // /*-------------------------------------------------
-    // Check if queue is empty
-    // -------------------------------------------------*/
-    // mRXMutex.lock();
-    // if ( mRXQueue.empty() )
-    // {
-    //   mRXMutex.unlock();
-    //   return Chimera::Status::EMPTY;
-    // }
+    /*-------------------------------------------------
+    Check if queue is empty
+    -------------------------------------------------*/
+    mRXMutex.lock();
+    if ( mRXQueue.empty() )
+    {
+      mRXMutex.unlock();
+      return Chimera::Status::EMPTY;
+    }
 
-    // /*-------------------------------------------------
-    // Otherwise dequeue
-    // -------------------------------------------------*/
-    // mRXQueue.pop_into( frame );
-    // mRXMutex.unlock();
-    return Chimera::Status::OK;
+    /*-------------------------------------------------
+    Acquire access to the memory allocator
+    -------------------------------------------------*/
+    mContext->lock();
+
+    /*-------------------------------------------------
+    Make sure enough memory exists to allocate
+    -------------------------------------------------*/
+    const Frame &tmpFrame = mRXQueue.front();
+
+    if ( mContext->availableMemory() < tmpFrame.wireData.control.dataLength )
+    {
+      mContext->unlock();
+      mRXMutex.unlock();
+      return Chimera::Status::MEMORY;
+    }
+
+    /*-------------------------------------------------
+    Allocate the memory and push out the data
+    -------------------------------------------------*/
+    msg.fragmentData   = mContext->malloc( tmpFrame.wireData.control.dataLength );
+    msg.fragmentLength = tmpFrame.wireData.control.dataLength;
+
+    RT_HARD_ASSERT( msg.fragmentData );
+    memcpy( msg.fragmentData, tmpFrame.wireData.userData, msg.fragmentLength );
+
+    /*-------------------------------------------------
+    Clean up the queue and return
+    -------------------------------------------------*/
+    mRXQueue.pop();
+    mRXMutex.unlock();
+    return Chimera::Status::READY;
   }
 
 
-  Chimera::Status_t DataLink::send( Message& msg, const IPAddress &ip )
+  Chimera::Status_t DataLink::send( MsgFrag &msg, const IPAddress &ip )
   {
-    // mTXMutex.lock();
+    /*-------------------------------------------------
+    Check the incoming data for validity
+    -------------------------------------------------*/
+    if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) )
+    {
+      return Chimera::Status::MEMORY;
+    }
 
-    // /*-------------------------------------------------
-    // Process the error handler if the queue is full
-    // -------------------------------------------------*/
-    // if ( mTXQueue.full() )
-    // {
-    //   mTXMutex.unlock();
+    /*-------------------------------------------------
+    Process the error handler if the queue is full
+    -------------------------------------------------*/
+    mTXMutex.lock();
+    if ( mTXQueue.full() )
+    {
+      mTXMutex.unlock();
 
-    //   DataLink::getHandle( mContext )->txQueueOverflows++;
-    //   mDLCallbacks.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
-    //   return Chimera::Status::FULL;
-    // }
+      mPhyHandle.txQueueOverflows++;
+      mDLCallbacks.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
+      return Chimera::Status::FULL;
+    }
 
-    // /*-------------------------------------------------
-    // Otherwise enqueue
-    // -------------------------------------------------*/
-    // mTXQueue.push( frame );
-    // mTXMutex.unlock();
-    return Chimera::Status::OK;
+    /*-------------------------------------------------
+    Build up the raw frame information
+    -------------------------------------------------*/
+    Frame tmpFrame;
+    tmpFrame.writeUserData( msg.fragmentData, msg.fragmentLength );
+    tmpFrame.wireData.receiver = ip;
 
+    /*-------------------------------------------------
+    Enqueue and clean up
+    -------------------------------------------------*/
+    mTXQueue.push( tmpFrame );
+    mTXMutex.unlock();
+
+    return Chimera::Status::READY;
   }
 
 
-  IARP * DataLink::addressResolver()
+  IARP *DataLink::addressResolver()
   {
     return this;
   }
@@ -177,20 +219,19 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   size_t DataLink::maxTransferSize() const
   {
-    return Physical::MAX_SPI_DATA_LEN;
+    return sizeof( PackedFrame::userData );
   }
 
 
   size_t DataLink::linkSpeed() const
   {
-    return 1024; // 1kB per second
+    return 1024;    // 1kB per second
   }
 
 
   size_t DataLink::lastActive() const
   {
-    // TODO: Need to actually fill this out
-    return Chimera::millis();
+    return mLastActive;
   }
 
 
@@ -202,7 +243,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Copy over the mac address if the size matches
     -------------------------------------------------*/
-    if( size != sizeof( Physical::MACAddress ) )
+    if ( size != sizeof( Physical::MACAddress ) )
     {
       return Chimera::Status::FAIL;
     }
@@ -247,7 +288,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Input protection
     -------------------------------------------------*/
-    if( !mac || ( size != sizeof( Physical::MACAddress ) ) )
+    if ( !mac || ( size != sizeof( Physical::MACAddress ) ) )
     {
       return false;
     }
@@ -348,6 +389,8 @@ namespace Ripple::NetIf::NRF24::DataLink
       -------------------------------------------------*/
       processRXQueue();
       processTXQueue();
+
+      mLastActive = Chimera::millis();
     }
   }
 
@@ -415,7 +458,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Input Protection
     -------------------------------------------------*/
     auto result = initPeripherals( handle );
-    if( result != Chimera::Status::OK )
+    if ( result != Chimera::Status::OK )
     {
       return result;
     }
@@ -584,7 +627,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     (RM 8.4) First transition back to Standby-1 mode, then clear event flags and flush
     the TX FIFO. Otherwise, the IRQ will continuously fire.
     -------------------------------------------------------------------------------*/
-    if ( failedFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
+    if ( failedFrame.wireData.control.requireACK )
     {
       Physical::flushTX( mPhyHandle );
       Physical::clrISREvent( mPhyHandle, Physical::bfISRMask::ISR_MSK_MAX_RT );
@@ -601,6 +644,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   void DataLink::processTXQueue()
   {
     using namespace Chimera::Thread;
+
     /*-------------------------------------------------
     Cannot process another frame until the last one
     either successfully transmitted, or errored out.
@@ -654,9 +698,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     the proper payload length settings are set, and any
     pipes needing auto-ack are enabled.
     -------------------------------------------------*/
-    Physical::PayloadType txType = Physical::PayloadType::PAYLOAD_NO_ACK;
-
-    if ( cacheFrame.control & bfControlFlags::CTRL_PAYLOAD_ACK )
+    auto txType = Physical::PayloadType::PAYLOAD_NO_ACK;
+    if ( cacheFrame.wireData.control.requireACK )
     {
       txType = Physical::PayloadType::PAYLOAD_REQUIRES_ACK;
       Physical::setRetries( mPhyHandle, cacheFrame.rtxDelay, cacheFrame.rtxCount );
@@ -670,12 +713,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     mTCB.timeout    = 10;
     mTCB.start      = Chimera::millis();
 
-    Physical::writePayload( mPhyHandle, cacheFrame.payload, cacheFrame.length, txType );
+    Physical::writePayload( mPhyHandle, &cacheFrame.wireData, cacheFrame.wireData.control.frameLength, txType );
     mFSMControl.receive( Physical::FSM::MsgStartTX() );
 
+    /*-------------------------------------------------
+    Clean up and return
+    -------------------------------------------------*/
     mTXMutex.unlock();
-
-    return;
   }
 
 
@@ -728,31 +772,24 @@ namespace Ripple::NetIf::NRF24::DataLink
     while ( pipe != Physical::PipeNumber::PIPE_INVALID )
     {
       /*-------------------------------------------------
-      Prepare a clean frame to copy data into. The more
-      complex aspects of the payload will be decoded in
-      the network layer.
-      -------------------------------------------------*/
-      Frame tempFrame;
-      tempFrame.clear();
-      tempFrame.rxPipe = pipe;
-
-      /*-------------------------------------------------
       Read out the data associated with the frame
       -------------------------------------------------*/
-      if ( mPhyHandle.cfg.hwStaticPayloadWidth )
+      size_t readSize = mPhyHandle.cfg.hwStaticPayloadWidth;
+      if ( !readSize )
       {
-        Physical::readPayload( mPhyHandle, tempFrame.payload, mPhyHandle.cfg.hwStaticPayloadWidth );
+        RT_HARD_ASSERT( false );    // Currently not supported
+        readSize = Physical::getAvailablePayloadSize( mPhyHandle, pipe );
       }
-      else    // Dynamic payloads
-      {
-        /*-------------------------------------------------
-        Make noise if this is configured. Currently not
-        supported but may be in the future.
-        -------------------------------------------------*/
-        RT_HARD_ASSERT( false );
-        size_t bytes = Physical::getAvailablePayloadSize( mPhyHandle, pipe );
-        Physical::readPayload( mPhyHandle, tempFrame.payload, bytes );
-      }
+
+      FrameBuffer tmpBuffer{ 0 };
+      Physical::readPayload( mPhyHandle, tmpBuffer.data(), readSize );
+
+      /*-------------------------------------------------
+      Create a new frame
+      -------------------------------------------------*/
+      Frame tempFrame;
+      tempFrame.receivedPipe = pipe;
+      tempFrame.writeUserData( tmpBuffer.data(), readSize );
 
       /*-------------------------------------------------
       Enqueue the frame if possible, call the network
@@ -793,4 +830,4 @@ namespace Ripple::NetIf::NRF24::DataLink
     mDLCallbacks.call<CallbackId::CB_RX_PAYLOAD>();
   }
 
-}    // namespace Ripple::DataLink
+}    // namespace Ripple::NetIf::NRF24::DataLink

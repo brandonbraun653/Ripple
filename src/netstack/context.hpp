@@ -47,7 +47,7 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
-  class Context : public Chimera::Callback::DelegateService<Context, CallbackId>
+  class Context : public Chimera::Callback::DelegateService<Context, CallbackId>, public Chimera::Thread::Lockable<Context>
   {
   public:
     Context();
@@ -69,6 +69,11 @@ namespace Ripple
      */
     void free( void *pv );
 
+    /**
+     *  Remaining free bytes on the heap
+     *  @return size_t
+     */
+    size_t availableMemory() const;
 
 
   protected:

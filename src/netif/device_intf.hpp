@@ -80,12 +80,11 @@ namespace Ripple::NetIf
   };
 
 
-
   /**
    *  Abstract class that all network interface drivers must implement to be
    *  compatible with the higher level stack.
    */
-  class INetIf : public Chimera::Callback::DelegateService<INetIf, CallbackId>
+  class INetIf : public Chimera::Callback::DelegateService<INetIf, CallbackId, CallbackReport>
   {
   public:
     virtual ~INetIf() = default;
@@ -110,8 +109,14 @@ namespace Ripple::NetIf
      *
      *  @param[in]  msg         Container for holding the message
      *  @return Chimera::Status_t
+     *
+     *  @retval Chimera::Status::OK       The entire fragment list was allocated
+     *  @retval Chimera::Status::READY    Ready to give the next fragment
+     *  @retval Chimera::Status::EMPTY    No fragments are available
+     *  @retval Chimera::Status::MEMORY   Not enough memory available
+     *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t recv( Message& msg ) = 0;
+    virtual Chimera::Status_t recv( MsgFrag& msg ) = 0;
 
     /**
      *  Transmits a message to the given IP address
@@ -119,8 +124,14 @@ namespace Ripple::NetIf
      *  @param[in]  msg         Container for holding the message
      *  @param[in]  ip          Address to send to
      *  @return Chimera::Status_t
+     *
+     *  @retval Chimera::Status::OK       The entire fragment list was sent
+     *  @retval Chimera::Status::READY    Ready to transmit the next fragment
+     *  @retval Chimera::Status::FULL     Cannot accept any more fragments just yet
+     *  @retval Chimera::Status::MEMORY   There was an issue with memory
+     *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t send( Message& msg, const IPAddress &ip ) = 0;
+    virtual Chimera::Status_t send( MsgFrag& msg, const IPAddress &ip ) = 0;
 
     /**
      *  Gets the interface's address resolver

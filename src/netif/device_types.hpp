@@ -39,6 +39,15 @@ namespace Ripple::NetIf
     CB_NUM_OPTIONS
   };
 
+  /*-------------------------------------------------------------------------------
+  Structures
+  -------------------------------------------------------------------------------*/
+  struct CallbackReport
+  {
+    CallbackId id;
+    // Could use union for data storage?
+  };
+
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_NETWORK_INTERFACE_TYPES_HPP */

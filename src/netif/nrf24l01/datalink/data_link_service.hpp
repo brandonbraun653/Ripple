@@ -52,8 +52,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------------------------------------*/
     bool powerUp( Context_rPtr context ) final override;
     void powerDn() final override;
-    Chimera::Status_t recv( Message &msg ) final override;
-    Chimera::Status_t send( Message &msg, const IPAddress &ip ) final override;
+    Chimera::Status_t recv( MsgFrag &msg ) final override;
+    Chimera::Status_t send( MsgFrag &msg, const IPAddress &ip ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t linkSpeed() const final override;

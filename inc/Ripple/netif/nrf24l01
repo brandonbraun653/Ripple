@@ -12,11 +12,17 @@
 #ifndef RIPPLE_NRF24L01_INCLUDES
 #define RIPPLE_NRF24L01_INCLUDES
 
-
+/*-------------------------------------------------
+Data Link Layer
+-------------------------------------------------*/
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_arp.hpp>
+#include <Ripple/src/netif/nrf24l01/datalink/data_link_frame.hpp>
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_service.hpp>
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_types.hpp>
 
+/*-------------------------------------------------
+Physical Layer
+-------------------------------------------------*/
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_driver.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_register.hpp>
