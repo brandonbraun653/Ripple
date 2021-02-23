@@ -74,7 +74,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     memset( wireData.userData, 0, sizeof( PackedFrame::userData ) );
     memcpy( wireData.userData, data, size );
     wireData.control.dataLength  = size;
-    wireData.control.frameLength = sizeof( PackedFrame ) - ( sizeof( PackedFrame ) - size );
+    wireData.control.frameLength = sizeof( PackedFrame ) - sizeof( PackedFrame::userData ) + size ;
 
     return size;
   }

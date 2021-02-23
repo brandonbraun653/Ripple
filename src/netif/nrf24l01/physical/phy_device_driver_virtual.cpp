@@ -430,7 +430,7 @@ namespace Ripple::NetIf::NRF24::Physical
 
   PipeNumber getAvailablePayloadPipe( Handle &handle )
   {
-    return PipeNumber::PIPE_NUM_0;
+    return PipeNumber::PIPE_INVALID;
   }
 
 
