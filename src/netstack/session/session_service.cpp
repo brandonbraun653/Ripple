@@ -146,7 +146,7 @@ namespace Ripple::Session
       -------------------------------------------------*/
       if ( ( currentTick >= nextWakeup ) || ( pendTime <= mServiceStarvedThreshold ) )
       {
-        mDelegateRegistry.call<CallbackId::CB_SERVICE_OVERRUN>();
+        mCBService_registry.call<CallbackId::CB_SERVICE_OVERRUN>();
       }
     }
   }
@@ -176,11 +176,11 @@ namespace Ripple::Session
     this->lock();
     if ( id == CallbackId::CB_UNHANDLED )
     {
-      mDelegateRegistry.register_unhandled_delegate( func );
+      mCBService_registry.register_unhandled_delegate( func );
     }
     else
     {
-      mDelegateRegistry.register_delegate( id, func );
+      mCBService_registry.register_delegate( id, func );
     }
     this->unlock();
     return Chimera::Status::OK;

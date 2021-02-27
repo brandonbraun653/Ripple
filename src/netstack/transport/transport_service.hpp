@@ -169,7 +169,7 @@ namespace Ripple::Transport
     /**
      *  Helper for tracking/invoking event callbacks
      */
-    etl::delegate_service<CallbackId::CB_NUM_OPTIONS> mDelegateRegistry;
+    etl::delegate_service<CallbackId::CB_NUM_OPTIONS> mCBService_registry;
   };
 
 }    // namespace Ripple::Transport

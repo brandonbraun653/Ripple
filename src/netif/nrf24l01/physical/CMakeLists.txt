@@ -5,9 +5,10 @@ gen_static_lib_variants(
     ripple_netif_nrf24_physical
   SOURCES
     phy_device_driver.cpp
-    phy_device_driver_virtual.cpp
     phy_device_internal.cpp
     phy_fsm_controller.cpp
+    virtual_driver/phy_device_driver_shockburst.cpp
+    virtual_driver/phy_device_driver_virtual.cpp
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc

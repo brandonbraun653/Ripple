@@ -80,7 +80,11 @@ namespace Ripple::NetIf::NRF24::DataLink
     using namespace Aurora::Logging;
     using namespace Chimera::Thread;
 
+    /*-------------------------------------------------
+    Initialize the Datalink layer
+    -------------------------------------------------*/
     mContext = context;
+    memset( &mEndpointMAC, 0, ARRAY_BYTES( mEndpointMAC ) );
 
     /*-------------------------------------------------
     First turn on the hardware drivers
@@ -174,9 +178,11 @@ namespace Ripple::NetIf::NRF24::DataLink
   Chimera::Status_t DataLink::send( MsgFrag &msg, const IPAddress &ip )
   {
     /*-------------------------------------------------
-    Check the incoming data for validity
+    Check the incoming data for validity. Fragmented
+    messages must not exceed a certain number.
     -------------------------------------------------*/
-    if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) )
+    if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) ||
+         ( msg.fragmentNumber >= sprout::pow( 2, FRAME_NUMBER_BITS ) * sizeof( PackedFrame::userData ) ) )
     {
       return Chimera::Status::MEMORY;
     }
@@ -198,8 +204,21 @@ namespace Ripple::NetIf::NRF24::DataLink
     Build up the raw frame information
     -------------------------------------------------*/
     Frame tmpFrame;
+
+    /* Some high level packet parameters */
+    tmpFrame.nextHop      = ip;
+    tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
+    tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
+    tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
+
+    /* Set packet control parameters */
+    tmpFrame.wireData.control.multicast   = false;
+    tmpFrame.wireData.control.requireACK  = true;
+    tmpFrame.wireData.control.frameNumber = msg.fragmentNumber;
+    tmpFrame.wireData.control.endpoint    = Endpoint::EP_APPLICATION_DATA_0;
+
+    /* Copy in the data */
     tmpFrame.writeUserData( msg.fragmentData, msg.fragmentLength );
-    tmpFrame.wireData.receiver = ip;
 
     /*-------------------------------------------------
     Enqueue and clean up
@@ -395,9 +414,37 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::setRootEndpointMAC( const Physical::MACAddress &mac )
+  Chimera::Status_t DataLink::setRootMAC( const Physical::MACAddress &mac )
   {
-    auto result = Physical::openReadPipe( mPhyHandle, sEndpointPipes[ EP_DEVICE_ROOT ], mac );
+    /*-------------------------------------------------
+    Make sure to gain exclusive access to the addresses
+    -------------------------------------------------*/
+    Chimera::Thread::LockGuard<DataLink>( *this );
+
+    /*-------------------------------------------------
+    Reconfigure each endpoint's address
+    -------------------------------------------------*/
+    /* Endpoint zero (physical pipe #1) is the full address width */
+    mEndpointMAC[ 0 ] = mac;
+
+    /* Assign the unique pipe addresses for the remaining endpoints */
+    for ( size_t ep = 1; ep < ARRAY_COUNT( sEndpointPipes ); ep++ )
+    {
+      mEndpointMAC[ ep ] = ( mac & ~0xFF ) | EndpointAddrModifiers[ ep ];
+    }
+
+    /*-------------------------------------------------
+    Open each endpoint with the new addresses
+    -------------------------------------------------*/
+    Chimera::Status_t result = Chimera::Status::OK;
+    for ( size_t ep = 0; ep < ARRAY_COUNT( sEndpointPipes ); ep++ )
+    {
+      result |= Physical::openReadPipe( mPhyHandle, sEndpointPipes[ ep ], mEndpointMAC[ ep ] );
+    }
+
+    /*-------------------------------------------------
+    Officially assign the address if all good
+    -------------------------------------------------*/
     if ( result == Chimera::Status::OK )
     {
       mPhyHandle.cfg.hwAddress = mac;
@@ -407,39 +454,21 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::setEndpointAddress( const Endpoint endpoint, const uint8_t address )
-  {
-    /*-------------------------------------------------
-    Can't set the root address directly in this func
-    -------------------------------------------------*/
-    if ( ( endpoint >= EP_NUM_OPTIONS ) || ( endpoint == EP_DEVICE_ROOT ) )
-    {
-      return Chimera::Status::INVAL_FUNC_PARAM;
-    }
-
-    /*-------------------------------------------------
-    Build the endpoint address based on the currently
-    assigned device root address.
-    -------------------------------------------------*/
-    Physical::MACAddress mac = mPhyHandle.cfg.hwAddress;
-    mac &= ~0xFF;
-    mac |= address;
-
-    /*-------------------------------------------------
-    Enable the RX endpoint address
-    -------------------------------------------------*/
-    return Physical::openReadPipe( mPhyHandle, sEndpointPipes[ endpoint ], mac );
-  }
-
-
   Physical::MACAddress DataLink::getEndpointMAC( const Endpoint endpoint )
   {
+    /*-------------------------------------------------
+    Input Protection
+    -------------------------------------------------*/
     if ( endpoint >= Endpoint::EP_NUM_OPTIONS )
     {
       return 0;
     }
 
-    return Physical::getRXPipeAddress( mPhyHandle, sEndpointPipes[ endpoint ] );
+    /*-------------------------------------------------
+    Make sure to gain exclusive access to the addresses
+    -------------------------------------------------*/
+    Chimera::Thread::LockGuard<DataLink>( *this );
+    return mEndpointMAC[ static_cast<size_t>( endpoint ) ];
   }
 
 
@@ -583,6 +612,8 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   void DataLink::processTXSuccess()
   {
+    using namespace Aurora::Logging;
+
     /*-------------------------------------------------
     Acknowledge the success
     -------------------------------------------------*/
@@ -601,11 +632,14 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the success
     -------------------------------------------------*/
     mDLCallbacks.call<CallbackId::CB_TX_SUCCESS>();
+    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Success\r\n" );
   }
 
 
   void DataLink::processTXFail()
   {
+    using namespace Aurora::Logging;
+
     /*-------------------------------------------------
     Dump the unsuccessful frame from the queue
     -------------------------------------------------*/
@@ -638,11 +672,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the failed frame
     -------------------------------------------------*/
     mDLCallbacks.call<CallbackId::CB_ERROR_TX_FAILURE>();
+    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Fail\r\n" );
   }
 
 
   void DataLink::processTXQueue()
   {
+    using namespace Aurora::Logging;
     using namespace Chimera::Thread;
 
     /*-------------------------------------------------
@@ -667,7 +703,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Look up the hardware address associated with the
     destination node.
     -------------------------------------------------*/
-    const Frame &cacheFrame         = mTXQueue.front();
+    Frame &cacheFrame               = mTXQueue.front();
     Physical::MACAddress dstAddress = 0;
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
@@ -688,9 +724,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     mFSMControl.receive( Physical::FSM::MsgGoToSTBY() );
 
     /*-------------------------------------------------
-    Open the proper port for writing
+    Open the proper port for writing. By default open
+    the RX port to listen for ACKS or other responses.
+
+    Pipe 0 is allocated solely for this purpose.
     -------------------------------------------------*/
     Physical::openWritePipe( mPhyHandle, dstAddress );
+    Physical::openReadPipe( mPhyHandle, Physical::PipeNumber::PIPE_NUM_0, dstAddress );
 
     /*-------------------------------------------------
     Determine the reliability required on the TX. This
@@ -713,13 +753,32 @@ namespace Ripple::NetIf::NRF24::DataLink
     mTCB.timeout    = 10;
     mTCB.start      = Chimera::millis();
 
-    Physical::writePayload( mPhyHandle, &cacheFrame.wireData, cacheFrame.wireData.control.frameLength, txType );
+#if defined( SIMULATOR )
+    mTCB.timeout = 5 * Chimera::Thread::TIMEOUT_1S;
+#endif
+
+    FrameBuffer data;
+    cacheFrame.pack( data );
+
+    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Packet\r\n" );
+    auto result = Physical::writePayload( mPhyHandle, data.data(), data.size(), txType );
     mFSMControl.receive( Physical::FSM::MsgStartTX() );
 
     /*-------------------------------------------------
     Clean up and return
     -------------------------------------------------*/
     mTXMutex.unlock();
+
+    /*-------------------------------------------------
+    Simulators don't have interrupt processing, so set
+    the pending event flag based on actual TX status.
+    -------------------------------------------------*/
+#if defined( SIMULATOR )
+    if ( result == Chimera::Status::OK )
+    {
+      pendingEvent = true;
+    }
+#endif /* SIMULATOR */
   }
 
 
@@ -782,7 +841,8 @@ namespace Ripple::NetIf::NRF24::DataLink
       }
 
       FrameBuffer tmpBuffer{ 0 };
-      Physical::readPayload( mPhyHandle, tmpBuffer.data(), readSize );
+      auto read_result = Physical::readPayload( mPhyHandle, tmpBuffer.data(), readSize );
+      RT_HARD_ASSERT( read_result == Chimera::Status::OK );
 
       /*-------------------------------------------------
       Create a new frame

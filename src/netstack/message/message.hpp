@@ -26,6 +26,7 @@ namespace Ripple
     void *fragmentData;      /**< Allocated memory for this fragment */
     uint16_t fragmentLength; /**< Length of the current fragment */
     uint16_t totalLength;    /**< Length of the entire packet */
+    uint16_t fragmentNumber; /**< Which fragment number this is, zero indexed */
     uint8_t type;            /**< Message type */
     uint8_t flags;           /**< Any flags needed */
   };

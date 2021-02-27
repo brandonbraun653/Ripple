@@ -8,6 +8,9 @@
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
+/* Chimera Includes */
+#include <Chimera/utility>
+
 /* Ripple Includes */
 #include <Ripple/netif/nrf24l01>
 
@@ -97,6 +100,19 @@ namespace Ripple::NetIf::NRF24::DataLink
     memcpy( data, wireData.userData, readLen );
 
     return readLen;
+  }
+
+
+  void Frame::pack( FrameBuffer &buffer )
+  {
+    memcpy(buffer.data(), &wireData, sizeof( PackedFrame ) );
+    static_assert( sizeof( FrameBuffer ) == sizeof( PackedFrame ) );
+  }
+
+
+  void Frame::unpack( const FrameBuffer &buffer )
+  {
+    memcpy( &wireData, buffer.data(), sizeof( PackedFrame ) );
   }
 
 }  // namespace Ripple::NetIf::NRF24::DataLink

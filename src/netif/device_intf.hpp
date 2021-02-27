@@ -119,7 +119,10 @@ namespace Ripple::NetIf
     virtual Chimera::Status_t recv( MsgFrag& msg ) = 0;
 
     /**
-     *  Transmits a message to the given IP address
+     *  Transmits a message directly to the given IP address. This function should not
+     *  need to perform any kind of network path calculations as that's handled by
+     *  higher layers in the stack. This is a "dumb" send directly to a known device
+     *  in the ARP cache, or don't send at all.
      *
      *  @param[in]  msg         Container for holding the message
      *  @param[in]  ip          Address to send to

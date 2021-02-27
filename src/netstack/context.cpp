@@ -39,7 +39,7 @@ namespace Ripple
 
     if( !mem )
     {
-      mDelegateRegistry.call<CallbackId::CB_OUT_OF_MEMORY>();
+      mCBService_registry.call<CallbackId::CB_OUT_OF_MEMORY>();
     }
 
     return mem;

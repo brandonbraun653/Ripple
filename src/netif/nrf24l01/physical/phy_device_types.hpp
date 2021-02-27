@@ -17,11 +17,14 @@
 #include <Chimera/exti>
 #include <Chimera/gpio>
 #include <Chimera/spi>
+#include <Chimera/thread>
 
 /* Ripple Includes */
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
 
 #if defined( SIMULATOR )
+#include <etl/queue.h>
+#include <atomic>
 #include <mutex>
 #include <zmq.hpp>
 #endif /* SIMULATOR */
@@ -295,8 +298,10 @@ namespace Ripple::NetIf::NRF24::Physical
     MACAddress hwAddress;
     AddressWidth hwAddressWidth;
     AutoRetransmitDelay hwRTXDelay;
+    AutoRetransmitCount hwRTXCount;
     RFChannel hwRFChannel;
-    bfISRMask hwISRMask;
+    uint8_t hwISRMask;
+    uint8_t hwISREvent;
     bool verifyRegisters; /**< Runtime verification of register setting updates */
 
     void clear()
@@ -315,6 +320,12 @@ namespace Ripple::NetIf::NRF24::Physical
 
 
 #if defined( SIMULATOR )
+  struct HWFifoType
+  {
+    PipeNumber rxPipe;
+    std::array<uint8_t, Physical::MAX_TX_PAYLOAD_SIZE> payload;
+  };
+
   /**
    *  Network configuration and control options with ZeroMQ. This is
    *  what forms the virtual hardware.
@@ -328,6 +339,10 @@ namespace Ripple::NetIf::NRF24::Physical
 
     std::string txEndpoint;
     std::string rxEndpoints[ MAX_NUM_RX_PIPES ];
+
+    std::atomic<bool> killMessagePump;
+    etl::queue<HWFifoType, 25> fifo;
+    std::array<std::array<uint8_t, Physical::MAX_TX_PAYLOAD_SIZE>, Physical::MAX_NUM_PIPES> ackPayloads;
   };
 #endif /* SIMULATOR */
 
@@ -387,11 +402,13 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
 #if defined( SIMULATOR )
     ZMQConfig *netCfg;
+    std::thread *messagePump;
 #endif /* SIMULATOR */
 
     /*-------------------------------------------------
     Helper Functions
     -------------------------------------------------*/
+
     void clear()
     {
       cfg.clear();

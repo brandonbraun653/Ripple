@@ -117,7 +117,7 @@ namespace Ripple::Transport
       -------------------------------------------------*/
       if ( ( currentTick >= nextWakeup ) || ( pendTime <= mServiceStarvedThreshold ) )
       {
-        mDelegateRegistry.call<CallbackId::CB_SERVICE_OVERRUN>();
+        mCBService_registry.call<CallbackId::CB_SERVICE_OVERRUN>();
       }
     }
   }
@@ -147,11 +147,11 @@ namespace Ripple::Transport
     this->lock();
     if ( id == CallbackId::CB_UNHANDLED )
     {
-      mDelegateRegistry.register_unhandled_delegate( func );
+      mCBService_registry.register_unhandled_delegate( func );
     }
     else
     {
-      mDelegateRegistry.register_delegate( id, func );
+      mCBService_registry.register_delegate( id, func );
     }
     this->unlock();
     return Chimera::Status::OK;
@@ -182,7 +182,7 @@ namespace Ripple::Transport
     if ( size > availUserBytes )
     {
       this->unlock();
-      mDelegateRegistry.call<CallbackId::CB_EP_NO_MEMORY>();
+      mCBService_registry.call<CallbackId::CB_EP_NO_MEMORY>();
       return Chimera::Status::MEMORY;
     }
 

@@ -10,7 +10,9 @@
 
 #if defined( SIMULATOR )
 /* STL Includes */
+#include <fstream>
 #include <mutex>
+#include <filesystem>
 
 /* Network Includes */
 #include <zmq.hpp>
@@ -21,8 +23,39 @@
 /* Aurora Includes */
 #include <Aurora/logging>
 
+/* Chimera Includes */
+#include <Chimera/thread>
+
 namespace Ripple::NetIf::NRF24::Physical
 {
+  /*-------------------------------------------------------------------------------
+  Static Functions
+  -------------------------------------------------------------------------------*/
+  static bool ensureIPCFileExists( const std::filesystem::path &path )
+  {
+    /*-------------------------------------------------
+    Already exists? No problem
+    -------------------------------------------------*/
+    if( std::filesystem::exists( path ) )
+    {
+      return true;
+    }
+
+    /*-------------------------------------------------
+    Create the file if not
+    -------------------------------------------------*/
+    std::filesystem::create_directories( path.parent_path() );
+    std::ofstream file;
+    file.open( path.string(), std::ios::out );
+    file.close();
+
+    /*-------------------------------------------------
+    Check one more time...
+    -------------------------------------------------*/
+    return std::filesystem::exists( path );
+  }
+
+
   /*-------------------------------------------------------------------------------
   Open/Close Functions
   -------------------------------------------------------------------------------*/
@@ -53,6 +86,11 @@ namespace Ripple::NetIf::NRF24::Physical
     {
       handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pull );
     }
+
+    /*-------------------------------------------------
+    Start the message pump
+    -------------------------------------------------*/
+    handle.messagePump = new std::thread( ShockBurst::fifoMessagePump, handle.netCfg );
 
     return Chimera::Status::OK;
   }
@@ -104,9 +142,9 @@ namespace Ripple::NetIf::NRF24::Physical
 
   Chimera::Status_t flushRX( Handle &handle )
   {
-    /*-------------------------------------------------
-    Nothing to flush
-    -------------------------------------------------*/
+    std::lock_guard<std::recursive_mutex>( handle.netCfg->lock );
+    handle.netCfg->fifo.clear();
+
     return Chimera::Status::OK;
   }
 
@@ -180,11 +218,30 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
+    Create the path for IPC communication
+    -------------------------------------------------*/
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/tx_endpoint/" + std::to_string( address ) + ".ipc";
+    if( !ensureIPCFileExists( ipcPath ) )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      return Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    if( handle.netCfg->txEndpoint != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "TX pipe was not already closed! Cannot open pipe.\r\n" );
+      return Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
     Open the TX pipe
     -------------------------------------------------*/
-    std::string ep = "ipc:///ripple/tx_endpoint/" + std::to_string( address );
+    std::string ep = "ipc://" + ipcPath.string();
     handle.netCfg->txPipe.connect( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Connect TX pipe to MAC %#016x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe to MAC %#010x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
@@ -198,6 +255,15 @@ namespace Ripple::NetIf::NRF24::Physical
   {
     using namespace Aurora::Logging;
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    if( handle.netCfg->txEndpoint == "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot re-close TX pipe\r\n" );
+      return Chimera::Status::FAIL;
+    }
 
     /*-------------------------------------------------
     Disconnect from the remote pipe
@@ -219,11 +285,30 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
-    Open an RX pipe and listen for data
+    Create the path for IPC communication
     -------------------------------------------------*/
-    std::string ep = "ipc:///ripple/rx_endpoint/" + std::to_string( address );
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx_endpoint/" + std::to_string( address ) + ".ipc";
+    if( !ensureIPCFileExists( ipcPath ) )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      return Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    if( handle.netCfg->rxEndpoints[ pipe ] != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "RX pipe %d was not closed! Cannot open pipe.\r\n", pipe );
+      return Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Open the RX pipe and listen for data
+    -------------------------------------------------*/
+    std::string ep = "ipc://" + ipcPath.string();
     handle.netCfg->rxPipes[ pipe ].bind( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Open RX pipe on MAC %#016x with ZMQ Endpoint: %s\r\n", address, ep.c_str() );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d on MAC %#010x with ZMQ Endpoint: %s\r\n", pipe, address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
@@ -237,6 +322,15 @@ namespace Ripple::NetIf::NRF24::Physical
   {
     using namespace Aurora::Logging;
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    if( handle.netCfg->rxEndpoints[ pipe ] == "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot re-close RX pipe %d\r\n", pipe );
+      return Chimera::Status::FAIL;
+    }
 
     /*-------------------------------------------------
     Disconnect the pipe
@@ -254,18 +348,94 @@ namespace Ripple::NetIf::NRF24::Physical
 
   Chimera::Status_t readPayload( Handle &handle, void *const buffer, const size_t length )
   {
-    return Chimera::Status::OK;
+    using namespace Aurora::Logging;
+
+    /*-------------------------------------------------
+    Input Protection
+    -------------------------------------------------*/
+    if ( !buffer || !length || ( length > sizeof( HWFifoType::payload ) ) )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------
+    Grab the next message
+    -------------------------------------------------*/
+    std::lock_guard<std::recursive_mutex>( handle.netCfg->lock );
+    if( !handle.netCfg->fifo.empty() )
+    {
+      HWFifoType nextMessage;
+      handle.netCfg->fifo.pop_into( nextMessage );
+
+      memcpy( buffer, nextMessage.payload.data(), length );
+      return Chimera::Status::OK;
+    }
+
+    return Chimera::Status::EMPTY;
   }
 
 
   Chimera::Status_t writePayload( Handle &handle, const void *const buffer, const size_t length, const PayloadType type )
   {
-    return Chimera::Status::OK;
+    using namespace Aurora::Logging;
+    auto result = Chimera::Status::OK;
+
+    /*-------------------------------------------------
+    Transmit the data to the destination
+    -------------------------------------------------*/
+    zmq::message_t txMsg( buffer, length );
+    auto byteSent = handle.netCfg->txPipe.send( txMsg, zmq::send_flags::none );
+
+    if( byteSent != length )
+    {
+      result = Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Optionally wait for a simulated ShockBurst ACK
+    -------------------------------------------------*/
+    if( type == PayloadType::PAYLOAD_REQUIRES_ACK )
+    {
+      result = ShockBurst::waitForACK( handle, 5 * Chimera::Thread::TIMEOUT_1S );
+    }
+
+    /*-------------------------------------------------
+    Assign success/fail to packet TX
+    -------------------------------------------------*/
+    if( result == Chimera::Status::OK )
+    {
+      handle.cfg.hwISREvent |= bfISRMask::ISR_MSK_TX_DS;
+    }
+    else
+    {
+      handle.cfg.hwISREvent &= ~bfISRMask::ISR_MSK_TX_DS;
+      handle.cfg.hwISREvent |= bfISRMask::ISR_MSK_MAX_RT;
+    }
+
+    return result;
   }
 
 
   Chimera::Status_t stageAckPayload( Handle &handle, const PipeNumber pipe, const void *const buffer, size_t length )
   {
+    using namespace Chimera::Thread;
+
+    /*-------------------------------------------------
+    Input protection
+    -------------------------------------------------*/
+    if ( !buffer || !length || !( pipe < PipeNumber::PIPE_NUM_ALL ) )
+    {
+      return Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Copy in the data to the buffer
+    -------------------------------------------------*/
+    auto usrBuffer = reinterpret_cast<const uint8_t *const>( buffer );
+
+    handle.netCfg->ackPayloads[ pipe ].fill( 0 );
+    std::copy( usrBuffer, usrBuffer + length, handle.netCfg->ackPayloads[ pipe ].begin() );
+
     return Chimera::Status::OK;
   }
 
@@ -275,167 +445,255 @@ namespace Ripple::NetIf::NRF24::Physical
   -------------------------------------------------------------------------------*/
   void readAllRegisters( Handle &handle )
   {
+    RT_HARD_ASSERT( false );
   }
 
 
   Reg8_t getStatusRegister( Handle &handle )
   {
+    RT_HARD_ASSERT( false );
     return 0;
   }
 
 
   bool rxFifoFull( Handle &handle )
   {
-    return false;
+    std::lock_guard<std::recursive_mutex>( handle.netCfg->lock );
+    return handle.netCfg->fifo.full();
   }
 
 
   bool rxFifoEmpty( Handle &handle )
   {
-    return true;
+    std::lock_guard<std::recursive_mutex>( handle.netCfg->lock );
+    return handle.netCfg->fifo.empty();
   }
 
 
   bool txFifoFull( Handle &handle )
   {
+    // Always not full due to immediate TX in sim
     return false;
   }
 
 
   bool txFifoEmpty( Handle &handle )
   {
+    // Always empty due to immediate TX in sim
     return true;
   }
 
 
   Chimera::Status_t setRFPower( Handle &handle, const RFPower level )
   {
+    handle.cfg.hwPowerAmplitude = level;
     return Chimera::Status::OK;
   }
 
 
   RFPower getRFPower( Handle &handle )
   {
-    return RFPower::PA_LVL_3;
+    return handle.cfg.hwPowerAmplitude;
   }
 
 
   Chimera::Status_t setDataRate( Handle &handle, const DataRate speed )
   {
+    handle.cfg.hwDataRate = speed;
     return Chimera::Status::OK;
   }
 
 
   DataRate getDataRate( Handle &handle )
   {
-    return DataRate::DR_1MBPS;
+    return handle.cfg.hwDataRate;
   }
 
 
   Chimera::Status_t setRetries( Handle &handle, const AutoRetransmitDelay delay, const size_t count )
   {
+    handle.cfg.hwRTXDelay = delay;
+    handle.cfg.hwRTXCount = static_cast<AutoRetransmitCount>( count );
     return Chimera::Status::OK;
   }
 
 
   AutoRetransmitDelay getRTXDelay( Handle &handle )
   {
-    return AutoRetransmitDelay::ART_DELAY_2000uS;
+    return handle.cfg.hwRTXDelay;
   }
 
 
   AutoRetransmitCount getRTXCount( Handle &handle )
   {
-    return AutoRetransmitCount::ART_COUNT_15;
+    return handle.cfg.hwRTXCount;
   }
 
 
   Chimera::Status_t setRFChannel( Handle &handle, const size_t channel )
   {
+    handle.cfg.hwRFChannel = channel;
     return Chimera::Status::OK;
   }
 
 
   size_t getRFChannel( Handle &handle )
   {
-    return 0;
+    return handle.cfg.hwRFChannel;
   }
 
 
   Chimera::Status_t setISRMasks( Handle &handle, const uint8_t msk )
   {
+    /*-------------------------------------------------
+    The last packet failed to transmit correctly
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_MAX_RT )
+    {
+      handle.cfg.hwISRMask |= bfISRMask::ISR_MSK_MAX_RT;
+    }
+    else
+    {
+      handle.cfg.hwISRMask &= ~bfISRMask::ISR_MSK_MAX_RT;
+    }
+
+    /*-------------------------------------------------
+    A new packet was received
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_RX_DR )
+    {
+      handle.cfg.hwISRMask |= bfISRMask::ISR_MSK_RX_DR;
+    }
+    else
+    {
+      handle.cfg.hwISRMask &= ~bfISRMask::ISR_MSK_RX_DR;
+    }
+
+    /*-------------------------------------------------
+    A packet successfully transmitted
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_TX_DS )
+    {
+      handle.cfg.hwISRMask |= bfISRMask::ISR_MSK_TX_DS;
+    }
+    else
+    {
+      handle.cfg.hwISRMask &= ~bfISRMask::ISR_MSK_TX_DS;
+    }
+
     return Chimera::Status::OK;
   }
 
 
   uint8_t getISRMasks( Handle &handle )
   {
-    return 0;
+    return handle.cfg.hwISRMask;
   }
 
 
   Chimera::Status_t clrISREvent( Handle &handle, const bfISRMask msk )
   {
+    /*-------------------------------------------------
+    The last packet failed to transmit correctly
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_MAX_RT )
+    {
+      handle.cfg.hwISREvent &= ~bfISRMask::ISR_MSK_MAX_RT;
+    }
+
+    /*-------------------------------------------------
+    A new packet was received
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_RX_DR )
+    {
+      handle.cfg.hwISREvent &= ~bfISRMask::ISR_MSK_RX_DR;
+    }
+
+    /*-------------------------------------------------
+    A packet successfully transmitted
+    -------------------------------------------------*/
+    if ( msk & Physical::bfISRMask::ISR_MSK_TX_DS )
+    {
+      handle.cfg.hwISREvent &= ~bfISRMask::ISR_MSK_TX_DS;
+    }
+
     return Chimera::Status::OK;
   }
 
 
   uint8_t getISREvent( Handle &handle )
   {
-    return 0;
+    return handle.cfg.hwISREvent;
   }
 
 
   Chimera::Status_t setAddressWidth( Handle &handle, const AddressWidth width )
   {
+    handle.cfg.hwAddressWidth = width;
     return Chimera::Status::OK;
   }
 
 
   AddressWidth getAddressWidth( Handle &handle )
   {
-    return AddressWidth::AW_5Byte;
+    return handle.cfg.hwAddressWidth;
   }
 
 
   MACAddress getRXPipeAddress( Handle &handle, const PipeNumber pipe )
   {
+    RT_HARD_ASSERT( false ); // TODO
     return 0;
   }
 
 
   Chimera::Status_t setCRCLength( Handle &handle, const CRCLength length )
   {
+    handle.cfg.hwCRCLength = length;
     return Chimera::Status::OK;
   }
 
 
   CRCLength getCRCLength( Handle &handle )
   {
-    return CRCLength::CRC_16;
+    return handle.cfg.hwCRCLength;
   }
 
 
   Chimera::Status_t setStaticPayloadSize( Handle &handle, const size_t size, const PipeNumber pipe )
   {
+    handle.cfg.hwStaticPayloadWidth = size;
     return Chimera::Status::OK;
   }
 
 
   size_t getStaticPayloadSize( Handle &handle, const PipeNumber pipe )
   {
-    return 0;
+    return handle.cfg.hwStaticPayloadWidth;
   }
 
 
   PipeNumber getAvailablePayloadPipe( Handle &handle )
   {
-    return PipeNumber::PIPE_INVALID;
+    /*-------------------------------------------------
+    Grab the next message
+    -------------------------------------------------*/
+    std::lock_guard<std::recursive_mutex>( handle.netCfg->lock );
+    if( !handle.netCfg->fifo.empty() )
+    {
+      return handle.netCfg->fifo.front().rxPipe;
+    }
+    else
+    {
+      return PipeNumber::PIPE_INVALID;
+    }
   }
 
 
   size_t getAvailablePayloadSize( Handle &handle, const PipeNumber pipe )
   {
+    // Only supported in dynamic mode
+    RT_HARD_ASSERT( false );
     return 0;
   }
 

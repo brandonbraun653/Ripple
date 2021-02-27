@@ -82,27 +82,20 @@ namespace Ripple::NetIf::NRF24::DataLink
 
     /**
      *  Assigns the MAC address associated with this device. This address will
-     *  be tied to the EP_DEVICE_ROOT endpoint and serve as the base for all other
+     *  be tied to the EP_DEVICE_CTRL endpoint and serve as the base for all other
      *  endpoint addresses.
      *
-     *  @note See RM 7.6 for more info on addressing.
+     *  @warning This immediately reconfigures the hardware to assume the appropriate
+     *           address scheme. Don't call this method while other transactions are
+     *           on-going.
      *
-     *  @param[in]  mac         The MAC address to assign to the EP_DEVICE_ROOT endpoint
+     *  @note See RM 7.6 for more info on how the NRF24 does addressing. By default
+     *        all 5 bytes are expected to be assigned.
+     *
+     *  @param[in]  mac         The MAC address to assign to the EP_DEVICE_CTRL endpoint
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t setRootEndpointMAC( const Physical::MACAddress &mac );
-
-    /**
-     *  Assigns the address modification byte to the pipe associated with the
-     *  given endpoint. Uses the EP_DEVICE_ROOT endpoint address as a base.
-     *
-     *  @note See RM 7.6 for more info on addressing.
-     *
-     *  @param[in]  endpoint    Which endpoint to modify
-     *  @param[in]  address     Address to give the endpoint
-     *  @return Chimera::Status_t
-     */
-    Chimera::Status_t setEndpointAddress( const Endpoint endpoint, const uint8_t address );
+    Chimera::Status_t setRootMAC( const Physical::MACAddress &mac );
 
     /**
      *  Gets the currently configured MAC address for the given endpoint
@@ -170,6 +163,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
     TransferControlBlock mTCB;       /**< TX control block */
     size_t mLastActive;              /**< Last time the system did some TX/RX activity */
+
+    Physical::MACAddress mEndpointMAC[ Endpoint::EP_NUM_OPTIONS ];
 
     /*-------------------------------------------------
     Helper for tracking/invoking callbacks

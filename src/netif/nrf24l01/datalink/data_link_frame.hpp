@@ -17,6 +17,9 @@
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_types.hpp>
 
+/* Sprout Includes */
+#include <sprout/math.hpp>
+
 namespace Ripple::NetIf::NRF24::DataLink
 {
   /*-------------------------------------------------------------------------------
@@ -55,6 +58,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /**
    *  Current control structure version
    */
+  static constexpr size_t VERSION_LENGTH_BITS = 3;
   static constexpr size_t CTRL_STRUCTURE_VERSION = 0;
 
   /*-------------------------------------------------------------------------------
@@ -65,14 +69,14 @@ namespace Ripple::NetIf::NRF24::DataLink
    */
   struct _pfCtrl
   {   /* clang-format off */
-    uint8_t version     : 3;                  /**< Structure versioning information */
-    uint8_t frameLength : DATA_LENGTH_BITS;   /**< Length of the entire frame, including this control structure */
-    bool    multicast   : 1;                  /**< Should this be blasted across the network to everyone? */
-    bool    requireACK  : 1;                  /**< Payload should require an ACK */
-    bool    pad         : 1;                  /**< Pad for alignment */
-    uint8_t dataLength  : DATA_LENGTH_BITS;   /**< User data length */
-    uint8_t frameNumber : FRAME_NUMBER_BITS;  /**< Frame number in a fragmented packet */
-    uint8_t endpoint    : ENDPOINT_BITS;      /**< Endpoint this frame is destined for on the target */
+    uint8_t version     : VERSION_LENGTH_BITS;  /**< Structure versioning information */
+    uint8_t frameLength : DATA_LENGTH_BITS;     /**< Length of the entire frame, including this control structure */
+    bool    multicast   : 1;                    /**< Should this be blasted across the network to everyone? */
+    bool    requireACK  : 1;                    /**< Payload should require an ACK */
+    bool    pad         : 1;                    /**< Pad for alignment */
+    uint8_t dataLength  : DATA_LENGTH_BITS;     /**< User data length */
+    uint8_t frameNumber : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
+    uint8_t endpoint    : ENDPOINT_BITS;        /**< Endpoint this frame is destined for on the target */
   };  /* clang-format on */
   static_assert( sizeof( _pfCtrl ) == sizeof( uint8_t[ 3 ] ) );
 
@@ -82,13 +86,10 @@ namespace Ripple::NetIf::NRF24::DataLink
    */
   struct PackedFrame
   {
-    uint32_t sender;        /**< The original sender of the message */
-    uint32_t receiver;      /**< The final destination of the message */
     _pfCtrl control;        /**< Frame control field */
-    uint8_t userData[ 21 ]; /**< User configurable payload */
+    uint8_t userData[ 29 ]; /**< User configurable payload */
   };
   static_assert( sizeof( PackedFrame ) == Physical::MAX_SPI_DATA_LEN );
-  static_assert( sizeof( IPAddress ) == sizeof( PackedFrame::sender ) );
 
 
   /*-------------------------------------------------------------------------------
@@ -146,6 +147,22 @@ namespace Ripple::NetIf::NRF24::DataLink
      *  @return size_t        Actual number of bytes read
      */
     size_t readUserData( void *const data, const size_t size );
+
+    /**
+     *  Packs a frame into the buffer using network byte ordering
+     *
+     *  @param[out] buffer    Output buffer to be transmitted over the network
+     *  @return void
+     */
+    void pack( FrameBuffer &buffer );
+
+    /**
+     *  Unpacks data received from the network into host byte ordering
+     *
+     *  @param[in]  buffer    Network data
+     *  @return void
+     */
+    void unpack( const FrameBuffer &buffer );
   };
 }    // namespace Ripple::NetIf::NRF24::DataLink
 

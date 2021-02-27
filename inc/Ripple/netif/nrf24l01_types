@@ -1,6 +1,6 @@
 /********************************************************************************
  *  File Name:
- *    nrf24l01
+ *    nrf24l01_types
  *
  *  Description:
  *    Public header includes for accessing the NRF24L01 network interface
@@ -9,27 +9,21 @@
  ********************************************************************************/
 
 #pragma once
-#ifndef RIPPLE_NRF24L01_INCLUDES
-#define RIPPLE_NRF24L01_INCLUDES
+#ifndef RIPPLE_NRF24L01_TYPES_INCLUDES
+#define RIPPLE_NRF24L01_TYPES_INCLUDES
 
 /*-------------------------------------------------
 Data Link Layer
 -------------------------------------------------*/
-#include <Ripple/src/netif/nrf24l01/datalink/data_link_arp.hpp>
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_frame.hpp>
-#include <Ripple/src/netif/nrf24l01/datalink/data_link_service.hpp>
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_types.hpp>
 
 /*-------------------------------------------------
 Physical Layer
 -------------------------------------------------*/
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/phy_device_driver.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/phy_device_register.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_types.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/phy_fsm_controller.hpp>
 
 #include <Ripple/src/netif/nrf24l01/physical/virtual_driver/message_types.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/phy_device_driver_shockburst.hpp>
 
-#endif /* !RIPPLE_NRF24L01_INCLUDES */
+#endif /* !RIPPLE_NRF24L01_TYPES_INCLUDES */

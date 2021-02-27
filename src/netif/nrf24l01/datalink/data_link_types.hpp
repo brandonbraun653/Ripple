@@ -31,11 +31,6 @@
 namespace Ripple::NetIf::NRF24::DataLink
 {
   /*-------------------------------------------------------------------------------
-  Constants
-  -------------------------------------------------------------------------------*/
-  static constexpr uint16_t SubNetMask = 0x7;
-
-  /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
   using IPSubNetLevel = uint16_t;
@@ -47,6 +42,17 @@ namespace Ripple::NetIf::NRF24::DataLink
   class Frame;
 
   /*-------------------------------------------------------------------------------
+  Constants
+  -------------------------------------------------------------------------------*/
+  static constexpr uint8_t EndpointAddrModifiers[ 5 ] = {
+    0xCA, /**< DEVICE CONTROL */
+    0xC5, /**< NETWORK_SERVICES */
+    0x54, /**< DATA FORWARDING */
+    0xB3, /**< APPLICATION DATA 0 */
+    0xD3  /**< APPLICATION DATA 1 */
+  };
+
+  /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
   /**
@@ -55,7 +61,7 @@ namespace Ripple::NetIf::NRF24::DataLink
    */
   enum Endpoint : uint8_t
   {
-    EP_DEVICE_ROOT,        /**< Root pipe that handles command and control data */
+    EP_DEVICE_CTRL,        /**< Root pipe that handles command and control data */
     EP_NETWORK_SERVICES,   /**< Network housekeeping and internal messages */
     EP_DATA_FORWARDING,    /**< Data that needs to be forwarded to another device */
     EP_APPLICATION_DATA_0, /**< Data destined for the user application to consume */
@@ -66,6 +72,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   // One RX pipe is dedicated for the TX auto-ack process
   static_assert( EP_NUM_OPTIONS == ( Physical::MAX_NUM_RX_PIPES - 1 ) );
+  static_assert( EP_NUM_OPTIONS ==  ARRAY_COUNT( EndpointAddrModifiers ) );
 
   /*-------------------------------------------------------------------------------
   Structures
