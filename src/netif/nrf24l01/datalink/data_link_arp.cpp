@@ -35,7 +35,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  bool ARPCache::lookup( const uint32_t ip, Physical::MACAddress *addr )
+  bool ARPCache::lookup( const std::string_view ip, Physical::MACAddress *addr )
   {
     /*-------------------------------------------------
     Find the registered key. Copy out the MAC if found.
@@ -74,7 +74,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  void ARPCache::remove( const uint32_t ip )
+  void ARPCache::remove( const std::string_view ip )
   {
     if( auto iter = mCache.find( ip ); iter != mCache.end() )
     {
@@ -83,7 +83,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  bool ARPCache::insert( const uint32_t ip, const Physical::MACAddress &addr )
+  bool ARPCache::insert( const std::string_view ip, const Physical::MACAddress &addr )
   {
     /*-------------------------------------------------
     Can't insert if the cache is full or the key exists

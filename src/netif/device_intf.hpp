@@ -22,9 +22,9 @@
 
 /* Ripple Includes */
 #include <Ripple/src/netif/device_types.hpp>
-#include <Ripple/src/netstack/context.hpp>
-#include <Ripple/src/netstack/message/message.hpp>
 #include <Ripple/src/shared/cmn_types.hpp>
+#include <Ripple/src/netstack/types.hpp>
+
 
 namespace Ripple::NetIf
 {
@@ -49,7 +49,7 @@ namespace Ripple::NetIf
      *  @param[in]  size        Size of the MAC address type
      *  @return Chimera::Status_t
      */
-    virtual Chimera::Status_t addARPEntry( const IPAddress &ip, const void *const mac, const size_t size ) = 0;
+    virtual Chimera::Status_t addARPEntry( const std::string_view &ip, const void *const mac, const size_t size ) = 0;
 
     /**
      *  Removes an entry from the ARP table
@@ -57,7 +57,7 @@ namespace Ripple::NetIf
      *  @param[in]  ip          IP address of entry to remove
      *  @return Chimera::Status_t
      */
-    virtual Chimera::Status_t dropARPEntry( const IPAddress &ip ) = 0;
+    virtual Chimera::Status_t dropARPEntry( const std::string_view &ip ) = 0;
 
     /**
      *  Looks up the interface specific MAC address attached to IP address
@@ -67,16 +67,16 @@ namespace Ripple::NetIf
      *  @param[in]  size        Size of the MAC address type
      *  @return bool
      */
-    virtual bool arpLookUp( const IPAddress &ip, void *const mac, const size_t size ) = 0;
+    virtual bool arpLookUp( const std::string_view &ip, void *const mac, const size_t size ) = 0;
 
     /**
      *  Looks up the IP address for a given interface specific MAC address
      *
      *  @param[in]  mac         MAC address buffer
      *  @param[in]  size        Size of the MAC address buffer
-     *  @return IPAddress       IP address tied to the MAC
+     *  @return std::string_view       IP address tied to the MAC
      */
-    virtual IPAddress arpLookUp( const void *const mac, const size_t size ) = 0;
+    virtual std::string_view arpLookUp( const void *const mac, const size_t size ) = 0;
   };
 
 
@@ -96,7 +96,7 @@ namespace Ripple::NetIf
      *  @param[in]  context     Network context
      *  @return bool            Boot success/fail
      */
-    virtual bool powerUp( Context_rPtr context ) = 0;
+    virtual bool powerUp( void * context ) = 0;
 
     /**
      *  Powers down the network interface
@@ -116,7 +116,7 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   Not enough memory available
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t recv( MsgFrag& msg ) = 0;
+    virtual Chimera::Status_t recv( MsgFrag &msg ) = 0;
 
     /**
      *  Transmits a message directly to the given IP address. This function should not
@@ -134,13 +134,13 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   There was an issue with memory
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t send( MsgFrag& msg, const IPAddress &ip ) = 0;
+    virtual Chimera::Status_t send( MsgFrag &msg, const std::string_view &ip ) = 0;
 
     /**
      *  Gets the interface's address resolver
      *  @return IARP *
      */
-    virtual IARP * addressResolver() = 0;
+    virtual IARP *addressResolver() = 0;
 
     /**
      *  Max data size that the network interface can reasonably handle
@@ -158,10 +158,10 @@ namespace Ripple::NetIf
      *  Returns last system time the interface was active
      *  @return size_t
      */
-    virtual size_t lastActive() const  = 0;
+    virtual size_t lastActive() const = 0;
   };
 
 
-}  // namespace Ripple
+}    // namespace Ripple::NetIf
 
-#endif  /* !RIPPLE_VIRTUAL_NET_INTERFACE_HPP */
+#endif /* !RIPPLE_VIRTUAL_NET_INTERFACE_HPP */

@@ -13,5 +13,8 @@
 #define RIPPLE_NET_STACK_INCLUDES
 
 #include <Ripple/src/userif/user_init.hpp>
+#include <Ripple/src/netstack/socket.hpp>
+#include <Ripple/src/netstack/context.hpp>
+
 
 #endif /* !RIPPLE_NET_STACK_INCLUDES */

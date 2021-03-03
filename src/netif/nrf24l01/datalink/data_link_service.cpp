@@ -75,7 +75,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Service: Net Interface
   -------------------------------------------------------------------------------*/
-  bool DataLink::powerUp( Context_rPtr context )
+  bool DataLink::powerUp( void * context )
   {
     using namespace Aurora::Logging;
     using namespace Chimera::Thread;
@@ -83,7 +83,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Initialize the Datalink layer
     -------------------------------------------------*/
-    mContext = context;
+    mContext = reinterpret_cast<Context_rPtr>( context );
     memset( &mEndpointMAC, 0, ARRAY_BYTES( mEndpointMAC ) );
 
     /*-------------------------------------------------
@@ -109,7 +109,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     cfg.priority                              = Priority::LEVEL_4;
     cfg.stackWords                            = THREAD_STACK_WORDS;
     cfg.type                                  = TaskInitType::STATIC;
-    cfg.specialization.staticTask.stackBuffer = context->malloc( THREAD_STACK_BYTES );
+    cfg.specialization.staticTask.stackBuffer = mContext->malloc( THREAD_STACK_BYTES );
     cfg.specialization.staticTask.stackSize   = THREAD_STACK_BYTES;
     memcpy( cfg.name.data(), THREAD_NAME.cbegin(), THREAD_NAME.size() );
 
@@ -175,7 +175,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::send( MsgFrag &msg, const IPAddress &ip )
+  Chimera::Status_t DataLink::send( MsgFrag &msg, const std::string_view &ip )
   {
     /*-------------------------------------------------
     Check the incoming data for validity. Fragmented
@@ -257,7 +257,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Service: ARP Interface
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t DataLink::addARPEntry( const IPAddress &ip, const void *const mac, const size_t size )
+  Chimera::Status_t DataLink::addARPEntry( const std::string_view &ip, const void *const mac, const size_t size )
   {
     /*-------------------------------------------------
     Copy over the mac address if the size matches
@@ -289,7 +289,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::dropARPEntry( const IPAddress &ip )
+  Chimera::Status_t DataLink::dropARPEntry( const std::string_view &ip )
   {
     /*-------------------------------------------------
     Does nothing if the entry doesn't exist
@@ -302,7 +302,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  bool DataLink::arpLookUp( const IPAddress &ip, void *const mac, const size_t size )
+  bool DataLink::arpLookUp( const std::string_view &ip, void *const mac, const size_t size )
   {
     /*-------------------------------------------------
     Input protection
@@ -320,11 +320,11 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  IPAddress DataLink::arpLookUp( const void *const mac, const size_t size )
+  std::string_view DataLink::arpLookUp( const void *const mac, const size_t size )
   {
     // Currently not supported but might be in the future?
     RT_HARD_ASSERT( false );
-    return 0;
+    return "";
   }
 
 

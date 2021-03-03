@@ -5,6 +5,7 @@ gen_static_lib_variants(
     ripple_network_stack
   SOURCES
     context.cpp
+    socket.cpp
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc
