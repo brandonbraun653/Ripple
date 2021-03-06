@@ -121,12 +121,12 @@ namespace Ripple
     void processTX();
 
   private:
-    NetIf::INetIf *mNetIf;             /**< Network interface driver */
-    Aurora::Memory::Heap mHeap;        /**< Managed memory pool for the whole network */
-    etl::list<Socket*, 16> mSocketCB; /**< Socket control structures */
+    NetIf::INetIf *mNetIf;               /**< Network interface driver */
+    Aurora::Memory::Heap mHeap;          /**< Managed memory pool for the whole network */
+    etl::list<Socket *, 16> mSocketList; /**< Socket control structures */
   };
 
 
-}  // namespace Ripple
+}    // namespace Ripple
 
-#endif  /* !RIPPLE_NETSTACK_CONTEXT_HPP */
+#endif /* !RIPPLE_NETSTACK_CONTEXT_HPP */

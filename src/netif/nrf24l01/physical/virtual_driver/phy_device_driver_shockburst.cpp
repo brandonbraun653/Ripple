@@ -78,6 +78,30 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
   }
 
 
+  Chimera::Status_t sendACK( Handle &handle, const PipeNumber pipe )
+  {
+    /*-------------------------------------------------
+    Build the message to send
+    -------------------------------------------------*/
+    DataLink::Frame frame;
+    frameFactory( frame, FrameType::ACK_FRAME );
+
+
+    // Eventually send more intelligent ACK messages.
+    //  - Which message is being ACK'd
+    //  - Message type
+
+    DataLink::FrameBuffer buffer;
+    frame.pack( buffer );
+
+    /*-------------------------------------------------
+    Assume that at this point everything is set up
+    -------------------------------------------------*/
+    zmq::message_t message( buffer.data(), buffer.size() );
+    handle.netCfg->txPipes[ pipe ].send( mssage, )
+  }
+
+
   void fifoMessagePump( ZMQConfig *const cfg )
   {
     using namespace Aurora::Logging;
@@ -134,4 +158,28 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
 
     getRootSink()->flog( Level::LVL_INFO, "ShockBurst msg pump kill signal set. Terminating pump.\r\n" );
   }
+
+
+  void frameFactory( DataLink::Frame &frame, FrameType type )
+  {
+    ShockBurstMsg_t data;
+
+    switch( type )
+    {
+      case FrameType::ACK_FRAME:
+        data = HW_ACK_MESSAGE;
+        break;
+
+      case FrameType::NACK_FRAME:
+        data = HW_NACK_MESSAGE;
+        break;
+
+      default:
+        return;
+        break;
+    };
+
+    frame.writeUserData( &data, sizeof( data ) );
+  }
+
 }    // namespace Ripple::NetIf::NRF24::Physical::ShockBurst

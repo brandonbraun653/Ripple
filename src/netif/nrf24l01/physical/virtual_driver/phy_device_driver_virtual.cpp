@@ -19,6 +19,7 @@
 
 /* Ripple Includes */
 #include <Ripple/netif/nrf24l01>
+#include <Ripple/src/netif/nrf24l01/datalink/data_link_frame.hpp>
 
 /* Aurora Includes */
 #include <Aurora/logging>
@@ -75,16 +76,14 @@ namespace Ripple::NetIf::NRF24::Physical
     handle.netCfg->context = zmq::context_t( MAX_NUM_PIPES );
 
     /*-------------------------------------------------
-    Initialize the TX pipe
-    -------------------------------------------------*/
-    handle.netCfg->txPipe = zmq::socket_t( handle.netCfg->context, zmq::socket_type::push );
-
-    /*-------------------------------------------------
-    Initialize the RX pipes
+    Initialize the TX/RX pipes. All TX sockets for
+    pipes 1-5 are solely for internally mimicking the
+    ShockBurst behavior of the device.
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
-      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pull );
+      handle.netCfg->txPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pub );
+      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::sub );
     }
 
     /*-------------------------------------------------
@@ -101,15 +100,11 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
-    Destroy the TX pipe
-    -------------------------------------------------*/
-    handle.netCfg->txPipe.close();
-
-    /*-------------------------------------------------
-    Destroy all RX pipes
+    Destroy all pipes
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
+      handle.netCfg->txPipes[ pipe ].close();
       handle.netCfg->rxPipes[ pipe ].close();
     }
 
@@ -220,7 +215,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the path for IPC communication
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/tx_endpoint/" + std::to_string( address ) + ".ipc";
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/" + std::to_string( address ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
       getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
@@ -230,23 +225,29 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Check to see if the pipe is already open
     -------------------------------------------------*/
-    if( handle.netCfg->txEndpoint != "" )
+    std::string ep = "ipc://" + ipcPath.string();
+
+    if( handle.netCfg->txEndpoints[ 0 ] == ep )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "TX pipe was not already closed! Cannot open pipe.\r\n" );
+      return Chimera::Status::OK;
+    }
+    else if( handle.netCfg->txEndpoints[ 0 ] != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
       return Chimera::Status::FAIL;
     }
 
     /*-------------------------------------------------
-    Open the TX pipe
+    Open the TX pipe. Only pipe 0 is used for dynamic
+    data transfer to other nodes.
     -------------------------------------------------*/
-    std::string ep = "ipc://" + ipcPath.string();
-    handle.netCfg->txPipe.connect( ep );
+    handle.netCfg->txPipes[ 0 ].connect( ep );
     getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe to MAC %#010x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
     -------------------------------------------------*/
-    handle.netCfg->txEndpoint = ep;
+    handle.netCfg->txEndpoints[ 0 ] = ep;
     return Chimera::Status::OK;
   }
 
@@ -257,24 +258,24 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
-    Check to see if the pipe is already open
+    Nothing to do if the pipe is already closed
     -------------------------------------------------*/
-    if( handle.netCfg->txEndpoint == "" )
+    if( handle.netCfg->txEndpoints[ 0 ] == "" )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot re-close TX pipe\r\n" );
-      return Chimera::Status::FAIL;
+      return Chimera::Status::OK;
     }
 
     /*-------------------------------------------------
     Disconnect from the remote pipe
     -------------------------------------------------*/
-    handle.netCfg->txPipe.disconnect( handle.netCfg->txEndpoint );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n", handle.netCfg->txEndpoint.c_str() );
+    handle.netCfg->txPipes[0 ].disconnect( handle.netCfg->txEndpoints[ 0 ] );
+    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
+                         handle.netCfg->txEndpoints[ 0 ].c_str() );
 
     /*-------------------------------------------------
     Reset the cached endpoint information
     -------------------------------------------------*/
-    handle.netCfg->txEndpoint = "";
+    handle.netCfg->txEndpoints[ 0 ] = "";
     return Chimera::Status::OK;
   }
 
@@ -287,7 +288,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the path for IPC communication
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx_endpoint/" + std::to_string( address ) + ".ipc";
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/" + std::to_string( address ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
       getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
@@ -297,18 +298,36 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Check to see if the pipe is already open
     -------------------------------------------------*/
-    if( handle.netCfg->rxEndpoints[ pipe ] != "" )
+    std::string ep = "ipc://" + ipcPath.string();
+
+    if( handle.netCfg->rxEndpoints[ pipe ] == ep )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "RX pipe %d was not closed! Cannot open pipe.\r\n", pipe );
+      return Chimera::Status::OK;
+    }
+    else if( handle.netCfg->rxEndpoints[ pipe ] != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot open RX pipe. Previous pipe was not closed!\r\n", pipe );
       return Chimera::Status::FAIL;
     }
 
     /*-------------------------------------------------
-    Open the RX pipe and listen for data
+    Open the RX pipe. Subscribe to all messages sent
+    with the "packet" topic.
     -------------------------------------------------*/
-    std::string ep = "ipc://" + ipcPath.string();
     handle.netCfg->rxPipes[ pipe ].bind( ep );
+    handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, "packet", 0 );
+    handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, "shockburst", 0 );
+
     getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d on MAC %#010x with ZMQ Endpoint: %s\r\n", pipe, address, ep.c_str() );
+
+    /*-------------------------------------------------
+    Open the TX pipe for internal shockburst use only
+    -------------------------------------------------*/
+    if( pipe != 0 )
+    {
+      handle.netCfg->txPipes[ pipe ].connect( ep );
+      handle.netCfg->txEndpoints[ pipe ] = ep;
+    }
 
     /*-------------------------------------------------
     Store the endpoint for future operations
@@ -324,12 +343,11 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
-    Check to see if the pipe is already open
+    Nothing to do if the pipe is already closed
     -------------------------------------------------*/
     if( handle.netCfg->rxEndpoints[ pipe ] == "" )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot re-close RX pipe %d\r\n", pipe );
-      return Chimera::Status::FAIL;
+      return Chimera::Status::OK;
     }
 
     /*-------------------------------------------------
@@ -337,6 +355,15 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     handle.netCfg->rxPipes[ pipe ].disconnect( handle.netCfg->rxEndpoints[ pipe ] );
     getRootSink()->flog( Level::LVL_DEBUG, "Closed RX pipe on ZMQ Endpoint: %s\r\n", handle.netCfg->rxEndpoints[ pipe ].c_str() );
+
+    /*-------------------------------------------------
+    Open the TX pipe for internal shockburst use only
+    -------------------------------------------------*/
+    if( pipe != 0 )
+    {
+      handle.netCfg->txPipes[ pipe ].disconnect( handle.netCfg->txEndpoints[ pipe ] );
+      handle.netCfg->txEndpoints[ pipe ] = "";
+    }
 
     /*-------------------------------------------------
     Reset the cached endpoint information
@@ -366,8 +393,20 @@ namespace Ripple::NetIf::NRF24::Physical
     {
       HWFifoType nextMessage;
       handle.netCfg->fifo.pop_into( nextMessage );
-
       memcpy( buffer, nextMessage.payload.data(), length );
+
+      /*-------------------------------------------------
+      Temporarily unpack the frame and see if it needs
+      a shockburst ACK.
+      -------------------------------------------------*/
+      DataLink::Frame frame;
+      frame.unpack( nextMessage.payload );
+
+      if( frame.wireData.control.requireACK )
+      {
+        ShockBurst::sendACK( handle, nextMessage.rxPipe );
+      }
+
       return Chimera::Status::OK;
     }
 
@@ -384,7 +423,7 @@ namespace Ripple::NetIf::NRF24::Physical
     Transmit the data to the destination
     -------------------------------------------------*/
     zmq::message_t txMsg( buffer, length );
-    auto byteSent = handle.netCfg->txPipe.send( txMsg, zmq::send_flags::none );
+    auto byteSent = handle.netCfg->txPipes[ 0 ].send( txMsg, zmq::send_flags::none );
 
     if( byteSent != length )
     {

@@ -12,6 +12,9 @@
 #include <cstdint>
 #include <cstddef>
 
+/* Aurora Includes */
+#include <Aurora/logging>
+
 /* Chimera Assert */
 #include <Chimera/assert>
 
@@ -34,6 +37,7 @@ namespace Ripple
 
     maxMem   = memory;
     allocMem = 0;
+    mTXReady = false;
     mTXQueue.clear();
     mRXQueue.clear();
 
@@ -48,18 +52,30 @@ namespace Ripple
 
   Chimera::Status_t Socket::open( const std::string_view &port )
   {
-    return Chimera::Status::FAIL;
+    mThisAddr = port;
+    return Chimera::Status::OK;
   }
 
 
   void Socket::close()
   {
+    using namespace Aurora::Logging;
+
+    if( disconnect( mDestAddr ) == Chimera::Status::OK )
+    {
+      mDestAddr = "";
+    }
+    else
+    {
+      getRootSink()->flog( Level::LVL_DEBUG, "Failed to close %s\r\n", mDestAddr.data() );
+    }
   }
 
 
   Chimera::Status_t Socket::connect( const std::string_view &port )
   {
-    return Chimera::Status::FAIL;
+    mDestAddr = port;
+    return Chimera::Status::OK;
   }
 
 
@@ -177,7 +193,7 @@ namespace Ripple
       Link the fragment list, unless this is the last one
       -------------------------------------------------*/
       msg->nextFragment = nullptr;
-      if ( lastFrag && ( ( fIdx + 1u ) != numFragments ) )
+      if ( lastFrag && ( fIdx != numFragments ) )
       {
         lastFrag->nextFragment = msg;
       }
@@ -186,8 +202,8 @@ namespace Ripple
       /*-------------------------------------------------
       Fill out a few control fields
       -------------------------------------------------*/
-      msg->flags          = 0;    // TODO
-      msg->type           = 0;    // TODO
+      msg->flags          = 0;
+      msg->type           = 0;
       msg->fragmentNumber = fIdx;
       msg->totalLength    = bytes;
 
@@ -227,6 +243,7 @@ namespace Ripple
     RT_HARD_ASSERT( bytesLeft == 0 );
     RT_HARD_ASSERT( endAddr == reinterpret_cast<std::uintptr_t>( pool ) );
 
+    mTXReady = true;
     return Chimera::Status::OK;
   }
 

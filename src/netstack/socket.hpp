@@ -117,10 +117,13 @@ namespace Ripple
     size_t maxMem;      /**< Maximum memory assigned to this socket */
     size_t allocMem;    /**< Currently allocated memory */
 
+    bool mTXReady;
     etl::queue<MsgFrag*, 5> mTXQueue;
     etl::queue<MsgFrag*, 5> mRXQueue;
     Chimera::Thread::RecursiveMutex *mLock;
 
+    std::string_view mThisAddr;
+    std::string_view mDestAddr;
 
   private:
     Context_rPtr mContext;

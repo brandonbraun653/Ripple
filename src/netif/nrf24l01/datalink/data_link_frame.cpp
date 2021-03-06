@@ -20,8 +20,9 @@ namespace Ripple::NetIf::NRF24::DataLink
   Classes
   -------------------------------------------------------------------------------*/
   Frame::Frame() :
-      nextHop( 0 ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
-      rtxCount( Physical::AutoRetransmitCount::ART_COUNT_INVALID ), rtxDelay( Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN )
+      nextHop( "" ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
+      rtxCount( Physical::AutoRetransmitCount::ART_COUNT_INVALID ),
+      rtxDelay( Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN )
   {
     /*-------------------------------------------------
     Reset the packed data fields to defaults
@@ -77,7 +78,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     memset( wireData.userData, 0, sizeof( PackedFrame::userData ) );
     memcpy( wireData.userData, data, size );
     wireData.control.dataLength  = size;
-    wireData.control.frameLength = sizeof( PackedFrame ) - sizeof( PackedFrame::userData ) + size ;
 
     return size;
   }

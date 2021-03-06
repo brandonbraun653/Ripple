@@ -70,13 +70,12 @@ namespace Ripple::NetIf::NRF24::DataLink
   struct _pfCtrl
   {   /* clang-format off */
     uint8_t version     : VERSION_LENGTH_BITS;  /**< Structure versioning information */
-    uint8_t frameLength : DATA_LENGTH_BITS;     /**< Length of the entire frame, including this control structure */
-    bool    multicast   : 1;                    /**< Should this be blasted across the network to everyone? */
-    bool    requireACK  : 1;                    /**< Payload should require an ACK */
-    bool    pad         : 1;                    /**< Pad for alignment */
     uint8_t dataLength  : DATA_LENGTH_BITS;     /**< User data length */
     uint8_t frameNumber : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
     uint8_t endpoint    : ENDPOINT_BITS;        /**< Endpoint this frame is destined for on the target */
+    bool    multicast   : 1;                    /**< Should this be blasted across the network to everyone? */
+    bool    requireACK  : 1;                    /**< Payload should require an ACK */
+    bool    pad         : 6;                    /**< Pad for alignment */
   };  /* clang-format on */
   static_assert( sizeof( _pfCtrl ) == sizeof( uint8_t[ 3 ] ) );
 
@@ -107,7 +106,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Public Attributes
     -------------------------------------------------*/
-    std::string nextHop;                    /**< Which node this data is going to (IPAddress) */
+    std::string_view nextHop;               /**< Which node this data is going to (IPAddress) */
     PackedFrame wireData;                   /**< Data frame transmitted on the wire */
     Physical::PipeNumber receivedPipe;      /**< Which pipe the data came from */
     Physical::AutoRetransmitCount rtxCount; /**< Max retransmit attempts */

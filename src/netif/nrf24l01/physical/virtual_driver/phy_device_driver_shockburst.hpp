@@ -25,6 +25,15 @@
 namespace Ripple::NetIf::NRF24::Physical::ShockBurst
 {
   /*-------------------------------------------------------------------------------
+  Enumerations
+  -------------------------------------------------------------------------------*/
+  enum class FrameType
+  {
+    ACK_FRAME,
+    NACK_FRAME,
+  };
+
+  /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
   /**
@@ -37,6 +46,15 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
   Chimera::Status_t waitForACK( Handle &handle, const size_t timeout );
 
   /**
+   *  Sends an ACK message
+   *
+   *  @param[in]  handle        Control block for the virtual driver
+   *  @param[in]  pipe          Which pipe to send the ACK on.
+   *  @return Chimera::Status_t
+   */
+  Chimera::Status_t sendACK( Handle &handle, const PipeNumber pipe );
+
+  /**
    *  Thread that acts as a message pump to collect RX data from the ZMQ pipes
    *  into a queue for processing by the data link layer.
    *
@@ -44,6 +62,15 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
    *  @return void
    */
   void fifoMessagePump( ZMQConfig *const cfg );
+
+  /**
+   *  Factory to build a frame type
+   *
+   *  @param[out] frame         Frame to be modified
+   *  @param[in]  type          What frame to build
+   *  @return void
+   */
+  void frameFactory( DataLink::Frame &frame, FrameType type );
 
 }    // namespace Ripple::NetIf::NRF24::Physical
 

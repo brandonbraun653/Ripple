@@ -31,7 +31,7 @@ namespace Ripple
 
   Context::Context( Aurora::Memory::Heap &&heap ) : mHeap( std::move( heap ) )
   {
-    mSocketCB.clear();
+    mSocketList.clear();
   }
 
 
@@ -54,7 +54,7 @@ namespace Ripple
     Check and see if enough memory exists
     -------------------------------------------------*/
     Chimera::Thread::LockGuard<Context>( *this );
-    if ( ( availableMemory() < cacheSize ) || mSocketCB.full() )
+    if ( ( availableMemory() < cacheSize ) || mSocketList.full() )
     {
       return nullptr;
     }
@@ -68,8 +68,8 @@ namespace Ripple
     /*-------------------------------------------------
     Register socket with context manager
     -------------------------------------------------*/
-    mSocketCB.push_back( sock );
-    mSocketCB.sort( Socket::compare );
+    mSocketList.push_back( sock );
+    mSocketList.sort( Socket::compare );
 
     return sock;
   }
@@ -150,8 +150,61 @@ namespace Ripple
 
   void Context::processTX()
   {
-    Chimera::Thread::LockGuard<Context>( *this );
+    using namespace Aurora::Logging;
 
-    //if( mTXQue)
+    /*-------------------------------------------------
+    Check each registered socket for available TX data
+    -------------------------------------------------*/
+    Chimera::Thread::LockGuard<Context> ContextLock( *this );
+    for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
+    {
+      /*-------------------------------------------------
+      Nothing ready? Move to the next one.
+      -------------------------------------------------*/
+      if ( !( *sock )->mTXReady )
+      {
+        continue;
+      }
+
+      /*-------------------------------------------------
+      Pull off and validate the data
+      -------------------------------------------------*/
+      Chimera::Thread::LockGuard<Socket> sockLock( *( *sock ) );
+      if ( ( *sock )->mTXQueue.empty() )
+      {
+        continue;
+      }
+
+      MsgFrag *msg = nullptr;
+      ( *sock )->mTXQueue.pop_into( msg );
+
+      if ( !msg || !msg->fragmentData )
+      {
+        continue;
+      }
+
+      /*-------------------------------------------------
+      Send all data to the net interface
+      -------------------------------------------------*/
+      auto sts = Chimera::Status::READY;
+      while ( sts == Chimera::Status::READY )
+      {
+        sts = mNetIf->send( *msg, ( *sock )->mDestAddr );
+        if ( !msg->nextFragment )
+        {
+          break;
+        }
+        else
+        {
+          msg = msg->nextFragment;
+        }
+      }
+
+      ( *sock )->mTXReady = false;
+      if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
+      {
+        getRootSink()->flog( Level::LVL_DEBUG, "Failed TX to netif\r\n" );
+      }
+    }
   }
 }    // namespace Ripple
