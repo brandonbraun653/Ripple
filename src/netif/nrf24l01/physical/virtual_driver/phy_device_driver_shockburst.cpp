@@ -65,13 +65,13 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     switch ( msg )
     {
       case HW_ACK_MESSAGE:
-        getRootSink()->flog( Level::LVL_DEBUG, "Transmit ACK\r\n" );
+        getRootSink()->flog( Level::LVL_DEBUG, "ACK\r\n" );
         return Chimera::Status::OK;
         break;
 
       case HW_NACK_MESSAGE:
       default:
-        getRootSink()->flog( Level::LVL_DEBUG, "Transmit NACK\r\n" );
+        getRootSink()->flog( Level::LVL_DEBUG, "NACK\r\n" );
         return Chimera::Status::FAIL;
         break;
     }
@@ -84,21 +84,21 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     Build the message to send
     -------------------------------------------------*/
     DataLink::Frame frame;
-    frameFactory( frame, FrameType::ACK_FRAME );
-
+    DataLink::FrameBuffer buffer;
 
     // Eventually send more intelligent ACK messages.
     //  - Which message is being ACK'd
     //  - Message type
-
-    DataLink::FrameBuffer buffer;
+    frameFactory( frame, FrameType::ACK_FRAME );
     frame.pack( buffer );
 
     /*-------------------------------------------------
     Assume that at this point everything is set up
     -------------------------------------------------*/
+    zmq::message_t topic( TOPIC_SHOCKBURST.data(), TOPIC_SHOCKBURST.size() );
     zmq::message_t message( buffer.data(), buffer.size() );
-    handle.netCfg->txPipes[ pipe ].send( mssage, )
+    handle.netCfg->txPipes[ pipe ].send( topic, zmq::send_flags::sndmore );
+    handle.netCfg->txPipes[ pipe ].send( message, zmq::send_flags::dontwait );
   }
 
 

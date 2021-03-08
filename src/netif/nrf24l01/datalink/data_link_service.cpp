@@ -35,6 +35,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   static constexpr std::string_view THREAD_NAME = "DataLink";
 
 
+  static constexpr Physical::PipeNumber PIPE_TX           = Physical::PIPE_NUM_0;
   static constexpr Physical::PipeNumber PIPE_DEVICE_ROOT  = Physical::PIPE_NUM_1;
   static constexpr Physical::PipeNumber PIPE_NET_SERVICES = Physical::PIPE_NUM_2;
   static constexpr Physical::PipeNumber PIPE_DATA_FWD     = Physical::PIPE_NUM_3;
@@ -430,7 +431,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /* Assign the unique pipe addresses for the remaining endpoints */
     for ( size_t ep = 1; ep < ARRAY_COUNT( sEndpointPipes ); ep++ )
     {
-      mEndpointMAC[ ep ] = ( mac & ~0xFF ) | EndpointAddrModifiers[ ep ];
+      mEndpointMAC[ ep ] = ( mac & ~0xFF ) | EndpointAddrModifiers[ ep + 1 ];
     }
 
     /*-------------------------------------------------
@@ -704,9 +705,9 @@ namespace Ripple::NetIf::NRF24::DataLink
     destination node.
     -------------------------------------------------*/
     Frame &cacheFrame               = mTXQueue.front();
-    Physical::MACAddress dstAddress = 0;
+    Physical::MACAddress deviceAddress = 0;
 
-    if ( !mAddressCache.lookup( cacheFrame.nextHop, &dstAddress ) )
+    if ( !mAddressCache.lookup( cacheFrame.nextHop, &deviceAddress ) )
     {
       mDLCallbacks.call<CallbackId::CB_ERROR_ARP_RESOLVE>();
       mTXQueue.pop();
@@ -715,6 +716,13 @@ namespace Ripple::NetIf::NRF24::DataLink
 
       return;
     }
+
+    /*-------------------------------------------------
+    Modify the destination address to go to the correct
+    pipe. Currently only pipes 4 & 5 are allocated for
+    user data.
+    -------------------------------------------------*/
+    auto dstAddress = ( deviceAddress & ~0xFF ) | EndpointAddrModifiers[ PIPE_APP_DATA_0 ];
 
     /*-------------------------------------------------
     All information needed to TX the frame is known, so
@@ -726,11 +734,9 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Open the proper port for writing. By default open
     the RX port to listen for ACKS or other responses.
-
-    Pipe 0 is allocated solely for this purpose.
     -------------------------------------------------*/
     Physical::openWritePipe( mPhyHandle, dstAddress );
-    Physical::openReadPipe( mPhyHandle, Physical::PipeNumber::PIPE_NUM_0, dstAddress );
+    //Physical::openReadPipe( mPhyHandle, PIPE_TX, dstAddress );
 
     /*-------------------------------------------------
     Determine the reliability required on the TX. This

@@ -82,8 +82,8 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
-      handle.netCfg->txPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pub );
-      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::sub );
+      handle.netCfg->txPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::push );
+      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pull );
     }
 
     /*-------------------------------------------------
@@ -215,7 +215,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the path for IPC communication
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/" + std::to_string( address ) + ".ipc";
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( address ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
       getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
@@ -225,7 +225,8 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Check to see if the pipe is already open
     -------------------------------------------------*/
-    std::string ep = "ipc://" + ipcPath.string();
+    //std::string ep = "ipc://" + ipcPath.string();
+    std::string ep = "tcp://127.0.0.1:1234";
 
     if( handle.netCfg->txEndpoints[ 0 ] == ep )
     {
@@ -241,8 +242,8 @@ namespace Ripple::NetIf::NRF24::Physical
     Open the TX pipe. Only pipe 0 is used for dynamic
     data transfer to other nodes.
     -------------------------------------------------*/
-    handle.netCfg->txPipes[ 0 ].connect( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe to MAC %#010x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
+    handle.netCfg->txPipes[ 0 ].bind( ep );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe 0 to MAC %#010x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
 
     /*-------------------------------------------------
     Store the endpoint for future operations
@@ -288,7 +289,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the path for IPC communication
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/" + std::to_string( address ) + ".ipc";
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( address ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
       getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
@@ -314,20 +315,20 @@ namespace Ripple::NetIf::NRF24::Physical
     Open the RX pipe. Subscribe to all messages sent
     with the "packet" topic.
     -------------------------------------------------*/
-    handle.netCfg->rxPipes[ pipe ].bind( ep );
-    handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, "packet", 0 );
-    handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, "shockburst", 0 );
+    handle.netCfg->rxPipes[ pipe ].connect( ep );
+    //handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, TOPIC_DATA.data(), 0 );
+    //handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, TOPIC_SHOCKBURST.data(), 0 );
 
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d on MAC %#010x with ZMQ Endpoint: %s\r\n", pipe, address, ep.c_str() );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, address, ep.c_str() );
 
     /*-------------------------------------------------
     Open the TX pipe for internal shockburst use only
     -------------------------------------------------*/
-    if( pipe != 0 )
-    {
-      handle.netCfg->txPipes[ pipe ].connect( ep );
-      handle.netCfg->txEndpoints[ pipe ] = ep;
-    }
+    // if( pipe != 0 )
+    // {
+    //   handle.netCfg->txPipes[ pipe ].connect( ep );
+    //   handle.netCfg->txEndpoints[ pipe ] = ep;
+    // }
 
     /*-------------------------------------------------
     Store the endpoint for future operations
@@ -422,8 +423,11 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Transmit the data to the destination
     -------------------------------------------------*/
-    zmq::message_t txMsg( buffer, length );
-    auto byteSent = handle.netCfg->txPipes[ 0 ].send( txMsg, zmq::send_flags::none );
+    //zmq::message_t topic( TOPIC_DATA.data(), TOPIC_DATA.size() );
+    zmq::message_t data( buffer, length );
+
+    //handle.netCfg->txPipes[ 0 ].send( topic, zmq::send_flags::sndmore );
+    auto byteSent = handle.netCfg->txPipes[ 0 ].send( data, zmq::send_flags::none );
 
     if( byteSent != length )
     {

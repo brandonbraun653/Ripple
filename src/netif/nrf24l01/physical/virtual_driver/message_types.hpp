@@ -30,6 +30,10 @@ namespace Ripple::NetIf::NRF24::Physical
   static constexpr ShockBurstMsg_t HW_ACK_MESSAGE  = 0xAABBCCDD;
   static constexpr ShockBurstMsg_t HW_NACK_MESSAGE = ~HW_ACK_MESSAGE;
 
+
+  static const std::string_view TOPIC_DATA = "packet";
+  static const std::string_view TOPIC_SHOCKBURST = "shockburst";
+
 }    // namespace Ripple::NetIf::NRF24::Physical
 
 #endif /* !RIPPLE_NETIF_NRF24L01_VIRTUAL_DRIVER_MESSAGES_HPP */

@@ -44,7 +44,8 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Constants
   -------------------------------------------------------------------------------*/
-  static constexpr uint8_t EndpointAddrModifiers[ 5 ] = {
+  static constexpr uint8_t EndpointAddrModifiers[ 6 ] = {
+    0x00, /**< Place holder to align RX pipe declarations with indices */
     0xCA, /**< DEVICE CONTROL */
     0xC5, /**< NETWORK_SERVICES */
     0x54, /**< DATA FORWARDING */
@@ -72,7 +73,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   // One RX pipe is dedicated for the TX auto-ack process
   static_assert( EP_NUM_OPTIONS == ( Physical::MAX_NUM_RX_PIPES - 1 ) );
-  static_assert( EP_NUM_OPTIONS ==  ARRAY_COUNT( EndpointAddrModifiers ) );
+  static_assert( Physical::MAX_NUM_PIPES ==  ARRAY_COUNT( EndpointAddrModifiers ) );
 
   /*-------------------------------------------------------------------------------
   Structures
