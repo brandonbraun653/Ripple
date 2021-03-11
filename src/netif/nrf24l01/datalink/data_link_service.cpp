@@ -353,11 +353,15 @@ namespace Ripple::NetIf::NRF24::DataLink
     mFSMControl.receive( Physical::FSM::MsgPowerUp() );
     mSystemEnabled = true;
 
+    uint32_t lastWoken = 0;
+    uint32_t diff = 0;
     /*-------------------------------------------------
     Execute the service
     -------------------------------------------------*/
     while ( 1 )
     {
+      lastWoken = Chimera::millis();
+
       /*-------------------------------------------------
       Process the core radio events. This is driven by a
       GPIO interrupt tied to the IRQ pin, or by another
@@ -411,6 +415,9 @@ namespace Ripple::NetIf::NRF24::DataLink
       processTXQueue();
 
       mLastActive = Chimera::millis();
+
+      diff = mLastActive - lastWoken;
+      diff = 0;
     }
   }
 

@@ -136,8 +136,7 @@ namespace Ripple
       -------------------------------------------------*/
       processRX();
       processTX();
-
-      Chimera::Thread::this_thread::yield();
+      this_thread::sleep_for( 10 );
     }
   }
 
