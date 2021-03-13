@@ -9,6 +9,9 @@ gen_static_lib_variants(
     phy_fsm_controller.cpp
     virtual_driver/phy_device_driver_shockburst.cpp
     virtual_driver/phy_device_driver_virtual.cpp
+  PRV_INCLUDES
+    ./../nanopb
+    ${NANOPB_INCLUDE_DIRS}
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc

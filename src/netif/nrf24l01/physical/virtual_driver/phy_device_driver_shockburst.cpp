@@ -14,6 +14,10 @@
 /* Ripple Includes */
 #include <Ripple/netif/nrf24l01>
 
+/* NanoPB Includes */
+#include <pb_encode.h>
+#include "shockburst.pb.h"
+
 namespace Ripple::NetIf::NRF24::Physical::ShockBurst
 {
   /*-------------------------------------------------------------------------------
