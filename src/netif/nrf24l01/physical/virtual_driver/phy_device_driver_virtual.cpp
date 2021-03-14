@@ -437,7 +437,7 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     if( type == PayloadType::PAYLOAD_REQUIRES_ACK )
     {
-      result = ShockBurst::waitForACK( handle, 5 * Chimera::Thread::TIMEOUT_1S );
+      result = ShockBurst::waitForACK( handle, PipeNumber::PIPE_NUM_0, 5 * Chimera::Thread::TIMEOUT_1S );
     }
 
     /*-------------------------------------------------

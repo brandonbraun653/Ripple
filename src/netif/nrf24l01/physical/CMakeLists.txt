@@ -12,6 +12,8 @@ gen_static_lib_variants(
   PRV_INCLUDES
     ./../nanopb
     ${NANOPB_INCLUDE_DIRS}
+  DEPENDENCIES
+    ripple_netif_nrf24_protobuf
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc

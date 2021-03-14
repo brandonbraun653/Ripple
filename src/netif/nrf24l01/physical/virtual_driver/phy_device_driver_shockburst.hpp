@@ -27,10 +27,12 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
   /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
-  enum class FrameType
+  enum FrameType : uint32_t
   {
+    INVALID,
     ACK_FRAME,
     NACK_FRAME,
+    USER_DATA,
   };
 
   /*-------------------------------------------------------------------------------
@@ -40,10 +42,11 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
    *  Waits for an ACK message on the given pipe
    *
    *  @param[in]  handle        Control block for the virtual driver
+   *  @param[in]  pipe          Which pipe to wait on
    *  @param[in]  timeout       How long to wait in ms
    *  @return Chimera::Status_t
    */
-  Chimera::Status_t waitForACK( Handle &handle, const size_t timeout );
+  Chimera::Status_t waitForACK( Handle &handle, const PipeNumber pipe, const size_t timeout );
 
   /**
    *  Sends an ACK message

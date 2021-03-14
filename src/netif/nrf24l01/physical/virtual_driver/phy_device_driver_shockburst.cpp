@@ -23,21 +23,22 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t waitForACK( Handle &handle, const size_t timeout )
+  Chimera::Status_t waitForACK( Handle &handle, const PipeNumber pipe, const size_t timeout )
   {
     using namespace Aurora::Logging;
 
     /*-------------------------------------------------
-    Receive the message
+    Receive the message. Runs as fast as possible while
+    not fully blocking other threads.
     -------------------------------------------------*/
-    zmq::message_t ackMsg;
+    zmq::message_t message;
     size_t start_time = Chimera::millis();
 
     bool recv_ok = false;
     while( ( Chimera::millis() - start_time ) < timeout )
     {
-      auto bytes = handle.netCfg->rxPipes[ 0 ].recv( ackMsg, zmq::recv_flags::dontwait );
-      if ( bytes == sizeof( DataLink::PackedFrame ) )
+      auto bytes = handle.netCfg->rxPipes[ pipe ].recv( message, zmq::recv_flags::dontwait );
+      if ( bytes == sizeof( ShockBurstFrame ) )
       {
         recv_ok = true;
         break;
@@ -54,28 +55,23 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     /*-------------------------------------------------
     Copy out the frame information
     -------------------------------------------------*/
-    DataLink::PackedFrame tmpFrame;
-    memcpy( &tmpFrame, ackMsg.data(), sizeof( DataLink::PackedFrame ) );
+    ShockBurstFrame sb_frame;
+    memcpy( &sb_frame, message.data(), sizeof( ShockBurstFrame ) );
 
-    /*-------------------------------------------------
-    Parse the frame message
-    -------------------------------------------------*/
-    ShockBurstMsg_t msg = HW_NACK_MESSAGE;
-    if( tmpFrame.control.dataLength == sizeof( ShockBurstMsg_t))
+    switch ( sb_frame.type )
     {
-      memcpy( &msg, tmpFrame.userData, sizeof( msg ) );
-    }
-
-    switch ( msg )
-    {
-      case HW_ACK_MESSAGE:
+      case ACK_FRAME:
         getRootSink()->flog( Level::LVL_DEBUG, "ACK\r\n" );
         return Chimera::Status::OK;
         break;
 
-      case HW_NACK_MESSAGE:
-      default:
+      case NACK_FRAME:
         getRootSink()->flog( Level::LVL_DEBUG, "NACK\r\n" );
+        return Chimera::Status::FAIL;
+        break;
+
+      default:
+        getRootSink()->flog( Level::LVL_DEBUG, "Unknown response\r\n" );
         return Chimera::Status::FAIL;
         break;
     }
@@ -103,6 +99,8 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     zmq::message_t message( buffer.data(), buffer.size() );
     handle.netCfg->txPipes[ pipe ].send( topic, zmq::send_flags::sndmore );
     handle.netCfg->txPipes[ pipe ].send( message, zmq::send_flags::dontwait );
+
+    return Chimera::Status::OK;
   }
 
 
@@ -133,14 +131,20 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
         zmq::message_t rxMsg;
         auto bytes = cfg->rxPipes[ pipe ].recv( rxMsg, zmq::recv_flags::dontwait );
 
-        if ( ( bytes == sizeof( DataLink::PackedFrame ) ) && ( bytes == rxMsg.size() ))
+        if ( ( bytes == sizeof( ShockBurstFrame ) ) && ( bytes == rxMsg.size() ))
         {
+          /*-------------------------------------------------
+          Copy out the frame information
+          -------------------------------------------------*/
+          ShockBurstFrame sb_frame;
+          memcpy( &sb_frame, rxMsg.data(), sizeof( ShockBurstFrame ) );
+
           /*-------------------------------------------------
           Construct the queue entry
           -------------------------------------------------*/
           HWFifoType qEntry;
           qEntry.rxPipe = static_cast<PipeNumber>( pipe );
-          memcpy( qEntry.payload.data(), rxMsg.data(), rxMsg.size() );
+          memcpy( qEntry.payload.data(), sb_frame.data.bytes, sizeof( DataLink::PackedFrame ) );
 
           /*-------------------------------------------------
           Push the data into the queue
@@ -153,6 +157,36 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
           else
           {
             getRootSink()->flog( Level::LVL_ERROR, "ShockBurst dropped packet due to RX queue full\r\n" );
+          }
+
+          /*-------------------------------------------------
+          Send an ACK if needed
+          -------------------------------------------------*/
+          auto fptr = reinterpret_cast<DataLink::PackedFrame*>( &qEntry.payload );
+          if( fptr->control.requireACK )
+          {
+            /*-------------------------------------------------
+            Build the message
+            -------------------------------------------------*/
+            ShockBurstFrame ackMsg;
+            memset( &ackMsg, 0, sizeof( ShockBurstFrame ) );
+            ackMsg.type = ACK_FRAME;
+            ackMsg.frame_id = sb_frame.frame_id;
+
+            /*-------------------------------------------------
+            Connect to the sender's endpoint
+            -------------------------------------------------*/
+            std::string senderEP( reinterpret_cast<char*>( sb_frame.sender.bytes ) );
+
+            cfg->txPipes[ pipe ].disconnect( cfg->txEndpoints[ pipe ] );
+            cfg->txPipes[ pipe ].connect( senderEP );
+            cfg->txEndpoints[ pipe ] = senderEP;
+
+            /*-------------------------------------------------
+            Send the ACK
+            -------------------------------------------------*/
+            zmq::message_t zmqMsg( &ackMsg, sizeof( ShockBurstFrame ) );
+            cfg->txPipes[ pipe ].send( zmqMsg, zmq::send_flags::dontwait );
           }
         }
       }
