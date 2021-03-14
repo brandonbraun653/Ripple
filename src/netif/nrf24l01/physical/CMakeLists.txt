@@ -16,6 +16,7 @@ gen_static_lib_variants(
     aurora_intf_inc
     chimera_intf_inc
     ripple_inc
+    ripple_netif_nrf24_protobuf_intf
   EXPORT_DIR
     "${PROJECT_BINARY_DIR}/Ripple/netif/physical"
 )

@@ -82,8 +82,8 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     for( size_t pipe = 0; pipe < ARRAY_COUNT( ZMQConfig::rxPipes ); pipe++ )
     {
-      handle.netCfg->txPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::push );
-      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pull );
+      handle.netCfg->txPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::pub );
+      handle.netCfg->rxPipes[ pipe ] = zmq::socket_t( handle.netCfg->context, zmq::socket_type::sub );
     }
 
     /*-------------------------------------------------
@@ -225,9 +225,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Check to see if the pipe is already open
     -------------------------------------------------*/
-    //std::string ep = "ipc://" + ipcPath.string();
-    std::string ep = "tcp://127.0.0.1:1234";
-
+    std::string ep = "ipc://" + ipcPath.string();
     if( handle.netCfg->txEndpoints[ 0 ] == ep )
     {
       return Chimera::Status::OK;
