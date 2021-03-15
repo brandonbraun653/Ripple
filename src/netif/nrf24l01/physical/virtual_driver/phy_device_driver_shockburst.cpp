@@ -44,7 +44,7 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
         break;
       }
 
-      Chimera::Thread::this_thread::yield();
+      Chimera::delayMilliseconds( 5 );
     }
 
     if( !recv_ok )
@@ -138,6 +138,16 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
           -------------------------------------------------*/
           ShockBurstFrame sb_frame;
           memcpy( &sb_frame, rxMsg.data(), sizeof( ShockBurstFrame ) );
+
+          /*-------------------------------------------------
+          Is the frame from ourself? Possible when sending
+          ACK messages.
+          -------------------------------------------------*/
+          std::string txDevice( reinterpret_cast<char*>( sb_frame.sender.bytes ) );
+          if( txDevice == cfg->thisDevice )
+          {
+            continue;
+          }
 
           /*-------------------------------------------------
           Construct the queue entry

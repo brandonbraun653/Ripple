@@ -30,6 +30,11 @@
 namespace Ripple::NetIf::NRF24::Physical
 {
   /*-------------------------------------------------------------------------------
+  Constants
+  -------------------------------------------------------------------------------*/
+  static const std::string zmq_com_type = "ipc://";
+
+  /*-------------------------------------------------------------------------------
   Static Functions
   -------------------------------------------------------------------------------*/
   static bool ensureIPCFileExists( const std::filesystem::path &path )
@@ -54,6 +59,157 @@ namespace Ripple::NetIf::NRF24::Physical
     Check one more time...
     -------------------------------------------------*/
     return std::filesystem::exists( path );
+  }
+
+
+  static void openPublisher( Handle &handle, const PipeNumber pipe, const MACAddress publish_to_mac )
+  {
+    /*-------------------------------------------------
+    Design notes: Publishers connect to subscribers
+    that are bound to an address.
+    -------------------------------------------------*/
+    using namespace Aurora::Logging;
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Create the path for IPC communication
+    -------------------------------------------------*/
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( publish_to_mac ) + ".ipc";
+    if( !ensureIPCFileExists( ipcPath ) )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      return;
+    }
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    std::string ep = zmq_com_type + ipcPath.string();
+    if( handle.netCfg->txEndpoints[ pipe ] == ep )
+    {
+      return;
+    }
+    else if( handle.netCfg->txEndpoints[ pipe ] != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
+      return;
+    }
+
+    /*-------------------------------------------------
+    Open the TX pipe. Only pipe 0 is used for dynamic
+    data transfer to other nodes.
+    -------------------------------------------------*/
+    handle.netCfg->txPipes[ pipe ].connect( ep );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, publish_to_mac, ep.c_str() );
+    Chimera::delayMilliseconds( 5 );
+
+    /*-------------------------------------------------
+    Store the endpoint for future operations
+    -------------------------------------------------*/
+    handle.netCfg->txEndpoints[ pipe ] = ep;
+  }
+
+
+  static void closePublisher( Handle &handle, const PipeNumber pipe )
+  {
+    using namespace Aurora::Logging;
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Nothing to do if the pipe is already closed
+    -------------------------------------------------*/
+    if( handle.netCfg->txEndpoints[ pipe ] == "" )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------
+    Disconnect from the remote pipe
+    -------------------------------------------------*/
+    handle.netCfg->txPipes[ pipe ].disconnect( handle.netCfg->txEndpoints[ pipe ] );
+    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
+                         handle.netCfg->txEndpoints[ pipe ].c_str() );
+
+    /*-------------------------------------------------
+    Reset the cached endpoint information
+    -------------------------------------------------*/
+    handle.netCfg->txEndpoints[ pipe ] = "";
+    return;
+  }
+
+
+  static void openSubscriber( Handle &handle, const PipeNumber pipe, const MACAddress receive_on_mac )
+  {
+    /*-------------------------------------------------
+    Design notes: Subscribers bind to a stable address
+    which publishers then connect with to send messages
+    -------------------------------------------------*/
+    using namespace Aurora::Logging;
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Create the path for IPC communication
+    -------------------------------------------------*/
+    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( receive_on_mac ) + ".ipc";
+    if( !ensureIPCFileExists( ipcPath ) )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      return;
+    }
+
+    /*-------------------------------------------------
+    Check to see if the pipe is already open
+    -------------------------------------------------*/
+    std::string ep = zmq_com_type + ipcPath.string();
+    if( handle.netCfg->rxEndpoints[ pipe ] == ep )
+    {
+      return;
+    }
+    else if( handle.netCfg->rxEndpoints[ pipe ] != "" )
+    {
+      getRootSink()->flog( Level::LVL_ERROR, "Cannot open RX pipe. Previous pipe was not closed!\r\n" );
+      return;
+    }
+
+    /*-------------------------------------------------
+    Open the rx pipe
+    -------------------------------------------------*/
+    handle.netCfg->rxPipes[ pipe ].bind( ep );
+    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, receive_on_mac, ep.c_str() );
+    Chimera::delayMilliseconds( 5 );
+
+    /*-------------------------------------------------
+    Store the endpoint for future operations
+    -------------------------------------------------*/
+    handle.netCfg->rxEndpoints[ pipe ] = ep;
+  }
+
+
+  static void closeSubscriber( Handle &handle, const PipeNumber pipe )
+  {
+    using namespace Aurora::Logging;
+    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
+
+    /*-------------------------------------------------
+    Nothing to do if the pipe is already closed
+    -------------------------------------------------*/
+    if( handle.netCfg->rxEndpoints[ pipe ] == "" )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------
+    Disconnect from the remote pipe
+    -------------------------------------------------*/
+    handle.netCfg->rxPipes[ pipe ].disconnect( handle.netCfg->rxEndpoints[ pipe ] );
+    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
+                         handle.netCfg->rxEndpoints[ pipe ].c_str() );
+
+    /*-------------------------------------------------
+    Reset the cached endpoint information
+    -------------------------------------------------*/
+    handle.netCfg->rxEndpoints[ pipe ] = "";
+    return;
   }
 
 
@@ -209,72 +365,20 @@ namespace Ripple::NetIf::NRF24::Physical
   -------------------------------------------------------------------------------*/
   Chimera::Status_t openWritePipe( Handle &handle, const MACAddress address )
   {
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
     /*-------------------------------------------------
-    Create the path for IPC communication
+    Publisher transmits messages to the destination and
+    the subscriber listens for any potential ACKs.
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( address ) + ".ipc";
-    if( !ensureIPCFileExists( ipcPath ) )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
-      return Chimera::Status::FAIL;
-    }
-
-    /*-------------------------------------------------
-    Check to see if the pipe is already open
-    -------------------------------------------------*/
-    std::string ep = "ipc://" + ipcPath.string();
-    if( handle.netCfg->txEndpoints[ 0 ] == ep )
-    {
-      return Chimera::Status::OK;
-    }
-    else if( handle.netCfg->txEndpoints[ 0 ] != "" )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
-      return Chimera::Status::FAIL;
-    }
-
-    /*-------------------------------------------------
-    Open the TX pipe. Only pipe 0 is used for dynamic
-    data transfer to other nodes.
-    -------------------------------------------------*/
-    handle.netCfg->txPipes[ 0 ].bind( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe 0 to MAC %#010x on ZMQ Endpoint: %s\r\n", address, ep.c_str() );
-
-    /*-------------------------------------------------
-    Store the endpoint for future operations
-    -------------------------------------------------*/
-    handle.netCfg->txEndpoints[ 0 ] = ep;
+    openPublisher( handle, PipeNumber::PIPE_NUM_0, address );
+    openSubscriber( handle, PipeNumber::PIPE_NUM_0, address );
     return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t closeWritePipe( Handle &handle )
   {
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
-    /*-------------------------------------------------
-    Nothing to do if the pipe is already closed
-    -------------------------------------------------*/
-    if( handle.netCfg->txEndpoints[ 0 ] == "" )
-    {
-      return Chimera::Status::OK;
-    }
-
-    /*-------------------------------------------------
-    Disconnect from the remote pipe
-    -------------------------------------------------*/
-    handle.netCfg->txPipes[0 ].disconnect( handle.netCfg->txEndpoints[ 0 ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
-                         handle.netCfg->txEndpoints[ 0 ].c_str() );
-
-    /*-------------------------------------------------
-    Reset the cached endpoint information
-    -------------------------------------------------*/
-    handle.netCfg->txEndpoints[ 0 ] = "";
+    closePublisher( handle, PipeNumber::PIPE_NUM_0 );
+    closeSubscriber( handle, PipeNumber::PIPE_NUM_0 );
     return Chimera::Status::OK;
   }
 
@@ -285,89 +389,19 @@ namespace Ripple::NetIf::NRF24::Physical
     std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
 
     /*-------------------------------------------------
-    Create the path for IPC communication
+    Open the subscriber
     -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( address ) + ".ipc";
-    if( !ensureIPCFileExists( ipcPath ) )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
-      return Chimera::Status::FAIL;
-    }
-
-    /*-------------------------------------------------
-    Check to see if the pipe is already open
-    -------------------------------------------------*/
-    std::string ep = "ipc://" + ipcPath.string();
-
-    if( handle.netCfg->rxEndpoints[ pipe ] == ep )
-    {
-      return Chimera::Status::OK;
-    }
-    else if( handle.netCfg->rxEndpoints[ pipe ] != "" )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open RX pipe. Previous pipe was not closed!\r\n", pipe );
-      return Chimera::Status::FAIL;
-    }
-
-    /*-------------------------------------------------
-    Open the RX pipe. Subscribe to all messages sent
-    with the "packet" topic.
-    -------------------------------------------------*/
-    handle.netCfg->rxPipes[ pipe ].connect( ep );
+    openSubscriber( handle, pipe, address );
     //handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, TOPIC_DATA.data(), 0 );
     //handle.netCfg->rxPipes[ pipe ].setsockopt( ZMQ_SUBSCRIBE, TOPIC_SHOCKBURST.data(), 0 );
 
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, address, ep.c_str() );
-
-    /*-------------------------------------------------
-    Open the TX pipe for internal shockburst use only
-    -------------------------------------------------*/
-    // if( pipe != 0 )
-    // {
-    //   handle.netCfg->txPipes[ pipe ].connect( ep );
-    //   handle.netCfg->txEndpoints[ pipe ] = ep;
-    // }
-
-    /*-------------------------------------------------
-    Store the endpoint for future operations
-    -------------------------------------------------*/
-    handle.netCfg->rxEndpoints[ pipe ] = ep;
     return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t closeReadPipe( Handle &handle, const PipeNumber pipe )
   {
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
-    /*-------------------------------------------------
-    Nothing to do if the pipe is already closed
-    -------------------------------------------------*/
-    if( handle.netCfg->rxEndpoints[ pipe ] == "" )
-    {
-      return Chimera::Status::OK;
-    }
-
-    /*-------------------------------------------------
-    Disconnect the pipe
-    -------------------------------------------------*/
-    handle.netCfg->rxPipes[ pipe ].disconnect( handle.netCfg->rxEndpoints[ pipe ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Closed RX pipe on ZMQ Endpoint: %s\r\n", handle.netCfg->rxEndpoints[ pipe ].c_str() );
-
-    /*-------------------------------------------------
-    Open the TX pipe for internal shockburst use only
-    -------------------------------------------------*/
-    if( pipe != 0 )
-    {
-      handle.netCfg->txPipes[ pipe ].disconnect( handle.netCfg->txEndpoints[ pipe ] );
-      handle.netCfg->txEndpoints[ pipe ] = "";
-    }
-
-    /*-------------------------------------------------
-    Reset the cached endpoint information
-    -------------------------------------------------*/
-    handle.netCfg->rxEndpoints[ pipe ] = "";
+    closeSubscriber( handle, pipe );
     return Chimera::Status::OK;
   }
 

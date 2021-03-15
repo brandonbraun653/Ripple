@@ -53,8 +53,11 @@ namespace Ripple
       else
       {
         this_thread::yield();
+#if defined( SIMULATOR )
+        Chimera::delayMilliseconds( 5 );
+#endif
       }
     }
   }
 
-}  // namespace Ripple
+}    // namespace Ripple

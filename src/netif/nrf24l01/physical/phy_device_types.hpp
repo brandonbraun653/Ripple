@@ -339,6 +339,7 @@ namespace Ripple::NetIf::NRF24::Physical
 
     std::string txEndpoints[ MAX_NUM_PIPES ];
     std::string rxEndpoints[ MAX_NUM_PIPES ];
+    std::string thisDevice;
 
     std::atomic<bool> killMessagePump;
     etl::queue<HWFifoType, 25> fifo;
