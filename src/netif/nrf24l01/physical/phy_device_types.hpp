@@ -27,6 +27,7 @@
 #include <atomic>
 #include <mutex>
 #include <zmq.hpp>
+#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/zmq_utils.hpp>
 #endif /* SIMULATOR */
 
 namespace Ripple::NetIf::NRF24::Physical
@@ -332,14 +333,8 @@ namespace Ripple::NetIf::NRF24::Physical
    */
   struct ZMQConfig
   {
-    std::recursive_mutex lock;              /**< Thread safety lock */
-    zmq::context_t context;                 /**< Communication context */
-    zmq::socket_t txPipes[ MAX_NUM_PIPES ]; /**< TX Pipe Endpoint */
-    zmq::socket_t rxPipes[ MAX_NUM_PIPES ]; /**< RX Pipe Endpoints */
-
-    std::string txEndpoints[ MAX_NUM_PIPES ];
-    std::string rxEndpoints[ MAX_NUM_PIPES ];
-    std::string thisDevice;
+    std::recursive_mutex lock;
+    ZMQRegistry registry;
 
     std::atomic<bool> killMessagePump;
     etl::queue<HWFifoType, 25> fifo;

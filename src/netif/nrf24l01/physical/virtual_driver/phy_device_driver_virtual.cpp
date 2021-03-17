@@ -19,6 +19,7 @@
 
 /* Ripple Includes */
 #include <Ripple/netif/nrf24l01>
+#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/phy_device_driver_shockburst.hpp>
 #include <Ripple/src/netif/nrf24l01/datalink/data_link_frame.hpp>
 
 /* Aurora Includes */
@@ -27,161 +28,27 @@
 /* Chimera Includes */
 #include <Chimera/thread>
 
+/* NanoPB Includes */
+#include <pb_encode.h>
+#include "shockburst.pb.h"
+
+
 namespace Ripple::NetIf::NRF24::Physical
 {
-  /*-------------------------------------------------------------------------------
-  Constants
-  -------------------------------------------------------------------------------*/
-  static const std::string zmq_com_type = "ipc://";
 
   /*-------------------------------------------------------------------------------
   Static Functions
   -------------------------------------------------------------------------------*/
-  static bool ensureIPCFileExists( const std::filesystem::path &path )
-  {
-    /*-------------------------------------------------
-    Already exists? No problem
-    -------------------------------------------------*/
-    if( std::filesystem::exists( path ) )
-    {
-      return true;
-    }
-
-    /*-------------------------------------------------
-    Create the file if not
-    -------------------------------------------------*/
-    std::filesystem::create_directories( path.parent_path() );
-    std::ofstream file;
-    file.open( path.string(), std::ios::out );
-    file.close();
-
-    /*-------------------------------------------------
-    Check one more time...
-    -------------------------------------------------*/
-    return std::filesystem::exists( path );
-  }
-
-
-  static void openPublisher( Handle &handle, const PipeNumber pipe, const MACAddress publish_to_mac )
-  {
-    /*-------------------------------------------------
-    Design notes: Publishers connect to subscribers
-    that are bound to an address.
-    -------------------------------------------------*/
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
-    /*-------------------------------------------------
-    Create the path for IPC communication
-    -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( publish_to_mac ) + ".ipc";
-    if( !ensureIPCFileExists( ipcPath ) )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
-      return;
-    }
-
-    /*-------------------------------------------------
-    Check to see if the pipe is already open
-    -------------------------------------------------*/
-    std::string ep = zmq_com_type + ipcPath.string();
-    if( handle.netCfg->txEndpoints[ pipe ] == ep )
-    {
-      return;
-    }
-    else if( handle.netCfg->txEndpoints[ pipe ] != "" )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
-      return;
-    }
-
-    /*-------------------------------------------------
-    Open the TX pipe. Only pipe 0 is used for dynamic
-    data transfer to other nodes.
-    -------------------------------------------------*/
-    handle.netCfg->txPipes[ pipe ].connect( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, publish_to_mac, ep.c_str() );
-    Chimera::delayMilliseconds( 5 );
-
-    /*-------------------------------------------------
-    Store the endpoint for future operations
-    -------------------------------------------------*/
-    handle.netCfg->txEndpoints[ pipe ] = ep;
-  }
 
 
   static void closePublisher( Handle &handle, const PipeNumber pipe )
   {
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
-    /*-------------------------------------------------
-    Nothing to do if the pipe is already closed
-    -------------------------------------------------*/
-    if( handle.netCfg->txEndpoints[ pipe ] == "" )
-    {
-      return;
-    }
-
-    /*-------------------------------------------------
-    Disconnect from the remote pipe
-    -------------------------------------------------*/
-    handle.netCfg->txPipes[ pipe ].disconnect( handle.netCfg->txEndpoints[ pipe ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
-                         handle.netCfg->txEndpoints[ pipe ].c_str() );
-
-    /*-------------------------------------------------
-    Reset the cached endpoint information
-    -------------------------------------------------*/
-    handle.netCfg->txEndpoints[ pipe ] = "";
     return;
   }
 
 
   static void openSubscriber( Handle &handle, const PipeNumber pipe, const MACAddress receive_on_mac )
   {
-    /*-------------------------------------------------
-    Design notes: Subscribers bind to a stable address
-    which publishers then connect with to send messages
-    -------------------------------------------------*/
-    using namespace Aurora::Logging;
-    std::lock_guard<std::recursive_mutex> lk( handle.netCfg->lock );
-
-    /*-------------------------------------------------
-    Create the path for IPC communication
-    -------------------------------------------------*/
-    std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( receive_on_mac ) + ".ipc";
-    if( !ensureIPCFileExists( ipcPath ) )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
-      return;
-    }
-
-    /*-------------------------------------------------
-    Check to see if the pipe is already open
-    -------------------------------------------------*/
-    std::string ep = zmq_com_type + ipcPath.string();
-    if( handle.netCfg->rxEndpoints[ pipe ] == ep )
-    {
-      return;
-    }
-    else if( handle.netCfg->rxEndpoints[ pipe ] != "" )
-    {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open RX pipe. Previous pipe was not closed!\r\n" );
-      return;
-    }
-
-    /*-------------------------------------------------
-    Open the rx pipe
-    -------------------------------------------------*/
-    handle.netCfg->rxPipes[ pipe ].bind( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, receive_on_mac, ep.c_str() );
-    Chimera::delayMilliseconds( 5 );
-
-    /*-------------------------------------------------
-    Store the endpoint for future operations
-    -------------------------------------------------*/
-    handle.netCfg->rxEndpoints[ pipe ] = ep;
   }
 
 
@@ -229,6 +96,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Create the "device" context with a thread pool
     -------------------------------------------------*/
+    handle.netCfg->registry.createDevice( cfg.hwAddress );
     handle.netCfg->context = zmq::context_t( MAX_NUM_PIPES );
 
     /*-------------------------------------------------
@@ -369,6 +237,8 @@ namespace Ripple::NetIf::NRF24::Physical
     Publisher transmits messages to the destination and
     the subscriber listens for any potential ACKs.
     -------------------------------------------------*/
+
+    handle.netCfg->registry.
     openPublisher( handle, PipeNumber::PIPE_NUM_0, address );
     openSubscriber( handle, PipeNumber::PIPE_NUM_0, address );
     return Chimera::Status::OK;
@@ -453,15 +323,34 @@ namespace Ripple::NetIf::NRF24::Physical
     auto result = Chimera::Status::OK;
 
     /*-------------------------------------------------
-    Transmit the data to the destination
+    Create the frame
     -------------------------------------------------*/
-    //zmq::message_t topic( TOPIC_DATA.data(), TOPIC_DATA.size() );
-    zmq::message_t data( buffer, length );
+    ShockBurstFrame frame;
+    frame.frame_id = 0;
+    frame.crc = 0;
+    frame.type = ShockBurst::FrameType::USER_DATA;
+    memcpy( frame.data.bytes, buffer, length );
+    frame.data.size = length;
 
-    //handle.netCfg->txPipes[ 0 ].send( topic, zmq::send_flags::sndmore );
+    memcpy( frame.sender.bytes, "ipc://123", strlen( "ipc://123" ) );
+    frame.sender.size = strlen( "ipc://123" );
+
+    /*-------------------------------------------------
+    Encode the protobuf data with nanopb
+    -------------------------------------------------*/
+    uint8_t npb_buf[ ShockBurstFrame_size ];
+    memset( npb_buf, 0, sizeof(npb_buf ) );
+
+    pb_ostream_t stream = pb_ostream_from_buffer( npb_buf, sizeof( npb_buf ) );
+    pb_encode( &stream, ShockBurstFrame_fields, &frame );
+
+    /*-------------------------------------------------
+    Build the ZMQ message and send away!
+    -------------------------------------------------*/
+    zmq::message_t data( npb_buf, stream.bytes_written );
+
     auto byteSent = handle.netCfg->txPipes[ 0 ].send( data, zmq::send_flags::none );
-
-    if( byteSent != length )
+    if( byteSent != stream.bytes_written )
     {
       result = Chimera::Status::FAIL;
     }
