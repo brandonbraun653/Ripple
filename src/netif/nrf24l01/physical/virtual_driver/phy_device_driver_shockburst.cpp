@@ -8,6 +8,8 @@
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
+#if defined( SIMULATOR )
+
 /* Aurora Includes */
 #include <Aurora/logging>
 
@@ -231,3 +233,5 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
   }
 
 }    // namespace Ripple::NetIf::NRF24::Physical::ShockBurst
+
+#endif  /* SIMULATOR */

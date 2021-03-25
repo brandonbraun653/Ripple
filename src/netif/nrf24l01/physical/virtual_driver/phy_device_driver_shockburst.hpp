@@ -12,6 +12,8 @@
 #ifndef RIPPLE_NETIF_NRF24L01_SHOCKBURST_HPP
 #define RIPPLE_NETIF_NRF24L01_SHOCKBURST_HPP
 
+#if defined( SIMULATOR )
+
 /* STL Includes */
 #include <cstddef>
 
@@ -77,4 +79,5 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
 
 }    // namespace Ripple::NetIf::NRF24::Physical
 
+#endif /* SIMULATOR */
 #endif /* !RIPPLE_NETIF_NRF24L01_SHOCKBURST_HPP */
