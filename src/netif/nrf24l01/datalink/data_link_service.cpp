@@ -13,6 +13,7 @@
 
 /* Aurora Includes */
 #include <Aurora/logging>
+#include <Aurora/tracing>
 
 /* Chimera Includes */
 #include <Chimera/assert>
@@ -46,6 +47,22 @@ namespace Ripple::NetIf::NRF24::DataLink
                                                          PIPE_APP_DATA_1 };
   static_assert( ARRAY_COUNT( sEndpointPipes ) == EP_NUM_OPTIONS );
   static_assert( PIPE_DEVICE_ROOT == Physical::PIPE_NUM_1 );
+
+  /*-------------------------------------------------------------------------------
+  Enumerations
+  -------------------------------------------------------------------------------*/
+  enum EventMarker : size_t
+  {
+
+  };
+
+  /*-------------------------------------------------------------------------------
+  Static Functions
+  -------------------------------------------------------------------------------*/
+  static void trace_init()
+  {
+
+  }
 
   /*-------------------------------------------------------------------------------
   Public Functions
