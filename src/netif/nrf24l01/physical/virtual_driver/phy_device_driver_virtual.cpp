@@ -69,7 +69,7 @@ namespace Ripple::NetIf::NRF24::Physical
     Disconnect from the remote pipe
     -------------------------------------------------*/
     handle.netCfg->rxPipes[ pipe ].disconnect( handle.netCfg->rxEndpoints[ pipe ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
+    LOG_DEBUG( "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
                          handle.netCfg->rxEndpoints[ pipe ].c_str() );
 
     /*-------------------------------------------------

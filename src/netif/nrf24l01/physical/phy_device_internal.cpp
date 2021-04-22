@@ -9,6 +9,7 @@
  *******************************************************************************/
 
 /* Chimera Includes */
+#include <Chimera/common>
 #include <Chimera/event>
 #include <Chimera/gpio>
 #include <Chimera/thread>
@@ -22,6 +23,58 @@ namespace Ripple::NetIf::NRF24::Physical
   /*-------------------------------------------------------------------------------
   Private Functions
   -------------------------------------------------------------------------------*/
+  Chimera::Status_t powerUpDrivers( Handle &handle )
+  {
+    using namespace Chimera::GPIO;
+
+    Chimera::Status_t initOk = Chimera::Status::OK;
+
+    /*-------------------------------------------------
+    Configure the Chip Enable pin
+    -------------------------------------------------*/
+    handle.cePin = Chimera::GPIO::getDriver( handle.cfg.ce.port, handle.cfg.ce.pin );
+    if( !handle.cePin )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    initOk |= handle.cePin->init( handle.cfg.ce );
+    handle.cePin->setState( State::HIGH );
+
+    /*-------------------------------------------------
+    Configure the IRQ pin
+    -------------------------------------------------*/
+    handle.irqPin = Chimera::GPIO::getDriver( handle.cfg.irq.port, handle.cfg.irq.pin );
+    if( !handle.irqPin )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    initOk |= handle.irqPin->init( handle.cfg.irq );
+    handle.irqPin->setState( State::HIGH );
+
+    /*-------------------------------------------------
+    Configure the Chip Select pin
+    -------------------------------------------------*/
+    handle.csPin = Chimera::GPIO::getDriver( handle.cfg.spi.CSInit.port, handle.cfg.spi.CSInit.pin );
+    if( !handle.csPin )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    initOk |= handle.csPin->init( handle.cfg.spi.CSInit );
+    handle.csPin->setState( State::HIGH );
+
+    /*-------------------------------------------------
+    Configure the SPI driver
+    -------------------------------------------------*/
+    handle.spi = Chimera::SPI::getDriver( handle.cfg.spi.HWInit.hwChannel );
+    initOk |= handle.spi->init( handle.cfg.spi );
+
+    return initOk;
+  }
+
+
   Chimera::Status_t spiTransaction( Handle &handle, const void *const txBuffer, void *const rxBuffer,
                                     const size_t length )
   {

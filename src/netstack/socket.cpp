@@ -67,7 +67,7 @@ namespace Ripple
     }
     else
     {
-      getRootSink()->flog( Level::LVL_DEBUG, "Failed to close %s\r\n", mDestAddr.data() );
+      LOG_DEBUG( "Failed to close %s\r\n", mDestAddr.data() );
     }
   }
 

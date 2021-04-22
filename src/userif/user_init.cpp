@@ -23,7 +23,7 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Constants
   -------------------------------------------------------------------------------*/
-  static constexpr size_t THREAD_STACK_BYTES    = 1024;
+  static constexpr size_t THREAD_STACK_BYTES    = 2048;
   static constexpr size_t THREAD_STACK_WORDS    = STACK_BYTES( THREAD_STACK_BYTES );
   static constexpr std::string_view THREAD_NAME = "NetMgr";
 

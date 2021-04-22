@@ -63,17 +63,17 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     switch ( sb_frame.type )
     {
       case ACK_FRAME:
-        getRootSink()->flog( Level::LVL_DEBUG, "ACK\r\n" );
+        LOG_DEBUG( "ACK\r\n" );
         return Chimera::Status::OK;
         break;
 
       case NACK_FRAME:
-        getRootSink()->flog( Level::LVL_DEBUG, "NACK\r\n" );
+        LOG_DEBUG( "NACK\r\n" );
         return Chimera::Status::FAIL;
         break;
 
       default:
-        getRootSink()->flog( Level::LVL_DEBUG, "Unknown response\r\n" );
+        LOG_DEBUG( "Unknown response\r\n" );
         return Chimera::Status::FAIL;
         break;
     }
@@ -115,12 +115,12 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
     -------------------------------------------------*/
     if( !cfg )
     {
-      getRootSink()->flog( Level::LVL_DEBUG, "Bad network config for message pump\r\n" );
+      LOG_DEBUG( "Bad network config for message pump\r\n" );
       RT_HARD_ASSERT( cfg );
     }
     else
     {
-      getRootSink()->flog( Level::LVL_DEBUG, "Starting ShockBurst message pump\r\n" );
+      LOG_DEBUG( "Starting ShockBurst message pump\r\n" );
     }
 
     /*-------------------------------------------------
@@ -168,7 +168,7 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
           }
           else
           {
-            getRootSink()->flog( Level::LVL_ERROR, "ShockBurst dropped packet due to RX queue full\r\n" );
+            LOG_ERROR( "ShockBurst dropped packet due to RX queue full\r\n" );
           }
 
           /*-------------------------------------------------
@@ -206,7 +206,7 @@ namespace Ripple::NetIf::NRF24::Physical::ShockBurst
       Chimera::delayMilliseconds( 5 );
     }
 
-    getRootSink()->flog( Level::LVL_INFO, "ShockBurst msg pump kill signal set. Terminating pump.\r\n" );
+    LOG_INFO( "ShockBurst msg pump kill signal set. Terminating pump.\r\n" );
   }
 
 

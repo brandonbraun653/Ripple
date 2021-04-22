@@ -122,7 +122,7 @@ namespace Ripple
     -------------------------------------------------*/
     Ripple::TaskWaitInit();
     this_thread::set_name( "NetMgr" );
-    getRootSink()->flog( Level::LVL_DEBUG, "Starting Ripple Net Manager\r\n" );
+    LOG_DEBUG( "Starting Ripple Net Manager\r\n" );
 
     /*-------------------------------------------------
     Perform the core processing loop
@@ -202,7 +202,7 @@ namespace Ripple
       ( *sock )->mTXReady = false;
       if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
       {
-        getRootSink()->flog( Level::LVL_DEBUG, "Failed TX to netif\r\n" );
+        LOG_DEBUG( "Failed TX to netif\r\n" );
       }
     }
   }

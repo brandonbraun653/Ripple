@@ -24,6 +24,7 @@
 /* Ripple Includes */
 #include <Ripple/netif/nrf24l01>
 #include <Ripple/shared>
+#include <Ripple/src/netif/nrf24l01/physical/phy_device_internal.hpp>
 
 
 namespace Ripple::NetIf::NRF24::DataLink
@@ -31,7 +32,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Constants
   -------------------------------------------------------------------------------*/
-  static constexpr size_t THREAD_STACK_BYTES    = 1024;
+  static constexpr size_t THREAD_STACK_BYTES    = 2048;
   static constexpr size_t THREAD_STACK_WORDS    = STACK_BYTES( THREAD_STACK_BYTES );
   static constexpr std::string_view THREAD_NAME = "DataLink";
 
@@ -107,10 +108,10 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     First turn on the hardware drivers
     -------------------------------------------------*/
-    getRootSink()->flog( Level::LVL_DEBUG, "Initializing NRF24...\r\n" );
+    LOG_DEBUG( "Initializing NRF24...\r\n" );
     if ( powerUpRadio( mPhyHandle ) != Chimera::Status::OK )
     {
-      getRootSink()->flog( Level::LVL_DEBUG, "Failed initializing NRF24\r\n" );
+      LOG_DEBUG( "Failed initializing NRF24\r\n" );
       return false;
     }
 
@@ -361,7 +362,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     this_thread::set_name( "DataLink_Service" );
     mTaskId = this_thread::id();
 
-    getRootSink()->flog( Level::LVL_DEBUG, "Starting NRF24 network services\r\n" );
+    LOG_DEBUG( "Starting NRF24 network services\r\n" );
 
     /*-------------------------------------------------
     Establish communication with the radio and set up
@@ -528,6 +529,11 @@ namespace Ripple::NetIf::NRF24::DataLink
     mRXQueue.clear();
 
     /*-------------------------------------------------
+    Configure the hardware resources
+    -------------------------------------------------*/
+    LOG_IF_ERROR( ( Physical::powerUpDrivers( mPhyHandle ) == Chimera::Status::OK ), "Failed RF24 HW driver init\r\n" );
+
+    /*-------------------------------------------------
     GPIO interrupt configuration
     -------------------------------------------------*/
     auto cb = Chimera::Function::vGeneric::create<DataLink, &DataLink::irqPinAsserted>( *this );
@@ -581,6 +587,11 @@ namespace Ripple::NetIf::NRF24::DataLink
     mFSMControl.mHandle = &mPhyHandle;
     mFSMControl.set_states( _fsmStateList, etl::size( _fsmStateList ) );
     mFSMControl.start();
+
+    /*-------------------------------------------------
+    Record the final power up status
+    -------------------------------------------------*/
+    LOG_IF_ERROR( ( result == Chimera::Status::OK ), "Failed RF24 power up sequence\r\n" );
 
     return result;
   }
@@ -657,7 +668,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the success
     -------------------------------------------------*/
     mDLCallbacks.call<CallbackId::CB_TX_SUCCESS>();
-    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Success\r\n" );
+    LOG_DEBUG( "Transmit Success\r\n" );
   }
 
 
@@ -697,7 +708,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the failed frame
     -------------------------------------------------*/
     mDLCallbacks.call<CallbackId::CB_ERROR_TX_FAILURE>();
-    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Fail\r\n" );
+    LOG_DEBUG( "Transmit Fail\r\n" );
   }
 
 
@@ -790,7 +801,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     FrameBuffer data;
     cacheFrame.pack( data );
 
-    getRootSink()->flog( Level::LVL_DEBUG, "Transmit Packet\r\n" );
+    LOG_DEBUG( "Transmit Packet\r\n" );
     auto result = Physical::writePayload( mPhyHandle, data.data(), data.size(), txType );
     mFSMControl.receive( Physical::FSM::MsgStartTX() );
 

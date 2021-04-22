@@ -40,6 +40,14 @@ namespace Ripple::NetIf::NRF24::Physical
   Private Functions
   -------------------------------------------------------------------------------*/
   /**
+   * @brief Powers up the device SPI & GPIO drivers
+   *
+   * @param handle            Handle to the device
+   * @return Chimera::Status_t
+   */
+  Chimera::Status_t powerUpDrivers( Handle &handle );
+
+  /**
    *  Perform a single SPI transaction with the device
    *
    *  @param[in]  handle      Handle to the device

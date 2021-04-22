@@ -68,7 +68,7 @@ namespace Ripple::NetIf::NRF24::Physical
     std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( publish_to_mac ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      LOG_ERROR( "Could not open TX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
       return;
     }
 
@@ -82,7 +82,7 @@ namespace Ripple::NetIf::NRF24::Physical
     }
     else if( handle.netCfg->txEndpoints[ pipe ] != "" )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
+      LOG_ERROR( "Cannot open TX pipe. Previous pipe was not closed!\r\n" );
       return;
     }
 
@@ -91,7 +91,7 @@ namespace Ripple::NetIf::NRF24::Physical
     data transfer to other nodes.
     -------------------------------------------------*/
     handle.netCfg->txPipes[ pipe ].bind( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened TX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, publish_to_mac, ep.c_str() );
+    LOG_DEBUG( "Opened TX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, publish_to_mac, ep.c_str() );
     Chimera::delayMilliseconds( 5 );
 
     /*-------------------------------------------------
@@ -118,7 +118,7 @@ namespace Ripple::NetIf::NRF24::Physical
     std::filesystem::path ipcPath = "/tmp/ripple_ipc/rx/" + std::to_string( receive_on_mac ) + ".ipc";
     if( !ensureIPCFileExists( ipcPath ) )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
+      LOG_ERROR( "Could not open RX pipe. Failed to create IPC path %s\r\n", ipcPath.c_str() );
       return;
     }
 
@@ -132,7 +132,7 @@ namespace Ripple::NetIf::NRF24::Physical
     }
     else if( handle.netCfg->rxEndpoints[ pipe ] != "" )
     {
-      getRootSink()->flog( Level::LVL_ERROR, "Cannot open RX pipe. Previous pipe was not closed!\r\n" );
+      LOG_ERROR( "Cannot open RX pipe. Previous pipe was not closed!\r\n" );
       return;
     }
 
@@ -140,7 +140,7 @@ namespace Ripple::NetIf::NRF24::Physical
     Open the rx pipe
     -------------------------------------------------*/
     handle.netCfg->rxPipes[ pipe ].connect( ep );
-    getRootSink()->flog( Level::LVL_DEBUG, "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, receive_on_mac, ep.c_str() );
+    LOG_DEBUG( "Opened RX pipe %d to MAC %#010x on ZMQ Endpoint: %s\r\n", pipe, receive_on_mac, ep.c_str() );
     Chimera::delayMilliseconds( 5 );
 
     /*-------------------------------------------------
@@ -167,7 +167,7 @@ namespace Ripple::NetIf::NRF24::Physical
     Disconnect from the remote pipe
     -------------------------------------------------*/
     handle.netCfg->txPipes[ pipe ].disconnect( handle.netCfg->txEndpoints[ pipe ] );
-    getRootSink()->flog( Level::LVL_DEBUG, "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
+    LOG_DEBUG( "Disconnect TX pipe from ZMQ Endpoint: %s\r\n",
                          handle.netCfg->txEndpoints[ pipe ].c_str() );
 
     /*-------------------------------------------------
