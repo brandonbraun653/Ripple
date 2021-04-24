@@ -67,7 +67,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     Use placement new to allocate a handle on the heap
     -------------------------------------------------*/
     RT_HARD_ASSERT( context );
-    return new ( context->malloc( sizeof( DataLink ) ) ) DataLink();
+    void * ptr = context->malloc( sizeof( DataLink ) );
+    return new ( ptr ) DataLink();
   }
 
 
