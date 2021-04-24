@@ -57,13 +57,6 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   };
 
-  /*-------------------------------------------------------------------------------
-  Static Functions
-  -------------------------------------------------------------------------------*/
-  static void trace_init()
-  {
-
-  }
 
   /*-------------------------------------------------------------------------------
   Public Functions
@@ -371,15 +364,11 @@ namespace Ripple::NetIf::NRF24::DataLink
     mFSMControl.receive( Physical::FSM::MsgPowerUp() );
     mSystemEnabled = true;
 
-    uint32_t lastWoken = 0;
-    uint32_t diff = 0;
     /*-------------------------------------------------
     Execute the service
     -------------------------------------------------*/
     while ( 1 )
     {
-      lastWoken = Chimera::millis();
-
       /*-------------------------------------------------
       Process the core radio events. This is driven by a
       GPIO interrupt tied to the IRQ pin, or by another
@@ -433,9 +422,6 @@ namespace Ripple::NetIf::NRF24::DataLink
       processTXQueue();
 
       mLastActive = Chimera::millis();
-
-      diff = mLastActive - lastWoken;
-      diff = 0;
     }
   }
 
@@ -802,7 +788,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     cacheFrame.pack( data );
 
     LOG_DEBUG( "Transmit Packet\r\n" );
-    auto result = Physical::writePayload( mPhyHandle, data.data(), data.size(), txType );
+    Physical::writePayload( mPhyHandle, data.data(), data.size(), txType );
     mFSMControl.receive( Physical::FSM::MsgStartTX() );
 
     /*-------------------------------------------------

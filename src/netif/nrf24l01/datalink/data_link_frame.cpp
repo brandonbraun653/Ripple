@@ -27,7 +27,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Reset the packed data fields to defaults
     -------------------------------------------------*/
-    static_assert( std::is_pod<PackedFrame>::value );
+    static_assert( std::is_trivial<PackedFrame>::value );
+    static_assert( std::is_standard_layout<PackedFrame>::value );
     memset( &wireData, 0, sizeof( PackedFrame ) );
 
     wireData.control.version = CTRL_STRUCTURE_VERSION;

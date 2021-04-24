@@ -99,7 +99,7 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   class RadioControl : public etl::fsm
   {
   public:
-    RadioControl() : mHandle( nullptr ), fsm( RF_MODE_CONTROL )
+    RadioControl() : fsm( RF_MODE_CONTROL ), mHandle( nullptr )
     {
     }
     ~RadioControl() = default;

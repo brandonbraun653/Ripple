@@ -127,8 +127,6 @@ namespace Ripple
     /*-------------------------------------------------
     Perform the core processing loop
     -------------------------------------------------*/
-    size_t lastWoken = Chimera::millis();
-
     while ( true )
     {
       /*-------------------------------------------------

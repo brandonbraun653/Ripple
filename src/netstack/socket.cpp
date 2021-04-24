@@ -170,13 +170,12 @@ namespace Ripple
     }
 
     // Runtime boundaries
-    const auto startAddr = reinterpret_cast<std::uintptr_t>( pool );
     const auto endAddr   = reinterpret_cast<std::uintptr_t>( pool + allocationSize );
 
     /*-------------------------------------------------
     Construct the fragment list
     -------------------------------------------------*/
-    int bytesLeft     = bytes;
+    size_t bytesLeft  = bytes;
     MsgFrag *lastFrag = nullptr;
     size_t dataOffset = 0;
 
