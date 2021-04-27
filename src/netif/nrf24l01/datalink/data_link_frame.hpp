@@ -17,9 +17,6 @@
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_types.hpp>
 
-/* Sprout Includes */
-#include <sprout/math.hpp>
-
 namespace Ripple::NetIf::NRF24::DataLink
 {
   /*-------------------------------------------------------------------------------
