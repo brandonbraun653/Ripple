@@ -8,9 +8,6 @@
  *  2020-2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
-/* Sprout Includes */
-#include <sprout/math.hpp>
-
 /* Aurora Includes */
 #include <Aurora/logging>
 #include <Aurora/tracing>
@@ -195,7 +192,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     messages must not exceed a certain number.
     -------------------------------------------------*/
     if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) ||
-         ( msg.fragmentNumber >= sprout::pow( 2, FRAME_NUMBER_BITS ) * sizeof( PackedFrame::userData ) ) )
+         ( msg.fragmentNumber >= static_cast<uint16_t>( pow( 2, FRAME_NUMBER_BITS ) ) * sizeof( PackedFrame::userData ) ) )
     {
       return Chimera::Status::MEMORY;
     }

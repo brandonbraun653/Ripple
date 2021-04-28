@@ -148,7 +148,7 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t PoweredOff::on_event( etl::imessage_router &sender, const MsgPowerDown &event )
+  etl::fsm_state_id_t PoweredOff::on_event( const MsgPowerDown &event )
   {
     auto &ctx = get_fsm_context();
 
@@ -164,7 +164,7 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t PoweredOff::on_event( etl::imessage_router &sender, const MsgPowerUp &event )
+  etl::fsm_state_id_t PoweredOff::on_event( const MsgPowerUp &event )
   {
     auto &ctx = get_fsm_context();
     if( ctx.setChipEnableState( Chimera::GPIO::State::LOW ) && ctx.setPowerUpState( true ) )
@@ -185,7 +185,7 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t PoweredOff::on_event_unknown( etl::imessage_router &sender, const etl::imessage &event )
+  etl::fsm_state_id_t PoweredOff::on_event_unknown( const etl::imessage &event )
   {
     get_fsm_context().handleBadRequest( event );
     return STATE_ID;
@@ -195,14 +195,14 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   /*-------------------------------------------------------------------------------
   Classes: Standby 1 State
   -------------------------------------------------------------------------------*/
-  etl::fsm_state_id_t Standby1::on_event( etl::imessage_router &sender, const MsgPowerDown &event )
+  etl::fsm_state_id_t Standby1::on_event( const MsgPowerDown &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToPowerDownMode() ? StateId::POWERED_OFF : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t Standby1::on_event( etl::imessage_router &sender, const MsgGoToSTBY &event )
+  etl::fsm_state_id_t Standby1::on_event( const MsgGoToSTBY &event )
   {
     auto &ctx = get_fsm_context();
 
@@ -221,21 +221,21 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t Standby1::on_event( etl::imessage_router &sender, const MsgStartRX &event )
+  etl::fsm_state_id_t Standby1::on_event( const MsgStartRX &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToRXMode() ? StateId::RX_MODE : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t Standby1::on_event( etl::imessage_router &sender, const MsgStartTX &event )
+  etl::fsm_state_id_t Standby1::on_event( const MsgStartTX &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToTXMode() ? StateId::TX_MODE : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t Standby1::on_event_unknown( etl::imessage_router &sender, const etl::imessage &event )
+  etl::fsm_state_id_t Standby1::on_event_unknown( const etl::imessage &event )
   {
     get_fsm_context().handleBadRequest( event );
     return STATE_ID;
@@ -245,14 +245,14 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   /*-------------------------------------------------------------------------------
   Classes: Receiveing State
   -------------------------------------------------------------------------------*/
-  etl::fsm_state_id_t RXMode::on_event( etl::imessage_router &sender, const MsgPowerDown &event )
+  etl::fsm_state_id_t RXMode::on_event( const MsgPowerDown &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToPowerDownMode() ? StateId::POWERED_OFF : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t RXMode::on_event( etl::imessage_router &sender, const MsgStartRX &event )
+  etl::fsm_state_id_t RXMode::on_event( const MsgStartRX &event )
   {
     auto &ctx = get_fsm_context();
 
@@ -271,14 +271,14 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t RXMode::on_event( etl::imessage_router &sender, const MsgGoToSTBY &event )
+  etl::fsm_state_id_t RXMode::on_event( const MsgGoToSTBY &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToSTBYMode() ? StateId::STANDBY_1 : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t RXMode::on_event_unknown( etl::imessage_router &sender, const etl::imessage &event )
+  etl::fsm_state_id_t RXMode::on_event_unknown( const etl::imessage &event )
   {
     get_fsm_context().handleBadRequest( event );
     return STATE_ID;
@@ -288,14 +288,14 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   /*-------------------------------------------------------------------------------
   Classes: Transmitting State
   -------------------------------------------------------------------------------*/
-  etl::fsm_state_id_t TXMode::on_event( etl::imessage_router &sender, const MsgPowerDown &event )
+  etl::fsm_state_id_t TXMode::on_event( const MsgPowerDown &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToPowerDownMode() ? StateId::POWERED_OFF : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t TXMode::on_event( etl::imessage_router &sender, const MsgStartTX &event )
+  etl::fsm_state_id_t TXMode::on_event( const MsgStartTX &event )
   {
     auto &ctx = get_fsm_context();
 
@@ -314,14 +314,14 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   }
 
 
-  etl::fsm_state_id_t TXMode::on_event( etl::imessage_router &sender, const MsgGoToSTBY &event )
+  etl::fsm_state_id_t TXMode::on_event( const MsgGoToSTBY &event )
   {
     auto &ctx = get_fsm_context();
     return ctx.transitionToSTBYMode() ? StateId::STANDBY_1 : ctx.get_state_id();
   }
 
 
-  etl::fsm_state_id_t TXMode::on_event_unknown( etl::imessage_router &sender, const etl::imessage &event )
+  etl::fsm_state_id_t TXMode::on_event_unknown( const etl::imessage &event )
   {
     get_fsm_context().handleBadRequest( event );
     return STATE_ID;

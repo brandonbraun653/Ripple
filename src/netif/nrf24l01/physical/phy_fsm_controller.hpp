@@ -179,40 +179,40 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
   {
   public:
     etl::fsm_state_id_t on_enter_state();
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgPowerDown &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgPowerUp &event );
-    etl::fsm_state_id_t on_event_unknown( etl::imessage_router &sender, const etl::imessage &event );
+    etl::fsm_state_id_t on_event( const MsgPowerDown &event );
+    etl::fsm_state_id_t on_event( const MsgPowerUp &event );
+    etl::fsm_state_id_t on_event_unknown( const etl::imessage &event );
   };
 
 
   class Standby1 : public etl::fsm_state<RadioControl, Standby1, StateId::STANDBY_1, MsgPowerDown, MsgGoToSTBY, MsgStartRX, MsgStartTX>
   {
   public:
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgPowerDown &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgGoToSTBY &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgStartRX &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgStartTX &event );
-    etl::fsm_state_id_t on_event_unknown( etl::imessage_router &sender, const etl::imessage &event );
+    etl::fsm_state_id_t on_event( const MsgPowerDown &event );
+    etl::fsm_state_id_t on_event( const MsgGoToSTBY &event );
+    etl::fsm_state_id_t on_event( const MsgStartRX &event );
+    etl::fsm_state_id_t on_event( const MsgStartTX &event );
+    etl::fsm_state_id_t on_event_unknown( const etl::imessage &event );
   };
 
 
   class RXMode : public etl::fsm_state<RadioControl, RXMode, StateId::RX_MODE, MsgPowerDown, MsgStartRX, MsgGoToSTBY>
   {
   public:
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgPowerDown &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgStartRX &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgGoToSTBY &event );
-    etl::fsm_state_id_t on_event_unknown( etl::imessage_router &sender, const etl::imessage &event );
+    etl::fsm_state_id_t on_event( const MsgPowerDown &event );
+    etl::fsm_state_id_t on_event( const MsgStartRX &event );
+    etl::fsm_state_id_t on_event( const MsgGoToSTBY &event );
+    etl::fsm_state_id_t on_event_unknown( const etl::imessage &event );
   };
 
 
   class TXMode : public etl::fsm_state<RadioControl, TXMode, StateId::TX_MODE, MsgPowerDown, MsgStartTX, MsgGoToSTBY>
   {
   public:
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgPowerDown &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgStartTX &event );
-    etl::fsm_state_id_t on_event( etl::imessage_router &sender, const MsgGoToSTBY &event );
-    etl::fsm_state_id_t on_event_unknown( etl::imessage_router &sender, const etl::imessage &event );
+    etl::fsm_state_id_t on_event( const MsgPowerDown &event );
+    etl::fsm_state_id_t on_event( const MsgStartTX &event );
+    etl::fsm_state_id_t on_event( const MsgGoToSTBY &event );
+    etl::fsm_state_id_t on_event_unknown( const etl::imessage &event );
   };
 
 }    // namespace Ripple::Physical
