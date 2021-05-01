@@ -119,9 +119,9 @@ namespace Ripple::NetIf::NRF24::DataLink
     cfg.priority                              = Priority::LEVEL_4;
     cfg.stackWords                            = THREAD_STACK_WORDS;
     cfg.type                                  = TaskInitType::STATIC;
+    cfg.name                                  = THREAD_NAME.data();
     cfg.specialization.staticTask.stackBuffer = mContext->malloc( THREAD_STACK_BYTES );
     cfg.specialization.staticTask.stackSize   = THREAD_STACK_BYTES;
-    memcpy( cfg.name.data(), THREAD_NAME.cbegin(), THREAD_NAME.size() );
 
     datalink.create( cfg );
     mTaskId = datalink.start();
