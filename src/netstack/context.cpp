@@ -152,7 +152,7 @@ namespace Ripple
     /*-------------------------------------------------
     Check each registered socket for available TX data
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<Context> ContextLock( *this );
+    Chimera::Thread::LockGuard lck( *this );
     for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
     {
       /*-------------------------------------------------
@@ -164,7 +164,8 @@ namespace Ripple
       }
 
       /*-------------------------------------------------
-      Pull off and validate the data
+      Grab the next fragment list to transmit from the
+      socket and validate pointers are ok.
       -------------------------------------------------*/
       Chimera::Thread::LockGuard<Socket> sockLock( *( *sock ) );
       if ( ( *sock )->mTXQueue.empty() )
@@ -181,22 +182,40 @@ namespace Ripple
       }
 
       /*-------------------------------------------------
-      Send all data to the net interface
+      Save off the original message address to free later
+      -------------------------------------------------*/
+      MsgFrag *baseMsg = msg;
+
+      /*-------------------------------------------------
+      Iterate over each fragment in the list
       -------------------------------------------------*/
       auto sts = Chimera::Status::READY;
       while ( sts == Chimera::Status::READY )
       {
+        /*-------------------------------------------------
+        Send the current fragment to the network interface
+        for transmission. Assumes Netif will copy the data.
+        -------------------------------------------------*/
         sts = mNetIf->send( *msg, ( *sock )->mDestAddr );
         if ( !msg->nextFragment )
         {
           break;
         }
-        else
-        {
-          msg = msg->nextFragment;
-        }
+
+        /*-------------------------------------------------
+        Move to the next message in the list
+        -------------------------------------------------*/
+        msg = msg->nextFragment;
       }
 
+      /*-------------------------------------------------
+      Release the memory for this packet
+      -------------------------------------------------*/
+      this->free( baseMsg );
+
+      /*-------------------------------------------------
+      Update transmit status
+      -------------------------------------------------*/
       ( *sock )->mTXReady = false;
       if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
       {

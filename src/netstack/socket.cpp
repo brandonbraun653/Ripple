@@ -139,7 +139,7 @@ namespace Ripple
     /*-------------------------------------------------
     Make sure the TX queue can handle another message
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<Socket>( *this );
+    Chimera::Thread::LockGuard lck( *this );
     if ( mTXQueue.full() )
     {
       return Chimera::Status::FULL;
@@ -156,6 +156,7 @@ namespace Ripple
 
     if ( available <= allocationSize )
     {
+      LOG_DEBUG( "Socket out of memory\n" );
       return Chimera::Status::MEMORY;
     }
 
