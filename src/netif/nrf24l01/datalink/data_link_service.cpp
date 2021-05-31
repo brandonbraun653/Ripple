@@ -206,7 +206,7 @@ namespace Ripple::NetIf::NRF24::DataLink
       mTXMutex.unlock();
 
       mPhyHandle.txQueueOverflows++;
-      mDLCallbacks.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
+      mCBService_registry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
       return Chimera::Status::FULL;
     }
 
@@ -283,16 +283,15 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Attempt to insert the new entry
     -------------------------------------------------*/
-    this->lock();
+    Chimera::Thread::LockGuard lck( *this );
     bool success = mAddressCache.insert( ip, addr );
-    this->unlock();
 
     /*-------------------------------------------------
     Invoke the error callback on failure
     -------------------------------------------------*/
     if ( !success )
     {
-      mDLCallbacks.call<CallbackId::CB_ERROR_ARP_LIMIT>();
+      mCBService_registry.call<CallbackId::CB_ERROR_ARP_LIMIT>();
     }
 
     return success ? Chimera::Status::OK : Chimera::Status::FAIL;
@@ -304,9 +303,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Does nothing if the entry doesn't exist
     -------------------------------------------------*/
-    this->lock();
+    Chimera::Thread::LockGuard lck( *this );
     mAddressCache.remove( ip );
-    this->unlock();
 
     return Chimera::Status::OK;
   }
@@ -322,9 +320,8 @@ namespace Ripple::NetIf::NRF24::DataLink
       return false;
     }
 
-    this->lock();
+    Chimera::Thread::LockGuard lck( *this );
     bool result = mAddressCache.lookup( ip, reinterpret_cast<Physical::MACAddress *>( mac ) );
-    this->unlock();
 
     return result;
   }
@@ -429,7 +426,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Make sure to gain exclusive access to the addresses
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<DataLink>( *this );
+    Chimera::Thread::LockGuard lck( *this );
 
     /*-------------------------------------------------
     Reconfigure each endpoint's address
@@ -651,7 +648,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Notify the network layer of the success
     -------------------------------------------------*/
-    mDLCallbacks.call<CallbackId::CB_TX_SUCCESS>();
+    mCBService_registry.call<CallbackId::CB_TX_SUCCESS>();
     LOG_DEBUG( "Transmit Success\r\n" );
   }
 
@@ -691,7 +688,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Notify the network layer of the failed frame
     -------------------------------------------------*/
-    mDLCallbacks.call<CallbackId::CB_ERROR_TX_FAILURE>();
+    mCBService_registry.call<CallbackId::CB_ERROR_TX_FAILURE>();
     LOG_DEBUG( "Transmit Fail\r\n" );
   }
 
@@ -728,7 +725,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
     if ( !mAddressCache.lookup( cacheFrame.nextHop, &deviceAddress ) )
     {
-      mDLCallbacks.call<CallbackId::CB_ERROR_ARP_RESOLVE>();
+      mCBService_registry.call<CallbackId::CB_ERROR_ARP_RESOLVE>();
       mTXQueue.pop();
       mTXMutex.unlock();
       mTCB.inProgress = false;
@@ -833,7 +830,7 @@ namespace Ripple::NetIf::NRF24::DataLink
       /*-------------------------------------------------
       Give the network layer an opportunity to pull data
       -------------------------------------------------*/
-      mDLCallbacks.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
+      mCBService_registry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
     }
 
     /*-------------------------------------------------
@@ -887,7 +884,7 @@ namespace Ripple::NetIf::NRF24::DataLink
       else
       {
         mPhyHandle.rxQueueOverflows++;
-        mDLCallbacks.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
+        mCBService_registry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
 
         if ( !mRXQueue.full() )
         {
@@ -912,7 +909,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Let the network layer know data is ready
     -------------------------------------------------*/
     mRXMutex.unlock();
-    mDLCallbacks.call<CallbackId::CB_RX_PAYLOAD>();
+    mCBService_registry.call<CallbackId::CB_RX_SUCCESS>();
   }
 
 }    // namespace Ripple::NetIf::NRF24::DataLink

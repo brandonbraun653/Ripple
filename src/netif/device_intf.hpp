@@ -84,7 +84,7 @@ namespace Ripple::NetIf
    *  Abstract class that all network interface drivers must implement to be
    *  compatible with the higher level stack.
    */
-  class INetIf : public Chimera::Callback::DelegateService<INetIf, CallbackId, CallbackReport>
+  class INetIf : public Chimera::Callback::DelegateService<INetIf, CallbackId, CallbackReport>, public Chimera::Thread::Lockable<INetIf>
   {
   public:
     virtual ~INetIf() = default;
@@ -159,6 +159,9 @@ namespace Ripple::NetIf
      *  @return size_t
      */
     virtual size_t lastActive() const = 0;
+
+  private:
+    friend Chimera::Thread::Lockable<INetIf>;
   };
 
 

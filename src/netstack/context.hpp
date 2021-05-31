@@ -90,6 +90,7 @@ namespace Ripple
 
   protected:
     friend class Socket;
+    friend Chimera::Thread::Lockable<Context>;
     friend Context_rPtr create( void *, const size_t );
 
     /**
@@ -119,6 +120,18 @@ namespace Ripple
      *  @return void
      */
     void processTX();
+
+    /*-------------------------------------------------
+    Callbacks for NetIf CallbackId
+    -------------------------------------------------*/
+    void cb_Unhandled( size_t callbackID );
+    void cb_OnFragmentTX( size_t callbackID );
+    void cb_OnFragmentRX( size_t callbackID );
+    void cb_OnFragmentTXFail( size_t callbackID );
+    void cb_OnRXQueueFull( size_t callbackID );
+    void cb_OnTXQueueFull( size_t callbackID );
+    void cb_OnARPResolveError( size_t callbackID );
+    void cb_OnARPStorageLimit( size_t callbackID );
 
   private:
     NetIf::INetIf *mNetIf;               /**< Network interface driver */

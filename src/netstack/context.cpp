@@ -77,8 +77,38 @@ namespace Ripple
 
   void Context::attachNetif( NetIf::INetIf *const netif )
   {
+    /*-------------------------------------------------
+    Ensure the interface actually exists
+    -------------------------------------------------*/
     RT_HARD_ASSERT( netif );
     mNetIf = netif;
+
+    /*-------------------------------------------------
+    Register callbacks with the interface
+    -------------------------------------------------*/
+    mNetIf->registerCallback( NetIf::CallbackId::CB_ERROR_ARP_LIMIT,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnARPStorageLimit>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_ERROR_ARP_RESOLVE,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnARPResolveError>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_ERROR_RX_QUEUE_FULL,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnRXQueueFull>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_ERROR_TX_QUEUE_FULL,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnTXQueueFull>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_ERROR_TX_FAILURE,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnFragmentTXFail>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_RX_SUCCESS,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnFragmentRX>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_TX_SUCCESS,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_OnFragmentTX>( *this ) );
+
+    mNetIf->registerCallback( NetIf::CallbackId::CB_UNHANDLED,
+                              etl::delegate<void( size_t )>::create<Context, &Context::cb_Unhandled>( *this ) );
   }
 
 
@@ -141,7 +171,7 @@ namespace Ripple
 
   void Context::processRX()
   {
-    Chimera::Thread::LockGuard<Context>( *this );
+    Chimera::Thread::LockGuard lck( *this );
   }
 
 
@@ -223,4 +253,53 @@ namespace Ripple
       }
     }
   }
+
+
+  void Context::cb_Unhandled( size_t callbackID )
+  {
+    LOG_ERROR( "NetIf unhandled callback id: %d\r\n", callbackID );
+  }
+
+
+  void Context::cb_OnFragmentTX( size_t callbackID )
+  {
+
+  }
+
+
+  void Context::cb_OnFragmentRX( size_t callbackID )
+  {
+    LOG_INFO( "NetIf received fragment\r\n" );
+  }
+
+
+  void Context::cb_OnFragmentTXFail( size_t callbackID )
+  {
+
+  }
+
+
+  void Context::cb_OnRXQueueFull( size_t callbackID )
+  {
+
+  }
+
+
+  void Context::cb_OnTXQueueFull( size_t callbackID )
+  {
+
+  }
+
+
+  void Context::cb_OnARPResolveError( size_t callbackID )
+  {
+
+  }
+
+
+  void Context::cb_OnARPStorageLimit( size_t callbackID )
+  {
+
+  }
+
 }    // namespace Ripple

@@ -42,7 +42,7 @@ namespace Ripple::NetIf::NRF24::DataLink
    *
    *  A Frame is the primary data type this layer understands how to process.
    */
-  class DataLink : public Chimera::Thread::Lockable<DataLink>, public INetIf, public IARP
+  class DataLink : public INetIf, public IARP
   {
   public:
     DataLink();
@@ -154,8 +154,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     void processRXQueue();
 
   private:
-    friend Chimera::Thread::Lockable<DataLink>;
-
     /*-------------------------------------------------
     Class State Data
     -------------------------------------------------*/
@@ -166,11 +164,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     size_t mLastActive;              /**< Last time the system did some TX/RX activity */
 
     Physical::MACAddress mEndpointMAC[ Endpoint::EP_NUM_OPTIONS ];
-
-    /*-------------------------------------------------
-    Helper for tracking/invoking callbacks
-    -------------------------------------------------*/
-    etl::delegate_service<CallbackId::CB_NUM_OPTIONS> mDLCallbacks;
 
     /*-------------------------------------------------
     TX/RX Queues

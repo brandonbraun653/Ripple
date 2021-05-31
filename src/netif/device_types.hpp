@@ -28,10 +28,9 @@ namespace Ripple::NetIf
   {
     CB_UNHANDLED,           /**< Default unhandled callback */
     CB_TX_SUCCESS,          /**< A frame completely transmitted (including ACK received) */
-    CB_RX_PAYLOAD,          /**< A frame was received */
+    CB_RX_SUCCESS,          /**< A frame was received */
     CB_ERROR_TX_FAILURE,    /**< A frame's max transmit retry limit was reached */
     CB_ERROR_RX_QUEUE_FULL, /**< Notification that the RX queue should be processed */
-    CB_ERROR_RX_QUEUE_LOST, /**< A frame failed to be placed into the RX queue */
     CB_ERROR_TX_QUEUE_FULL, /**< A frame failed to be placed into the TX queue */
     CB_ERROR_ARP_RESOLVE,   /**< ARP could not resolve the destination address */
     CB_ERROR_ARP_LIMIT,     /**< ARP cache has reached the max storage entries */
