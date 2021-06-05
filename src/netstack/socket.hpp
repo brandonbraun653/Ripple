@@ -109,6 +109,17 @@ namespace Ripple
       return lhsAddr < rhsAddr;
     }
 
+    std::string_view address()
+    {
+      return mThisAddr;
+    }
+
+
+    SocketId uuid()
+    {
+      return mUUID;
+    }
+
   protected:
     friend class Context;
     Socket( Context_rPtr ctx, const SocketType type, const size_t memory );
@@ -122,6 +133,7 @@ namespace Ripple
     etl::queue<MsgFrag*, 5> mRXQueue;
     Chimera::Thread::RecursiveMutex *mLock;
 
+    SocketId mUUID;
     std::string_view mThisAddr;
     std::string_view mDestAddr;
 

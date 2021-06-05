@@ -177,6 +177,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     memcpy( msg.fragmentData, tmpFrame.wireData.userData, msg.fragmentLength );
 
     /*-------------------------------------------------
+    Parse the dst socket into a string
+    -------------------------------------------------*/
+    // Consider encoding the destination socket into a checksum?
+    // Is there a reversible hash-like function? I guess this might
+    // be some type of compression algorithm.
+
+    /*-------------------------------------------------
     Clean up the queue and return
     -------------------------------------------------*/
     mRXQueue.pop();

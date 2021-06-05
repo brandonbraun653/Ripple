@@ -120,9 +120,6 @@ namespace Ripple
     if ( !mem )
     {
       mCBService_registry.call<CallbackId::CB_OUT_OF_MEMORY>();
-
-      // TODO: Remove this once debugging is done
-      RT_HARD_ASSERT( false );
     }
 
     return mem;
@@ -171,7 +168,31 @@ namespace Ripple
 
   void Context::processRX()
   {
-    Chimera::Thread::LockGuard lck( *this );
+    Chimera::Thread::LockGuard<Context>( *this );
+
+    /*-------------------------------------------------
+    Input protections
+    -------------------------------------------------*/
+    if( !mNetIf )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------
+    Get all available packets from the netif
+    -------------------------------------------------*/
+    MsgFrag msg;
+    auto state = Chimera::Status::READY;
+
+    while( state == Chimera::Status::READY )
+    {
+      state = mNetIf->recv( msg );
+
+      for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
+      {
+        // Check find the socket with the destination IP and push it to the queue
+      }
+    }
   }
 
 

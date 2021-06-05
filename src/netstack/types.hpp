@@ -18,6 +18,7 @@
 
 /* ETL Includes */
 #include <etl/list.h>
+#include <etl/string.h>
 #include <etl/queue.h>
 
 /* Aurora Includes */
@@ -39,6 +40,7 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   using Context_rPtr = Context *;
   using Socket_rPtr  = Socket *;
+  using SocketId     = uint16_t;
 
   /*-------------------------------------------------------------------------------
   Enumerations
@@ -72,6 +74,7 @@ namespace Ripple
     uint16_t fragmentNumber; /**< Which fragment number this is, zero indexed */
     uint8_t type;            /**< Message type */
     uint8_t flags;           /**< Any flags needed */
+    SocketId socketId;       /**< Which socket this came from */
   };
 
 }    // namespace Ripple

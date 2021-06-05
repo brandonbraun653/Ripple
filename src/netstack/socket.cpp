@@ -53,6 +53,10 @@ namespace Ripple
   Chimera::Status_t Socket::open( const std::string_view &port )
   {
     mThisAddr = port;
+
+    // TODO: Generate UUID here
+    Chimera::insert_debug_breakpoint();
+
     return Chimera::Status::OK;
   }
 
@@ -206,6 +210,7 @@ namespace Ripple
       msg->type           = 0;
       msg->fragmentNumber = fIdx;
       msg->totalLength    = bytes;
+      msg->socketId       = mUUID;
 
       /*-------------------------------------------------
       Decide the number of bytes going into this transfer

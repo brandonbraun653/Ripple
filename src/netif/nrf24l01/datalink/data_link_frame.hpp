@@ -55,7 +55,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /**
    *  Current control structure version
    */
-  static constexpr size_t VERSION_LENGTH_BITS = 3;
+  static constexpr size_t VERSION_LENGTH_BITS    = 3;
   static constexpr size_t CTRL_STRUCTURE_VERSION = 0;
 
   /*-------------------------------------------------------------------------------
@@ -65,7 +65,7 @@ namespace Ripple::NetIf::NRF24::DataLink
    *  Bit packed control field for a datalink frame
    */
   struct _pfCtrl
-  {   /* clang-format off */
+  { /* clang-format off */
     uint8_t version     : VERSION_LENGTH_BITS;  /**< Structure versioning information */
     uint8_t dataLength  : DATA_LENGTH_BITS;     /**< User data length */
     uint8_t frameNumber : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
@@ -73,7 +73,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     bool    multicast   : 1;                    /**< Should this be blasted across the network to everyone? */
     bool    requireACK  : 1;                    /**< Payload should require an ACK */
     bool    pad         : 6;                    /**< Pad for alignment */
-  };  /* clang-format on */
+  }; /* clang-format on */
   static_assert( sizeof( _pfCtrl ) == sizeof( uint8_t[ 3 ] ) );
 
   /**
