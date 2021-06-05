@@ -65,6 +65,27 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
+  /**
+   * @brief Header field for a transport layer packet
+   * @note Byte aligned to reduce size on the network
+   *
+   * This header is concerned with data integrity and identification of which
+   * socket to send payloads to after they've reached their destination device.
+   */
+  struct TransportHeader
+  {
+    uint32_t crc;           /**< CRC of the entire packet, including this header */
+    SocketId dstSocketUUID; /**< Unique ID for the destination socket on this node */
+    SocketId srcSocketUUID; /**< Unique ID for the source socket on the transmitting node */
+    uint16_t dataLength;    /**< Length of the data payload for this packet */
+    uint16_t _pad;          /**< Padding for alignment */
+  };
+
+
+  /**
+   * @brief Core message structure for the transport layer.
+   * Handles message fragmentation and identification.
+   */
   struct MsgFrag
   {
     MsgFrag *nextFragment;   /**< Next message fragment in the list */
@@ -74,7 +95,7 @@ namespace Ripple
     uint16_t fragmentNumber; /**< Which fragment number this is, zero indexed */
     uint8_t type;            /**< Message type */
     uint8_t flags;           /**< Any flags needed */
-    SocketId socketId;       /**< Which socket this came from */
+    uint32_t uuid;           /**< Unique ID for which packet this fragment belongs to */
   };
 
 }    // namespace Ripple

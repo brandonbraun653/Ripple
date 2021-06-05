@@ -18,6 +18,7 @@
 
 /* ETL Includes */
 #include <etl/list.h>
+#include <etl/map.h>
 #include <etl/queue.h>
 
 /* Aurora Includes */
@@ -134,9 +135,25 @@ namespace Ripple
     void cb_OnARPStorageLimit( size_t callbackID );
 
   private:
-    NetIf::INetIf *mNetIf;               /**< Network interface driver */
-    Aurora::Memory::Heap mHeap;          /**< Managed memory pool for the whole network */
-    etl::list<Socket *, 16> mSocketList; /**< Socket control structures */
+    struct FragAssem
+    {
+      bool inProgress;
+      MsgFrag *fragment;
+      size_t bytesRcvd;
+      size_t startRxTime;
+      size_t lastFragmentTime;
+      size_t timeout;
+    };
+
+    NetIf::INetIf *mNetIf;                           /**< Network interface driver */
+    Aurora::Memory::Heap mHeap;                      /**< Managed memory pool for the whole network */
+    etl::list<Socket *, 16> mSocketList;             /**< Socket control structures */
+    etl::map<uint32_t, FragAssem, 16> mFragAssembly; /**< Workspace for assembling fragments */
+
+
+    MsgFrag *copyFragmentToHeap( MsgFrag &frag );
+    void freeFragmentsWithUUID( uint32_t uuid );
+    void fragmentSort( MsgFrag *frag );
   };
 
 

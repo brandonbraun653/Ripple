@@ -12,6 +12,10 @@
 #include <cstdint>
 #include <cstddef>
 
+/* ETL Includes */
+#include <etl/crc32.h>
+#include <etl/random.h>
+
 /* Aurora Includes */
 #include <Aurora/logging>
 
@@ -26,6 +30,11 @@
 
 namespace Ripple
 {
+  /*-------------------------------------------------------------------------------
+  Static Data
+  -------------------------------------------------------------------------------*/
+  static etl::random_xorshift s_rng;
+
   /*-------------------------------------------------------------------------------
   Socket Class
   -------------------------------------------------------------------------------*/
@@ -52,10 +61,11 @@ namespace Ripple
 
   Chimera::Status_t Socket::open( const std::string_view &port )
   {
+    /*-------------------------------------------------
+    Initialize the socket
+    -------------------------------------------------*/
+    s_rng.initialise( Chimera::millis() );
     mThisAddr = port;
-
-    // TODO: Generate UUID here
-    Chimera::insert_debug_breakpoint();
 
     return Chimera::Status::OK;
   }
@@ -140,6 +150,9 @@ namespace Ripple
       }
     }
 
+    // Increment fragment count to allow for header
+    numFragments++;
+
     /*-------------------------------------------------
     Make sure the TX queue can handle another message
     -------------------------------------------------*/
@@ -155,8 +168,10 @@ namespace Ripple
     -------------------------------------------------*/
     Chimera::Thread::LockGuard<Context> lock( *mContext );
 
-    size_t available      = mContext->availableMemory();
-    size_t allocationSize = bytes + ( sizeof( MsgFrag ) * numFragments );
+    const size_t available      = mContext->availableMemory();
+    const size_t userDataSize   = bytes + ( sizeof( MsgFrag ) * numFragments );
+    const size_t headerSize     = sizeof( MsgFrag ) + sizeof( TransportHeader );
+    const size_t allocationSize = headerSize + userDataSize;
 
     if ( available <= allocationSize )
     {
@@ -178,18 +193,44 @@ namespace Ripple
     const auto endAddr   = reinterpret_cast<std::uintptr_t>( pool + allocationSize );
 
     /*-------------------------------------------------
+    Construct the header
+    -------------------------------------------------*/
+    TransportHeader header;
+    header.crc           = 0;
+    header.dataLength    = sizeof( TransportHeader ) + bytes;
+    header.dstSocketUUID = 0;    // TODO: Will need to look this up
+    header.srcSocketUUID = mUUID;
+    header._pad          = 0;
+
+    /* Allocate the message memory */
+    MsgFrag *msg = new ( pool ) MsgFrag();
+    pool += sizeof( MsgFrag );
+
+    /* Allocate the payload (header) memory */
+    msg->fragmentData   = pool;
+    msg->fragmentLength = sizeof( TransportHeader );
+
+    /* Copy in the payload data */
+    memcpy( msg->fragmentData, &header, sizeof( TransportHeader ) );
+    pool += sizeof( TransportHeader );
+
+    MsgFrag *rootMsg = msg;
+
+    /*-------------------------------------------------
     Construct the fragment list
     -------------------------------------------------*/
     size_t bytesLeft  = bytes;
-    MsgFrag *lastFrag = nullptr;
+    MsgFrag *lastFrag = msg;
     size_t dataOffset = 0;
 
-    for ( size_t fIdx = 0; fIdx < numFragments; fIdx++ )
+    const uint32_t random_uuid = s_rng();
+
+    for ( size_t fIdx = 1; fIdx < numFragments; fIdx++ )
     {
       /*-------------------------------------------------
       Construct the structure holding the message
       -------------------------------------------------*/
-      MsgFrag *msg = new ( pool ) MsgFrag();
+      msg = new ( pool ) MsgFrag();
       pool += sizeof( MsgFrag );
       RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) <= endAddr );
 
@@ -210,7 +251,7 @@ namespace Ripple
       msg->type           = 0;
       msg->fragmentNumber = fIdx;
       msg->totalLength    = bytes;
-      msg->socketId       = mUUID;
+      msg->uuid           = random_uuid;
 
       /*-------------------------------------------------
       Decide the number of bytes going into this transfer
@@ -232,14 +273,6 @@ namespace Ripple
       bytesLeft -= payloadSize;
       dataOffset += payloadSize;
       RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) <= endAddr );
-
-      /*-------------------------------------------------
-      Assign the first fragment to the queue
-      -------------------------------------------------*/
-      if ( fIdx == 0 )
-      {
-        mTXQueue.push( msg );
-      }
     }
 
     /*-------------------------------------------------
@@ -248,7 +281,34 @@ namespace Ripple
     RT_HARD_ASSERT( bytesLeft == 0 );
     RT_HARD_ASSERT( endAddr == reinterpret_cast<std::uintptr_t>( pool ) );
 
+    /*-------------------------------------------------
+    Calculate the CRC over the entire message
+    -------------------------------------------------*/
+    etl::crc32 crc_gen;
+    crc_gen.reset();
+
+    /* CRC of the header itself, minus the CRC field */
+    crc_gen.add( reinterpret_cast<uint8_t *>( &header + sizeof( TransportHeader::crc ) ),
+                 reinterpret_cast<uint8_t *>( &header + sizeof( header ) ) );
+
+    /* CRC of the data contained in each fragment */
+    MsgFrag *fragIter = rootMsg;
+    while( fragIter->nextFragment )
+    {
+      crc_gen.add( reinterpret_cast<uint8_t *>( fragIter->fragmentData ),
+                   reinterpret_cast<uint8_t *>( fragIter->fragmentData ) + fragIter->fragmentLength );
+      fragIter = fragIter->nextFragment;
+    }
+
+    auto hdr = reinterpret_cast<TransportHeader*>( rootMsg->fragmentData );
+    hdr->crc = crc_gen.value();
+
+    /*-------------------------------------------------
+    Finally, push the fragment list into the queue
+    -------------------------------------------------*/
+    mTXQueue.push( rootMsg );
     mTXReady = true;
+
     return Chimera::Status::OK;
   }
 
