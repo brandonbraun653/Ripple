@@ -7,18 +7,16 @@ gen_static_lib_variants(
     phy_device_driver.cpp
     phy_device_internal.cpp
     phy_fsm_controller.cpp
-    virtual_driver/phy_device_driver_shockburst.cpp
-    virtual_driver/phy_device_driver_virtual.cpp
   PRV_INCLUDES
     ./../nanopb
     ${NANOPB_INCLUDE_DIRS}
   DEPENDENCIES
-    #ripple_netif_nrf24_protobuf
+    vdrone_nanopb_proto
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc
     ripple_inc
-    #ripple_netif_nrf24_protobuf_intf
+    vdrone_nanopb_proto_intf_inc
   EXPORT_DIR
     "${PROJECT_BINARY_DIR}/Ripple/netif/physical"
 )

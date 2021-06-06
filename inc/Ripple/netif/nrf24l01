@@ -29,7 +29,4 @@ Physical Layer
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_types.hpp>
 #include <Ripple/src/netif/nrf24l01/physical/phy_fsm_controller.hpp>
 
-#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/message_types.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/phy_device_driver_shockburst.hpp>
-
 #endif /* !RIPPLE_NRF24L01_INCLUDES */

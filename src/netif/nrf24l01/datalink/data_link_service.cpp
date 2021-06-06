@@ -800,13 +800,10 @@ namespace Ripple::NetIf::NRF24::DataLink
 
     /*-------------------------------------------------
     Simulators don't have interrupt processing, so set
-    the pending event flag based on actual TX status.
+    the pending event flag.
     -------------------------------------------------*/
 #if defined( SIMULATOR )
-    if ( result == Chimera::Status::OK )
-    {
-      pendingEvent = true;
-    }
+    pendingEvent = true;
 #endif /* SIMULATOR */
   }
 

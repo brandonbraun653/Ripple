@@ -22,13 +22,6 @@
 /* Ripple Includes */
 #include <Ripple/src/netif/nrf24l01/physical/phy_device_constants.hpp>
 
-#if defined( SIMULATOR )
-#include <etl/queue.h>
-#include <atomic>
-#include <mutex>
-#include <zmq.hpp>
-#include <Ripple/src/netif/nrf24l01/physical/virtual_driver/zmq_utils.hpp>
-#endif /* SIMULATOR */
 
 namespace Ripple::NetIf::NRF24::Physical
 {
@@ -319,29 +312,6 @@ namespace Ripple::NetIf::NRF24::Physical
     }
   };
 
-
-#if defined( SIMULATOR )
-  struct HWFifoType
-  {
-    PipeNumber rxPipe;
-    std::array<uint8_t, Physical::MAX_TX_PAYLOAD_SIZE> payload;
-  };
-
-  /**
-   *  Network configuration and control options with ZeroMQ. This is
-   *  what forms the virtual hardware.
-   */
-  struct ZMQConfig
-  {
-    std::recursive_mutex lock;
-    ZMQRegistry registry;
-
-    std::atomic<bool> killMessagePump;
-    etl::queue<HWFifoType, 25> fifo;
-    std::array<std::array<uint8_t, Physical::MAX_TX_PAYLOAD_SIZE>, Physical::MAX_NUM_PIPES> ackPayloads;
-  };
-#endif /* SIMULATOR */
-
   /**
    *  Core structure for the physical module. This contains all state information
    *  regarding a PHY driver for a single radio.
@@ -391,15 +361,6 @@ namespace Ripple::NetIf::NRF24::Physical
      *  much data is being pumped in by the network layer.
      */
     size_t txQueueOverflows;
-
-
-    /*-------------------------------------------------
-    Virtual Driver
-    -------------------------------------------------*/
-#if defined( SIMULATOR )
-    ZMQConfig *netCfg;
-    std::thread *messagePump;
-#endif /* SIMULATOR */
 
     /*-------------------------------------------------
     Helper Functions
