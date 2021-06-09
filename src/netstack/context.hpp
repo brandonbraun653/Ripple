@@ -153,7 +153,6 @@ namespace Ripple
 
     MsgFrag *copyFragmentToHeap( MsgFrag &frag );
     void freeFragmentsWithUUID( uint32_t uuid );
-    void fragmentSort( MsgFrag *frag );
   };
 
 

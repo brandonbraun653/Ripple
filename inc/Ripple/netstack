@@ -15,6 +15,7 @@
 #include <Ripple/src/userif/user_init.hpp>
 #include <Ripple/src/netstack/socket.hpp>
 #include <Ripple/src/netstack/context.hpp>
+#include <Ripple/src/netstack/util/sort.hpp>
 
 
 #endif /* !RIPPLE_NET_STACK_INCLUDES */

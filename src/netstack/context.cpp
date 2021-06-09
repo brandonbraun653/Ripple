@@ -16,8 +16,7 @@
 
 /* Ripple Includes */
 #include <Ripple/shared>
-#include <Ripple/src/netstack/socket.hpp>
-#include <Ripple/src/netstack/context.hpp>
+#include <Ripple/netstack>
 
 namespace Ripple
 {
@@ -222,7 +221,7 @@ namespace Ripple
         /*-------------------------------------------------
         Sort the fragments
         -------------------------------------------------*/
-        fragmentSort( assemblyItem.second.fragment );
+        sortFragments( &assemblyItem.second.fragment );
 
         /*-------------------------------------------------
         Fragments are now sorted, so the first fragment
@@ -542,11 +541,4 @@ namespace Ripple
     }
   }
 
-
-  void Context::fragmentSort( MsgFrag *frag )
-  {
-    Chimera::insert_debug_breakpoint();
-
-    // Use the quick sort method for this
-  }
 }    // namespace Ripple
