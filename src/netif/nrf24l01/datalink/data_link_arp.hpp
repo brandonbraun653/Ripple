@@ -31,7 +31,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   Aliases
   -------------------------------------------------------------------------------*/
   using ARPMap = std::pair<uint32_t, Physical::MACAddress>;
-  using ARPCallback = etl::delegate<void( const std::string_view )>;
+  using ARPCallback = etl::delegate<void( const IPAddress )>;
 
 
   /*-------------------------------------------------------------------------------
@@ -62,7 +62,7 @@ namespace Ripple::NetIf::NRF24::DataLink
      *  @param[out] addr      The associated MAC address
      *  @return bool          Whether or not the lookup was successful
      */
-    bool lookup( const std::string_view ip, Physical::MACAddress *addr );
+    bool lookup( const IPAddress ip, Physical::MACAddress *addr );
 
     /**
      *  Removes the cache entry associated with the given IP address.
@@ -70,7 +70,7 @@ namespace Ripple::NetIf::NRF24::DataLink
      *
      *  @return void
      */
-    void remove( const std::string_view ip );
+    void remove( const IPAddress ip );
 
     /**
      *  Inserts a new entry into the cache table
@@ -79,7 +79,7 @@ namespace Ripple::NetIf::NRF24::DataLink
      *  @param[in]  addr      MAC address used as the value
      *  @return bool          Whether the insertion was successful
      */
-    bool insert( const std::string_view ip, const Physical::MACAddress &addr );
+    bool insert( const IPAddress ip, const Physical::MACAddress &addr );
 
     /**
      *  Register a callback to execute when a lookup fails
@@ -91,7 +91,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   private:
     ARPCallback mCacheMissCallback;
-    etl::flat_map<std::string_view, Physical::MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
+    etl::flat_map<IPAddress, Physical::MACAddress, ARP_CACHE_TABLE_ELEMENTS> mCache;
   };
 
 }  // namespace Ripple::DataLink::ARP

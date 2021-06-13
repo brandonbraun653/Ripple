@@ -11,12 +11,12 @@
 /* Ripple Includes */
 #include <Ripple/netstack>
 
-namespace Ripple
+namespace Ripple::Fragment
 {
   /*-------------------------------------------------------------------------------
   Static Declarations
   -------------------------------------------------------------------------------*/
-  static MsgFrag * merge( MsgFrag *a, MsgFrag *b );
+  static MsgFrag *merge( MsgFrag *a, MsgFrag *b );
   static void frontBackSplit( MsgFrag *src, MsgFrag **front, MsgFrag **back );
 
   /*-------------------------------------------------------------------------------
@@ -28,12 +28,12 @@ namespace Ripple
    *
    * @param headPtr       Start of the fragment list
    */
-  void sortFragments( MsgFrag **headPtr )
+  void sort( MsgFrag **headPtr )
   {
     /*-------------------------------------------------
     Handle bad inputs or the end of the list
     -------------------------------------------------*/
-    if ( !headPtr || !( *headPtr )->nextFragment )
+    if ( !headPtr || !( *headPtr )->next )
     {
       return;
     }
@@ -42,8 +42,8 @@ namespace Ripple
     Initialize the algorithm
     -------------------------------------------------*/
     MsgFrag *head = *headPtr;
-    MsgFrag *a = nullptr;
-    MsgFrag *b = nullptr;
+    MsgFrag *a    = nullptr;
+    MsgFrag *b    = nullptr;
 
     /*-------------------------------------------------
     Split current list into sublists
@@ -53,8 +53,8 @@ namespace Ripple
     /*-------------------------------------------------
     Recursively sort the sublists
     -------------------------------------------------*/
-    sortFragments( &a );
-    sortFragments( &b );
+    sort( &a );
+    sort( &b );
 
     /*-------------------------------------------------
     Merge the sorted lists together
@@ -70,18 +70,18 @@ namespace Ripple
    * @param b           Second list
    * @return MsgFrag*   Resulting merged list
    */
-  static MsgFrag * merge( MsgFrag *a, MsgFrag *b )
+  static MsgFrag *merge( MsgFrag *a, MsgFrag *b )
   {
-    MsgFrag * result = nullptr;
+    MsgFrag *result = nullptr;
 
     /*-------------------------------------------------
     Base case
     -------------------------------------------------*/
-    if( a == nullptr )
+    if ( a == nullptr )
     {
       return b;
     }
-    else if( b == nullptr )
+    else if ( b == nullptr )
     {
       return a;
     }
@@ -90,15 +90,15 @@ namespace Ripple
     Select A or B and recurse. By default packets are
     ordered from low to high.
     -------------------------------------------------*/
-    if( a->fragmentNumber <= b->fragmentNumber )
+    if ( a->fragmentNumber <= b->fragmentNumber )
     {
-      result = a;
-      result->nextFragment = merge( a->nextFragment, b );
+      result       = a;
+      result->next = merge( a->next, b );
     }
     else
     {
-      result = b;
-      result->nextFragment = merge( a, b->nextFragment );
+      result       = b;
+      result->next = merge( a, b->next );
     }
 
     return result;
@@ -114,20 +114,50 @@ namespace Ripple
    */
   static void frontBackSplit( MsgFrag *src, MsgFrag **front, MsgFrag **back )
   {
-    MsgFrag *slow = src;
-    MsgFrag *fast = src->nextFragment;
+    MsgFrag *slow      = src;
+    MsgFrag *fast      = src->next;
+    MsgFrag *slow_prev = nullptr;
 
     /*-------------------------------------------------
-    Advance each node. Fast == 2x so it reaches the end
-    first while the slow ptr is just about midline.
+    Input Protection
     -------------------------------------------------*/
-    while( fast != nullptr )
+    if ( !src || !front || !back )
     {
-      fast = fast->nextFragment;
-      if( fast != nullptr )
+      return;
+    }
+
+    /*-------------------------------------------------
+    Special cases where only 1 or 2 items in the list
+    -------------------------------------------------*/
+    if ( src->next == nullptr )
+    {
+      *front = src;
+      *back  = nullptr;
+
+      return;
+    }
+    else if ( src->next->next == nullptr )
+    {
+      *front = src;
+      *back  = src->next;
+
+      /* Terminate the first list */
+      ( *front )->next = nullptr;
+
+      return;
+    }
+
+    /*-------------------------------------------------
+    Three or more items. Use the fast/slow ptr approach
+    -------------------------------------------------*/
+    while ( fast && fast->next != nullptr )
+    {
+      fast = fast->next;
+
+      if ( fast )
       {
-        slow = slow->nextFragment;
-        fast = fast->nextFragment;
+        slow = slow->next;
+        fast = fast->next;
       }
     }
 
@@ -136,13 +166,13 @@ namespace Ripple
     at that point.
     -------------------------------------------------*/
     *front = src;
-    *back = slow->nextFragment;
+    *back  = slow->next;
 
     /*-------------------------------------------------
     Terminate the list to prevent further calls from
     expanding into the other half of the list.
     -------------------------------------------------*/
-    slow->nextFragment = nullptr;
+    slow->next = nullptr;
   }
 
-}  // namespace Ripple
+}    // namespace Ripple::Fragment

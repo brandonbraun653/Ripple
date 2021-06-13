@@ -53,8 +53,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------------------------------------*/
     bool powerUp( void * context ) final override;
     void powerDn() final override;
-    Chimera::Status_t recv( MsgFrag &msg ) final override;
-    Chimera::Status_t send( MsgFrag &msg, const std::string_view &ip ) final override;
+    Chimera::Status_t recv( MsgFrag ** fragmentList ) final override;
+    Chimera::Status_t send( const MsgFrag *const msg, const IPAddress &ip ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t linkSpeed() const final override;
@@ -63,10 +63,10 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------------------------------------
     ARP Interface
     -------------------------------------------------------------------------------*/
-    Chimera::Status_t addARPEntry( const std::string_view &ip, const void *const mac, const size_t size ) final override;
-    Chimera::Status_t dropARPEntry( const std::string_view &ip ) final override;
-    bool arpLookUp( const std::string_view &ip, void *const mac, const size_t size ) final override;
-    std::string_view arpLookUp( const void *const mac, const size_t size ) final override;
+    Chimera::Status_t addARPEntry( const IPAddress &ip, const void *const mac, const size_t size ) final override;
+    Chimera::Status_t dropARPEntry( const IPAddress &ip ) final override;
+    bool arpLookUp( const IPAddress &ip, void *const mac, const size_t size ) final override;
+    IPAddress arpLookUp( const void *const mac, const size_t size ) final override;
 
     /*-------------------------------------------------------------------------------
     NRF24 Specific Functions

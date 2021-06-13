@@ -103,7 +103,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Public Attributes
     -------------------------------------------------*/
-    std::string_view nextHop;               /**< Which node this data is going to (IPAddress) */
+    IPAddress nextHop;                      /**< Which node this data is going to (IPAddress) */
     PackedFrame wireData;                   /**< Data frame transmitted on the wire */
     Physical::PipeNumber receivedPipe;      /**< Which pipe the data came from */
     Physical::AutoRetransmitCount rtxCount; /**< Max retransmit attempts */

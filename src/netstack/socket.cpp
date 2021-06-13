@@ -9,11 +9,11 @@
  *******************************************************************************/
 
 /* STL Includes */
+#include <algorithm>
 #include <cstdint>
 #include <cstddef>
 
 /* ETL Includes */
-#include <etl/crc32.h>
 #include <etl/random.h>
 
 /* Aurora Includes */
@@ -24,9 +24,7 @@
 
 /* Ripple Includes */
 #include <Ripple/shared>
-#include <Ripple/src/netstack/types.hpp>
-#include <Ripple/src/netstack/socket.hpp>
-#include <Ripple/src/netstack/context.hpp>
+#include <Ripple/netstack>
 
 namespace Ripple
 {
@@ -59,13 +57,13 @@ namespace Ripple
   }
 
 
-  Chimera::Status_t Socket::open( const std::string_view &port )
+  Chimera::Status_t Socket::open( const Port port )
   {
     /*-------------------------------------------------
     Initialize the socket
     -------------------------------------------------*/
     s_rng.initialise( Chimera::millis() );
-    mThisAddr = port;
+    mThisPort = port;
 
     return Chimera::Status::OK;
   }
@@ -74,26 +72,16 @@ namespace Ripple
   void Socket::close()
   {
     using namespace Aurora::Logging;
-
-    if( disconnect( mDestAddr ) == Chimera::Status::OK )
-    {
-      mDestAddr = "";
-    }
-    else
-    {
-      LOG_DEBUG( "Failed to close %s\r\n", mDestAddr.data() );
-    }
   }
 
 
-  Chimera::Status_t Socket::connect( const std::string_view &port )
+  Chimera::Status_t Socket::connect(  const IPAddress address, const Port port )
   {
-    mDestAddr = port;
-    return Chimera::Status::OK;
+    return Chimera::Status::FAIL;
   }
 
 
-  Chimera::Status_t Socket::disconnect( const std::string_view &port )
+  Chimera::Status_t Socket::disconnect( )
   {
     return Chimera::Status::FAIL;
   }
@@ -109,8 +97,9 @@ namespace Ripple
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
 
-    auto userData = reinterpret_cast<const uint8_t *const>( data );
-
+    /*-------------------------------------------------------------------------------
+    Determine transfer fragmentation sizing/boundaries
+    -------------------------------------------------------------------------------*/
     /*-------------------------------------------------
     Figure out the fragment transfer size that can be
     handled by the network layer.
@@ -118,15 +107,14 @@ namespace Ripple
     size_t maxPayload = mContext->mNetIf->maxTransferSize();
     if ( !maxPayload )
     {
-      // Protect against a div/0 down below
       return Chimera::Status::FAIL;
     }
 
     /*-------------------------------------------------
     Figure out the fragment boundaries
     -------------------------------------------------*/
-    size_t numFragments     = 0;
-    size_t lastFragmentSize = 0;
+    size_t numFragments     = 0; /**< Total fragments to be sent */
+    size_t lastFragmentSize = 0; /**< Track remainder payload in last non-full fragment */
 
     if ( bytes <= maxPayload )
     {
@@ -150,9 +138,15 @@ namespace Ripple
       }
     }
 
-    // Increment fragment count to allow for header
+    /*-------------------------------------------------
+    Increment the fragment number to account for the
+    first fragment always being a packet header.
+    -------------------------------------------------*/
     numFragments++;
 
+    /*-------------------------------------------------------------------------------
+    Validate memory requirements
+    -------------------------------------------------------------------------------*/
     /*-------------------------------------------------
     Make sure the TX queue can handle another message
     -------------------------------------------------*/
@@ -167,145 +161,158 @@ namespace Ripple
     raw data + the fragment control structure overhead.
     -------------------------------------------------*/
     Chimera::Thread::LockGuard<Context> lock( *mContext );
+    const size_t freeMem = mContext->availableMemory();
 
-    const size_t available      = mContext->availableMemory();
-    const size_t userDataSize   = bytes + ( sizeof( MsgFrag ) * numFragments );
-    const size_t headerSize     = sizeof( MsgFrag ) + sizeof( TransportHeader );
-    const size_t allocationSize = headerSize + userDataSize;
+    /*-------------------------------------------------
+    Calculate the expected memory consumption:
 
-    if ( available <= allocationSize )
+        User payload data
+      + Payload for first fragment
+      + Total num fragment structures
+      --------------------------------------
+      = allocation Size
+    -------------------------------------------------*/
+    const size_t allocationSize = bytes + sizeof( TransportHeader ) + ( sizeof( MsgFrag ) * numFragments );
+    if ( freeMem <= allocationSize )
     {
-      LOG_DEBUG( "Socket out of memory\n" );
+      LOG_DEBUG( "Socket out of memory. Tried to allocate %d bytes from remaining %d\r\n", allocationSize, freeMem );
       return Chimera::Status::MEMORY;
     }
 
     /*-------------------------------------------------
-    Allocate the memory and assign the fragments
+    Allocate the packet memory and initialize it
     -------------------------------------------------*/
-    uint8_t *pool = reinterpret_cast<uint8_t *>( mContext->malloc( allocationSize ) );
-    if ( !pool )
+    uint8_t *bytePool = reinterpret_cast<uint8_t *>( mContext->malloc( allocationSize ) );
+    if ( !bytePool )
     {
-      // Shouldn't fail, but it doesn't hurt to check
       return Chimera::Status::FAIL;
     }
 
-    // Runtime boundaries
-    const auto endAddr   = reinterpret_cast<std::uintptr_t>( pool + allocationSize );
+    /* If we see this "BaD" value in memory, something may have gone wrong... */
+    memset( bytePool, 0xBD, allocationSize );
 
     /*-------------------------------------------------
-    Construct the header
+    Helper value to double check later that memory ops
+    didn't over/under run their expected behavior.
     -------------------------------------------------*/
+    const std::uintptr_t finalMemAddr = reinterpret_cast<std::uintptr_t>( bytePool ) + allocationSize;
+
+    /*-------------------------------------------------------------------------------
+    Construct the header
+    -------------------------------------------------------------------------------*/
     TransportHeader header;
-    header.crc           = 0;
-    header.dataLength    = sizeof( TransportHeader ) + bytes;
-    header.dstSocketUUID = 0;    // TODO: Will need to look this up
-    header.srcSocketUUID = mUUID;
-    header._pad          = 0;
+    header.crc        = 0;
+    header.dataLength = sizeof( TransportHeader ) + bytes;
+    header.dstPort    = mDestPort;
+    header.srcPort    = mThisPort;
+    header.srcAddress = mContext->getIPAddress();
+    header._pad       = 0;
 
-    /* Allocate the message memory */
-    MsgFrag *msg = new ( pool ) MsgFrag();
-    pool += sizeof( MsgFrag );
+    /*-------------------------------------------------------------------------------
+    Initialize first message fragment (Header)
+    -------------------------------------------------------------------------------*/
+    const uint32_t randomUUID     = s_rng(); /**< Unique ID for this packet */
+    const uint32_t pktDataLength  = sizeof( TransportHeader ) + bytes;
 
-    /* Allocate the payload (header) memory */
-    msg->fragmentData   = pool;
+    /*-------------------------------------------------
+    Construct fragment from the recent allocation
+    -------------------------------------------------*/
+    MsgFrag *msg = new ( bytePool ) MsgFrag();
+    bytePool += sizeof( MsgFrag );
+
+    /*-------------------------------------------------
+    Fill the fragment with packet header data
+    -------------------------------------------------*/
+    msg->fragmentData   = bytePool;
     msg->fragmentLength = sizeof( TransportHeader );
+    msg->totalLength    = pktDataLength;
+    msg->uuid           = randomUUID;
 
-    /* Copy in the payload data */
     memcpy( msg->fragmentData, &header, sizeof( TransportHeader ) );
-    pool += sizeof( TransportHeader );
+    bytePool += sizeof( TransportHeader );
 
+    /*-------------------------------------------------
+    Initialize the linked list
+    -------------------------------------------------*/
     MsgFrag *rootMsg = msg;
 
+    /*-------------------------------------------------------------------------------
+    Construct the fragment list from user data
+    -------------------------------------------------------------------------------*/
+    size_t bytesLeft          = bytes;   /**< Bytes to pack into fragments */
+    MsgFrag *lastFragPtr      = msg;     /**< Ptr to last valid fragment */
+    size_t dataOffset         = 0;       /**< Byte offset into the user data */
+
     /*-------------------------------------------------
-    Construct the fragment list
+    Fill in the remaining fragments. Start at 1 because
+    the packet header has already been created.
     -------------------------------------------------*/
-    size_t bytesLeft  = bytes;
-    MsgFrag *lastFrag = msg;
-    size_t dataOffset = 0;
-
-    const uint32_t random_uuid = s_rng();
-
-    for ( size_t fIdx = 1; fIdx < numFragments; fIdx++ )
+    for ( size_t fragCnt = 1; fragCnt < numFragments; fragCnt++ )
     {
       /*-------------------------------------------------
       Construct the structure holding the message
       -------------------------------------------------*/
-      msg = new ( pool ) MsgFrag();
-      pool += sizeof( MsgFrag );
-      RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) <= endAddr );
+      msg = new ( bytePool ) MsgFrag();
+      bytePool += sizeof( MsgFrag );
+      RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( bytePool ) <= finalMemAddr );
 
       /*-------------------------------------------------
       Link the fragment list, unless this is the last one
       -------------------------------------------------*/
-      msg->nextFragment = nullptr;
-      if ( lastFrag && ( fIdx != numFragments ) )
+      msg->next = nullptr;
+      if ( lastFragPtr && ( fragCnt != numFragments ) )
       {
-        lastFrag->nextFragment = msg;
+        lastFragPtr->next = msg;
       }
-      lastFrag = msg;
+      lastFragPtr = msg;
 
       /*-------------------------------------------------
       Fill out a few control fields
       -------------------------------------------------*/
       msg->flags          = 0;
       msg->type           = 0;
-      msg->fragmentNumber = fIdx;
-      msg->totalLength    = bytes;
-      msg->uuid           = random_uuid;
+      msg->fragmentNumber = fragCnt;
+      msg->totalLength    = pktDataLength;
+      msg->uuid           = randomUUID;
 
       /*-------------------------------------------------
       Decide the number of bytes going into this transfer
       -------------------------------------------------*/
-      size_t payloadSize = maxPayload;
-      if ( bytesLeft < maxPayload )
-      {
-        payloadSize = bytesLeft;
-      }
+      const size_t payloadSize = std::min( bytesLeft, maxPayload );
 
       /*-------------------------------------------------
-      Copy in the user data and update the byte tracking
+      Copy in the user data
       -------------------------------------------------*/
-      msg->fragmentData   = pool;
+      msg->fragmentData   = bytePool;
       msg->fragmentLength = payloadSize;
-      memcpy( msg->fragmentData, ( userData + dataOffset ), payloadSize );
+      memcpy( msg->fragmentData, ( reinterpret_cast<const uint8_t *const>( data ) + dataOffset ), payloadSize );
 
-      pool += payloadSize;
+      /*-------------------------------------------------
+      Update tracking data
+      -------------------------------------------------*/
+      bytePool += payloadSize;
       bytesLeft -= payloadSize;
       dataOffset += payloadSize;
-      RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) <= endAddr );
+
+      RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( bytePool ) <= finalMemAddr );
     }
 
     /*-------------------------------------------------
-    Check exit conditions
+    Check exit conditions. Either of these failing
+    means a bug is present above.
     -------------------------------------------------*/
     RT_HARD_ASSERT( bytesLeft == 0 );
-    RT_HARD_ASSERT( endAddr == reinterpret_cast<std::uintptr_t>( pool ) );
+    RT_HARD_ASSERT( finalMemAddr == reinterpret_cast<std::uintptr_t>( bytePool ) );
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------------
     Calculate the CRC over the entire message
-    -------------------------------------------------*/
-    etl::crc32 crc_gen;
-    crc_gen.reset();
+    -------------------------------------------------------------------------------*/
+    auto crc = Fragment::calcCRC32( rootMsg );
+    Fragment::setCRC32( rootMsg, crc );
 
-    /* CRC of the header itself, minus the CRC field */
-    crc_gen.add( reinterpret_cast<uint8_t *>( &header + sizeof( TransportHeader::crc ) ),
-                 reinterpret_cast<uint8_t *>( &header + sizeof( header ) ) );
-
-    /* CRC of the data contained in each fragment */
-    MsgFrag *fragIter = rootMsg;
-    while( fragIter->nextFragment )
-    {
-      crc_gen.add( reinterpret_cast<uint8_t *>( fragIter->fragmentData ),
-                   reinterpret_cast<uint8_t *>( fragIter->fragmentData ) + fragIter->fragmentLength );
-      fragIter = fragIter->nextFragment;
-    }
-
-    auto hdr = reinterpret_cast<TransportHeader*>( rootMsg->fragmentData );
-    hdr->crc = crc_gen.value();
-
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------------
     Finally, push the fragment list into the queue
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------------*/
     mTXQueue.push( rootMsg );
     mTXReady = true;
 
@@ -315,13 +322,56 @@ namespace Ripple
 
   Chimera::Status_t Socket::read( void *const data, const size_t bytes )
   {
-    return Chimera::Status::FAIL;
+    Chimera::Thread::LockGuard<Context> lock( *mContext );
+
+    /*-------------------------------------------------
+    Input Protection
+    -------------------------------------------------*/
+    if( !data || !bytes )
+    {
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+    else if( mRXQueue.empty() )
+    {
+      return Chimera::Status::EMPTY;
+    }
+
+    /*-------------------------------------------------
+    Read the packet into the user's buffer. Toss the
+    first fragment (network header).
+    -------------------------------------------------*/
+    MsgFrag *packetRoot      = mRXQueue.front();
+    MsgFrag *dataPacket      = packetRoot->next;
+    Chimera::Status_t status = Chimera::Status::OK;
+
+    memset( data, 0, bytes );
+    if ( !Fragment::copyPayloadToBuffer( dataPacket, data, bytes ) )
+    {
+      status = Chimera::Status::FAIL;
+    }
+
+    /*-------------------------------------------------
+    Free the packet and return the status
+    -------------------------------------------------*/
+    mRXQueue.pop();
+    mContext->freePacket( packetRoot );
+    return status;
   }
 
 
   size_t Socket::available()
   {
-    return 0;
+    Chimera::Thread::LockGuard<Context> lock( *mContext );
+
+    if( mRXQueue.empty() )
+    {
+      return 0;
+    }
+    else
+    {
+      auto packet = mRXQueue.front();
+      return packet->totalLength - sizeof( TransportHeader );
+    }
   }
 
 }    // namespace Ripple

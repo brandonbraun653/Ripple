@@ -1,1 +1,2 @@
+add_subdirectory(loopback)
 add_subdirectory(nrf24l01)

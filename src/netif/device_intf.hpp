@@ -49,7 +49,7 @@ namespace Ripple::NetIf
      *  @param[in]  size        Size of the MAC address type
      *  @return Chimera::Status_t
      */
-    virtual Chimera::Status_t addARPEntry( const std::string_view &ip, const void *const mac, const size_t size ) = 0;
+    virtual Chimera::Status_t addARPEntry( const IPAddress &ip, const void *const mac, const size_t size ) = 0;
 
     /**
      *  Removes an entry from the ARP table
@@ -57,7 +57,7 @@ namespace Ripple::NetIf
      *  @param[in]  ip          IP address of entry to remove
      *  @return Chimera::Status_t
      */
-    virtual Chimera::Status_t dropARPEntry( const std::string_view &ip ) = 0;
+    virtual Chimera::Status_t dropARPEntry( const IPAddress &ip ) = 0;
 
     /**
      *  Looks up the interface specific MAC address attached to IP address
@@ -67,16 +67,16 @@ namespace Ripple::NetIf
      *  @param[in]  size        Size of the MAC address type
      *  @return bool
      */
-    virtual bool arpLookUp( const std::string_view &ip, void *const mac, const size_t size ) = 0;
+    virtual bool arpLookUp( const IPAddress &ip, void *const mac, const size_t size ) = 0;
 
     /**
      *  Looks up the IP address for a given interface specific MAC address
      *
      *  @param[in]  mac         MAC address buffer
      *  @param[in]  size        Size of the MAC address buffer
-     *  @return std::string_view       IP address tied to the MAC
+     *  @return IPAddress       IP address tied to the MAC
      */
-    virtual std::string_view arpLookUp( const void *const mac, const size_t size ) = 0;
+    virtual IPAddress arpLookUp( const void *const mac, const size_t size ) = 0;
   };
 
 
@@ -105,9 +105,13 @@ namespace Ripple::NetIf
     virtual void powerDn() = 0;
 
     /**
-     *  Retrieves a message for passing up the stack
+     *  Retrieves a list of fragments for passing up the stack.
      *
-     *  @param[in]  msg         Container for holding the message
+     *  @note The returned data is a mix of fragments from multiple unique packets.
+     *        It's the upper layers' job to break this apart and sort them into their
+     *        respective packet assembly containers.
+     *
+     *  @param[in]  fragmentList          Pointer to a list of fragments
      *  @return Chimera::Status_t
      *
      *  @retval Chimera::Status::OK       The entire fragment list was allocated
@@ -116,7 +120,7 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   Not enough memory available
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t recv( MsgFrag &msg ) = 0;
+    virtual Chimera::Status_t recv( MsgFrag ** fragmentList ) = 0;
 
     /**
      *  Transmits a message directly to the given IP address. This function should not
@@ -124,7 +128,7 @@ namespace Ripple::NetIf
      *  higher layers in the stack. This is a "dumb" send directly to a known device
      *  in the ARP cache, or don't send at all.
      *
-     *  @param[in]  msg         Container for holding the message
+     *  @param[in]  head        Root of the message to send
      *  @param[in]  ip          Address to send to
      *  @return Chimera::Status_t
      *
@@ -134,7 +138,7 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   There was an issue with memory
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t send( MsgFrag &msg, const std::string_view &ip ) = 0;
+    virtual Chimera::Status_t send( const MsgFrag *const head, const IPAddress &ip ) = 0;
 
     /**
      *  Gets the interface's address resolver

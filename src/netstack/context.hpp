@@ -46,6 +46,10 @@ namespace Ripple
     Context();
     ~Context();
 
+    void setIPAddress( const IPAddress address );
+
+    IPAddress getIPAddress();
+
     /**
      *  Creates a new socket. Returns nullptr if out of memory.
      *
@@ -122,6 +126,13 @@ namespace Ripple
      */
     void processTX();
 
+    /**
+     * @brief Frees the memory associated with the packet
+     *
+     * @param packet    Memory to free
+     */
+    void freePacket( MsgFrag *const packet );
+
     /*-------------------------------------------------
     Callbacks for NetIf CallbackId
     -------------------------------------------------*/
@@ -135,9 +146,12 @@ namespace Ripple
     void cb_OnARPStorageLimit( size_t callbackID );
 
   private:
+    IPAddress mIP;
+
     struct FragAssem
     {
       bool inProgress;
+      bool remove;
       MsgFrag *fragment;
       size_t bytesRcvd;
       size_t startRxTime;
@@ -153,6 +167,10 @@ namespace Ripple
 
     MsgFrag *copyFragmentToHeap( MsgFrag &frag );
     void freeFragmentsWithUUID( uint32_t uuid );
+
+    void pruneStaleRXFragments();
+    void processRXPacketAssembly();
+    void acquireFragments();
   };
 
 

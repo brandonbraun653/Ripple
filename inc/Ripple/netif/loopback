@@ -1,0 +1,17 @@
+/********************************************************************************
+ *  File Name:
+ *    loopback
+ *
+ *  Description:
+ *    Public header includes for accessing the loopback network interface
+ *
+ *  2021 | Brandon Braun | brandonbraun653@gmail.com
+ ********************************************************************************/
+
+#pragma once
+#ifndef RIPPLE_LOOPBACK_INCLUDES
+#define RIPPLE_LOOPBACK_INCLUDES
+
+#include <Ripple/src/netif/loopback/lb_adapter.hpp>
+
+#endif /* !RIPPLE_LOOPBACK_INCLUDES */

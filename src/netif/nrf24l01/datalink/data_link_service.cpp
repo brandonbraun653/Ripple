@@ -138,110 +138,115 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::recv( MsgFrag &msg )
+  Chimera::Status_t DataLink::recv( MsgFrag ** fragmentList )
   {
-    /*-------------------------------------------------
-    Check if queue is empty
-    -------------------------------------------------*/
-    mRXMutex.lock();
-    if ( mRXQueue.empty() )
-    {
-      mRXMutex.unlock();
-      return Chimera::Status::EMPTY;
-    }
+    Chimera::insert_debug_breakpoint();
 
-    /*-------------------------------------------------
-    Acquire access to the memory allocator
-    -------------------------------------------------*/
-    mContext->lock();
+    // /*-------------------------------------------------
+    // Check if queue is empty
+    // -------------------------------------------------*/
+    // mRXMutex.lock();
+    // if ( mRXQueue.empty() )
+    // {
+    //   mRXMutex.unlock();
+    //   return Chimera::Status::EMPTY;
+    // }
 
-    /*-------------------------------------------------
-    Make sure enough memory exists to allocate
-    -------------------------------------------------*/
-    const Frame &tmpFrame = mRXQueue.front();
+    // /*-------------------------------------------------
+    // Acquire access to the memory allocator
+    // -------------------------------------------------*/
+    // mContext->lock();
 
-    if ( mContext->availableMemory() < tmpFrame.wireData.control.dataLength )
-    {
-      mContext->unlock();
-      mRXMutex.unlock();
-      return Chimera::Status::MEMORY;
-    }
+    // /*-------------------------------------------------
+    // Make sure enough memory exists to allocate
+    // -------------------------------------------------*/
+    // const Frame &tmpFrame = mRXQueue.front();
 
-    /*-------------------------------------------------
-    Allocate the memory and push out the data
-    -------------------------------------------------*/
-    msg.fragmentData   = mContext->malloc( tmpFrame.wireData.control.dataLength );
-    msg.fragmentLength = tmpFrame.wireData.control.dataLength;
+    // if ( mContext->availableMemory() < tmpFrame.wireData.control.dataLength )
+    // {
+    //   mContext->unlock();
+    //   mRXMutex.unlock();
+    //   return Chimera::Status::MEMORY;
+    // }
 
-    RT_HARD_ASSERT( msg.fragmentData );
-    memcpy( msg.fragmentData, tmpFrame.wireData.userData, msg.fragmentLength );
+    // /*-------------------------------------------------
+    // Allocate the memory and push out the data
+    // -------------------------------------------------*/
+    // msg.fragmentData   = mContext->malloc( tmpFrame.wireData.control.dataLength );
+    // msg.fragmentLength = tmpFrame.wireData.control.dataLength;
 
-    /*-------------------------------------------------
-    Parse the dst socket into a string
-    -------------------------------------------------*/
-    // Consider encoding the destination socket into a checksum?
-    // Is there a reversible hash-like function? I guess this might
-    // be some type of compression algorithm.
+    // RT_HARD_ASSERT( msg.fragmentData );
+    // memcpy( msg.fragmentData, tmpFrame.wireData.userData, msg.fragmentLength );
 
-    /*-------------------------------------------------
-    Clean up the queue and return
-    -------------------------------------------------*/
-    mRXQueue.pop();
-    mRXMutex.unlock();
+    // /*-------------------------------------------------
+    // Parse the dst socket into a string
+    // -------------------------------------------------*/
+    // // Consider encoding the destination socket into a checksum?
+    // // Is there a reversible hash-like function? I guess this might
+    // // be some type of compression algorithm.
+
+    // /*-------------------------------------------------
+    // Clean up the queue and return
+    // -------------------------------------------------*/
+    // mRXQueue.pop();
+    // mRXMutex.unlock();
+
     return Chimera::Status::READY;
   }
 
 
-  Chimera::Status_t DataLink::send( MsgFrag &msg, const std::string_view &ip )
+  Chimera::Status_t DataLink::send( const MsgFrag *const msg, const IPAddress &ip )
   {
-    /*-------------------------------------------------
-    Check the incoming data for validity. Fragmented
-    messages must not exceed a certain number.
-    -------------------------------------------------*/
-    if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) ||
-         ( msg.fragmentNumber >= static_cast<uint16_t>( pow( 2, FRAME_NUMBER_BITS ) ) * sizeof( PackedFrame::userData ) ) )
-    {
-      return Chimera::Status::MEMORY;
-    }
+    Chimera::insert_debug_breakpoint();
 
-    /*-------------------------------------------------
-    Process the error handler if the queue is full
-    -------------------------------------------------*/
-    mTXMutex.lock();
-    if ( mTXQueue.full() )
-    {
-      mTXMutex.unlock();
+    // /*-------------------------------------------------
+    // Check the incoming data for validity. Fragmented
+    // messages must not exceed a certain number.
+    // -------------------------------------------------*/
+    // if ( !msg.fragmentData || ( msg.fragmentLength > sizeof( PackedFrame::userData ) ) ||
+    //      ( msg.fragmentNumber >= static_cast<uint16_t>( pow( 2, FRAME_NUMBER_BITS ) ) * sizeof( PackedFrame::userData ) ) )
+    // {
+    //   return Chimera::Status::MEMORY;
+    // }
 
-      mPhyHandle.txQueueOverflows++;
-      mCBService_registry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
-      return Chimera::Status::FULL;
-    }
+    // /*-------------------------------------------------
+    // Process the error handler if the queue is full
+    // -------------------------------------------------*/
+    // mTXMutex.lock();
+    // if ( mTXQueue.full() )
+    // {
+    //   mTXMutex.unlock();
 
-    /*-------------------------------------------------
-    Build up the raw frame information
-    -------------------------------------------------*/
-    Frame tmpFrame;
+    //   mPhyHandle.txQueueOverflows++;
+    //   mCBService_registry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
+    //   return Chimera::Status::FULL;
+    // }
 
-    /* Some high level packet parameters */
-    tmpFrame.nextHop      = ip;
-    tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
-    tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
-    tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
+    // /*-------------------------------------------------
+    // Build up the raw frame information
+    // -------------------------------------------------*/
+    // Frame tmpFrame;
 
-    /* Set packet control parameters */
-    tmpFrame.wireData.control.multicast   = false;
-    tmpFrame.wireData.control.requireACK  = true;
-    tmpFrame.wireData.control.frameNumber = msg.fragmentNumber;
-    tmpFrame.wireData.control.endpoint    = Endpoint::EP_APPLICATION_DATA_0;
+    // /* Some high level packet parameters */
+    // tmpFrame.nextHop      = ip;
+    // tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
+    // tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
+    // tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
 
-    /* Copy in the data */
-    tmpFrame.writeUserData( msg.fragmentData, msg.fragmentLength );
+    // /* Set packet control parameters */
+    // tmpFrame.wireData.control.multicast   = false;
+    // tmpFrame.wireData.control.requireACK  = true;
+    // tmpFrame.wireData.control.frameNumber = msg.fragmentNumber;
+    // tmpFrame.wireData.control.endpoint    = Endpoint::EP_APPLICATION_DATA_0;
 
-    /*-------------------------------------------------
-    Enqueue and clean up
-    -------------------------------------------------*/
-    mTXQueue.push( tmpFrame );
-    mTXMutex.unlock();
+    // /* Copy in the data */
+    // tmpFrame.writeUserData( msg.fragmentData, msg.fragmentLength );
+
+    // /*-------------------------------------------------
+    // Enqueue and clean up
+    // -------------------------------------------------*/
+    // mTXQueue.push( tmpFrame );
+    // mTXMutex.unlock();
 
     return Chimera::Status::READY;
   }
@@ -274,7 +279,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   /*-------------------------------------------------------------------------------
   Service: ARP Interface
   -------------------------------------------------------------------------------*/
-  Chimera::Status_t DataLink::addARPEntry( const std::string_view &ip, const void *const mac, const size_t size )
+  Chimera::Status_t DataLink::addARPEntry( const IPAddress &ip, const void *const mac, const size_t size )
   {
     /*-------------------------------------------------
     Copy over the mac address if the size matches
@@ -305,7 +310,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::dropARPEntry( const std::string_view &ip )
+  Chimera::Status_t DataLink::dropARPEntry( const IPAddress &ip )
   {
     /*-------------------------------------------------
     Does nothing if the entry doesn't exist
@@ -317,7 +322,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  bool DataLink::arpLookUp( const std::string_view &ip, void *const mac, const size_t size )
+  bool DataLink::arpLookUp( const IPAddress &ip, void *const mac, const size_t size )
   {
     /*-------------------------------------------------
     Input protection
@@ -334,11 +339,11 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  std::string_view DataLink::arpLookUp( const void *const mac, const size_t size )
+  IPAddress DataLink::arpLookUp( const void *const mac, const size_t size )
   {
     // Currently not supported but might be in the future?
     RT_HARD_ASSERT( false );
-    return "";
+    return 0;
   }
 
 

@@ -33,6 +33,17 @@
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
+  Aliases
+  -------------------------------------------------------------------------------*/
+  using Port = uint32_t;
+
+  /*-------------------------------------------------------------------------------
+  Constants
+  -------------------------------------------------------------------------------*/
+  static constexpr Port LOCAL_HOST_PORT    = 0;
+  static constexpr IPAddress LOCAL_HOST_IP = 127001; /* 127.0.0.1 */
+
+  /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
   /**
@@ -45,12 +56,14 @@ namespace Ripple
     ~Socket();
 
     /**
-     *  Opens the socket for operation on the given port
+     *  Opens the socket for operation on the given port. The socket will
+     *  automatically inherit the address of its creation context as well
+     *  as the direction of the data stream.
      *
      *  @param[in]  port    Port to open as
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t open( const std::string_view &port );
+    Chimera::Status_t open( const Port port );
 
     /**
      *  Closes the socket and places it in an idle state
@@ -59,13 +72,13 @@ namespace Ripple
     void close();
 
     /**
-     *  Connects to remote port(s). This allows for a MIMO connection
-     *  style, so that more data may be broadcasted/received.
+     *  Connects to a remote port
      *
-     *  @param[in]  port    Port(s) to connect to
+     *  @param[in]  address   Remote address to connect to
+     *  @param[in]  port      Port(s) to connect to
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t connect( const std::string_view &port );
+    Chimera::Status_t connect( const IPAddress address, const Port port );
 
     /**
      *  Disconnects from the given port
@@ -73,7 +86,7 @@ namespace Ripple
      *  @param[in]  port    Port(s) to disconnect from
      *  @return Chimera::Status_t
      */
-    Chimera::Status_t disconnect( const std::string_view &port );
+    Chimera::Status_t disconnect();
 
     /**
      *  Writes a number of bytes into a connection stream
@@ -109,15 +122,14 @@ namespace Ripple
       return lhsAddr < rhsAddr;
     }
 
-    std::string_view address()
+    Port port()
     {
-      return mThisAddr;
+      return mThisPort;
     }
 
-
-    SocketId uuid()
+    SocketType type()
     {
-      return mUUID;
+      return mSocketType;
     }
 
   protected:
@@ -133,9 +145,9 @@ namespace Ripple
     etl::queue<MsgFrag*, 5> mRXQueue;
     Chimera::Thread::RecursiveMutex *mLock;
 
-    SocketId mUUID;
-    std::string_view mThisAddr;
-    std::string_view mDestAddr;
+    Port      mThisPort;    /**< Port of this socket */
+    IPAddress mDestAddress; /**< Destination network address */
+    Port      mDestPort;    /**< Destination network port */
 
   private:
     Context_rPtr mContext;

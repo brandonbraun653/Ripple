@@ -75,8 +75,9 @@ namespace Ripple
   struct TransportHeader
   {
     uint32_t crc;           /**< CRC of the entire packet, including this header */
-    SocketId dstSocketUUID; /**< Unique ID for the destination socket on this node */
-    SocketId srcSocketUUID; /**< Unique ID for the source socket on the transmitting node */
+    SocketId dstPort;       /**< Unique ID for the destination socket on this node */
+    SocketId srcPort;       /**< Unique ID for the source socket on the transmitting node */
+    IPAddress srcAddress;   /**< Source address this packet came from */
     uint16_t dataLength;    /**< Length of the data payload for this packet */
     uint16_t _pad;          /**< Padding for alignment */
   };
@@ -88,7 +89,7 @@ namespace Ripple
    */
   struct MsgFrag
   {
-    MsgFrag *nextFragment;   /**< Next message fragment in the list */
+    MsgFrag *next;   /**< Next message fragment in the list */
     void *fragmentData;      /**< Allocated memory for this fragment */
     uint16_t fragmentLength; /**< Length of the current fragment */
     uint16_t totalLength;    /**< Length of the entire packet */
