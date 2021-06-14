@@ -177,10 +177,15 @@ namespace Ripple::NetIf::Loopback
     return 29; // Simulate packet size of NRF24L01
   }
 
+  size_t Adapter::maxNumFragments() const
+  {
+    return 512; // Arbitrary. No real limit outside of memory.
+  }
+
 
   size_t Adapter::linkSpeed() const
   {
-    return 1024;    // 1kB per second
+    return 1024; // 1kB per second
   }
 
 

@@ -77,13 +77,17 @@ namespace Ripple
 
   Chimera::Status_t Socket::connect(  const IPAddress address, const Port port )
   {
-    return Chimera::Status::FAIL;
+    mDestAddress = address;
+    mDestPort    = port;
+    return Chimera::Status::OK;
   }
 
 
   Chimera::Status_t Socket::disconnect( )
   {
-    return Chimera::Status::FAIL;
+    mDestAddress = std::numeric_limits<IPAddress>::max();
+    mDestPort    = std::numeric_limits<Port>::max();
+    return Chimera::Status::OK;
   }
 
 
@@ -143,6 +147,17 @@ namespace Ripple
     first fragment always being a packet header.
     -------------------------------------------------*/
     numFragments++;
+
+    /*-------------------------------------------------
+    Check that the number of fragments are supported by
+    the underlying network interface.
+    -------------------------------------------------*/
+    if( numFragments > mContext->mNetIf->maxNumFragments() )
+    {
+      LOG_ERROR( "Packet too large. NetIf only supports %d fragments, but %d are needed.\r\n",
+                 mContext->mNetIf->maxNumFragments(), numFragments );
+      return Chimera::Status::NOT_SUPPORTED;
+    }
 
     /*-------------------------------------------------------------------------------
     Validate memory requirements
@@ -211,7 +226,7 @@ namespace Ripple
     /*-------------------------------------------------------------------------------
     Initialize first message fragment (Header)
     -------------------------------------------------------------------------------*/
-    const uint32_t randomUUID     = s_rng(); /**< Unique ID for this packet */
+    const uint16_t randomUUID     = s_rng() % std::numeric_limits<uint16_t>::max();
     const uint32_t pktDataLength  = sizeof( TransportHeader ) + bytes;
 
     /*-------------------------------------------------
@@ -226,6 +241,7 @@ namespace Ripple
     msg->fragmentData   = bytePool;
     msg->fragmentLength = sizeof( TransportHeader );
     msg->totalLength    = pktDataLength;
+    msg->totalFragments = numFragments;
     msg->uuid           = randomUUID;
 
     memcpy( msg->fragmentData, &header, sizeof( TransportHeader ) );
@@ -269,10 +285,9 @@ namespace Ripple
       /*-------------------------------------------------
       Fill out a few control fields
       -------------------------------------------------*/
-      msg->flags          = 0;
-      msg->type           = 0;
       msg->fragmentNumber = fragCnt;
       msg->totalLength    = pktDataLength;
+      msg->totalFragments = numFragments;
       msg->uuid           = randomUUID;
 
       /*-------------------------------------------------

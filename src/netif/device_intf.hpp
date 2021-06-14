@@ -153,6 +153,12 @@ namespace Ripple::NetIf
     virtual size_t maxTransferSize() const = 0;
 
     /**
+     * @brief Maximum number of fragments the network can handle
+     * @return size_t
+     */
+    virtual size_t maxNumFragments() const = 0;
+
+    /**
      *  Returns the maximum link speed the interface can handle in bytes/sec
      *  @return size_t
      */

@@ -20,9 +20,8 @@ namespace Ripple::NetIf::NRF24::DataLink
   Classes
   -------------------------------------------------------------------------------*/
   Frame::Frame() :
-      nextHop( "" ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
-      rtxCount( Physical::AutoRetransmitCount::ART_COUNT_INVALID ),
-      rtxDelay( Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN )
+      nextHop( 0 ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
+      rtxCount( Physical::AutoRetransmitCount::ART_COUNT_INVALID ), rtxDelay( Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN )
   {
     /*-------------------------------------------------
     Reset the packed data fields to defaults
@@ -68,7 +67,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Input Protection
     -------------------------------------------------*/
-    if( !data || !size || ( size > ARRAY_COUNT( PackedFrame::userData ) ) )
+    if ( !data || !size || ( size > ARRAY_COUNT( PackedFrame::userData ) ) )
     {
       return 0;
     }
@@ -78,7 +77,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------*/
     memset( wireData.userData, 0, sizeof( PackedFrame::userData ) );
     memcpy( wireData.userData, data, size );
-    wireData.control.dataLength  = size;
+    wireData.control.dataLength = size;
 
     return size;
   }
@@ -89,7 +88,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Input protection
     -------------------------------------------------*/
-    if( !data || !size || ( size > ARRAY_COUNT( PackedFrame::userData ) ) )
+    if ( !data || !size || ( size > ARRAY_COUNT( PackedFrame::userData ) ) )
     {
       return 0;
     }
@@ -106,7 +105,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   void Frame::pack( FrameBuffer &buffer )
   {
-    memcpy(buffer.data(), &wireData, sizeof( PackedFrame ) );
+    memcpy( buffer.data(), &wireData, sizeof( PackedFrame ) );
     static_assert( sizeof( FrameBuffer ) == sizeof( PackedFrame ) );
   }
 
@@ -116,4 +115,4 @@ namespace Ripple::NetIf::NRF24::DataLink
     memcpy( &wireData, buffer.data(), sizeof( PackedFrame ) );
   }
 
-}  // namespace Ripple::NetIf::NRF24::DataLink
+}    // namespace Ripple::NetIf::NRF24::DataLink

@@ -57,6 +57,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Chimera::Status_t send( const MsgFrag *const msg, const IPAddress &ip ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
+    size_t maxNumFragments() const final override;
     size_t linkSpeed() const final override;
     size_t lastActive() const final override;
 

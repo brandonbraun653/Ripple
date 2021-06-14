@@ -66,15 +66,17 @@ namespace Ripple::NetIf::NRF24::DataLink
    */
   struct _pfCtrl
   { /* clang-format off */
-    uint8_t version     : VERSION_LENGTH_BITS;  /**< Structure versioning information */
-    uint8_t dataLength  : DATA_LENGTH_BITS;     /**< User data length */
-    uint8_t frameNumber : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
-    uint8_t endpoint    : ENDPOINT_BITS;        /**< Endpoint this frame is destined for on the target */
-    bool    multicast   : 1;                    /**< Should this be blasted across the network to everyone? */
-    bool    requireACK  : 1;                    /**< Payload should require an ACK */
-    bool    pad         : 6;                    /**< Pad for alignment */
+    uint8_t   version       : VERSION_LENGTH_BITS;  /**< Structure versioning information */
+    uint8_t   dataLength    : DATA_LENGTH_BITS;     /**< User data length */
+    uint8_t   frameNumber   : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
+    uint8_t   endpoint      : ENDPOINT_BITS;        /**< Endpoint this frame is destined for on the target */
+    uint16_t  uuid;                                 /**< Unique id of the packet */
+    uint8_t   totalLength;                          /**< Total number of bytes */
+    bool      multicast     : 1;                    /**< Should this be blasted across the network to everyone? */
+    bool      requireACK    : 1;                    /**< Payload should require an ACK */
+    bool      _pad0         : 6;                    /**< Pad for alignment */
   }; /* clang-format on */
-  static_assert( sizeof( _pfCtrl ) == sizeof( uint8_t[ 3 ] ) );
+  static_assert( sizeof( _pfCtrl ) == sizeof( uint8_t[ 6 ] ) );
 
   /**
    *  Raw frame type that is transmitted out on the wire. This is sized such
@@ -83,7 +85,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   struct PackedFrame
   {
     _pfCtrl control;        /**< Frame control field */
-    uint8_t userData[ 29 ]; /**< User configurable payload */
+    uint8_t userData[ 25 ]; /**< User configurable payload */
   };
   static_assert( sizeof( PackedFrame ) == Physical::MAX_SPI_DATA_LEN );
 

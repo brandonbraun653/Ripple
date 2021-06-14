@@ -155,7 +155,7 @@ namespace Ripple
       MsgFrag *fragment;
       size_t bytesRcvd;
       size_t startRxTime;
-      size_t lastFragmentTime;
+      size_t lastTimeoutCheck;
       size_t timeout;
     };
 

@@ -306,32 +306,37 @@ namespace Ripple
 
   void Context::cb_OnFragmentRX( size_t callbackID )
   {
-    LOG_INFO( "NetIf received fragment\r\n" );
+    //LOG_INFO( "NetIf received fragment\r\n" );
   }
 
 
   void Context::cb_OnFragmentTXFail( size_t callbackID )
   {
+    //LOG_ERROR( "NetIf fragment TX fail\r\n" );
   }
 
 
   void Context::cb_OnRXQueueFull( size_t callbackID )
   {
+    //LOG_ERROR( "NetIf RX queue full\r\n" );
   }
 
 
   void Context::cb_OnTXQueueFull( size_t callbackID )
   {
+    //LOG_ERROR( "NetIf TX queue full\r\n" );
   }
 
 
   void Context::cb_OnARPResolveError( size_t callbackID )
   {
+    //LOG_ERROR( "NetIf ARP resolve error\r\n" );
   }
 
 
   void Context::cb_OnARPStorageLimit( size_t callbackID )
   {
+    //LOG_ERROR( "NetIf storage limit reached\r\n" );
   }
 
 
@@ -354,11 +359,16 @@ namespace Ripple
       packet has timed out.
       -------------------------------------------------*/
       if ( assembly->remove ||
-           ( assembly->inProgress && ( ( assembly->lastFragmentTime - assembly->startRxTime ) >= assembly->timeout ) ) )
+           ( assembly->inProgress && ( ( assembly->lastTimeoutCheck - assembly->startRxTime ) >= assembly->timeout ) ) )
       {
         uuidToRemove[ removeIdx ] = uuid;
         removeIdx++;
       }
+
+      /*-------------------------------------------------
+      Update the timeout check
+      -------------------------------------------------*/
+      assembly->lastTimeoutCheck = Chimera::millis();
     }
 
     /*-------------------------------------------------
@@ -370,6 +380,7 @@ namespace Ripple
       auto iter = mFragAssembly.find( uuidToRemove[ idx ] );
       if ( iter != mFragAssembly.end() )
       {
+        this->free( iter->second.fragment );
         mFragAssembly.erase( iter );
       }
     }
@@ -521,16 +532,35 @@ namespace Ripple
         if ( iter != mFragAssembly.end() )
         {
           /*-------------------------------------------------
+          Does this packet already exist in the assembly?
+          -------------------------------------------------*/
+          MsgFrag *frag    = iter->second.fragment;
+          bool isDuplicate = false;
+          while( frag )
+          {
+            if( list->fragmentNumber == frag->fragmentNumber )
+            {
+              isDuplicate = true;
+              this->free( list );
+              break;
+            }
+
+            frag = frag->next;
+          }
+
+          /*-------------------------------------------------
           Insert the fragment at the front, out of order. The
           sorting process will come later once all packets
           have been received.
           -------------------------------------------------*/
-          MsgFrag *prevAssemblyFragPtr = iter->second.fragment;
+          if( !isDuplicate )
+          {
+            MsgFrag *prevAssemblyFragPtr = iter->second.fragment;
 
-          iter->second.fragment         = list;
-          iter->second.fragment->next   = prevAssemblyFragPtr;
-          iter->second.lastFragmentTime = Chimera::millis();
-          iter->second.bytesRcvd += list->fragmentLength;
+            iter->second.fragment         = list;
+            iter->second.fragment->next   = prevAssemblyFragPtr;
+            iter->second.bytesRcvd += list->fragmentLength;
+          }
         }
         else if ( !mFragAssembly.full() )
         {
@@ -540,7 +570,7 @@ namespace Ripple
           newAssembly.bytesRcvd        = list->fragmentLength;
           newAssembly.fragment         = list;
           newAssembly.startRxTime      = Chimera::millis();
-          newAssembly.lastFragmentTime = newAssembly.startRxTime;
+          newAssembly.lastTimeoutCheck = newAssembly.startRxTime;
           newAssembly.timeout          = 500 * Chimera::Thread::TIMEOUT_1MS;
 
           /*-------------------------------------------------

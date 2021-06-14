@@ -89,14 +89,13 @@ namespace Ripple
    */
   struct MsgFrag
   {
-    MsgFrag *next;   /**< Next message fragment in the list */
+    MsgFrag *next;           /**< Next message fragment in the list */
     void *fragmentData;      /**< Allocated memory for this fragment */
     uint16_t fragmentLength; /**< Length of the current fragment */
     uint16_t totalLength;    /**< Length of the entire packet */
     uint16_t fragmentNumber; /**< Which fragment number this is, zero indexed */
-    uint8_t type;            /**< Message type */
-    uint8_t flags;           /**< Any flags needed */
-    uint32_t uuid;           /**< Unique ID for which packet this fragment belongs to */
+    uint16_t totalFragments; /**< Total number of fragments */
+    uint16_t uuid;           /**< Unique ID for which packet this fragment belongs to */
   };
 
 }    // namespace Ripple
