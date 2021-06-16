@@ -22,9 +22,9 @@
 
 /* Ripple Includes */
 #include <Ripple/src/netif/device_types.hpp>
-#include <Ripple/src/shared/cmn_types.hpp>
+#include <Ripple/src/netstack/packets/fragment.hpp>
 #include <Ripple/src/netstack/types.hpp>
-
+#include <Ripple/src/shared/cmn_types.hpp>
 
 namespace Ripple::NetIf
 {
@@ -120,7 +120,7 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   Not enough memory available
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t recv( MsgFrag ** fragmentList ) = 0;
+    virtual Chimera::Status_t recv( Fragment_sPtr &fragmentList ) = 0;
 
     /**
      *  Transmits a message directly to the given IP address. This function should not
@@ -138,7 +138,7 @@ namespace Ripple::NetIf
      *  @retval Chimera::Status::MEMORY   There was an issue with memory
      *  @retval Chimera::Status::FAIL     Some kind of unhandled error occurred
      */
-    virtual Chimera::Status_t send( const MsgFrag *const head, const IPAddress &ip ) = 0;
+    virtual Chimera::Status_t send( const Fragment_sPtr head, const IPAddress &ip ) = 0;
 
     /**
      *  Gets the interface's address resolver

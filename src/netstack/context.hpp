@@ -30,6 +30,8 @@
 /* Ripple Includes */
 #include <Ripple/src/netif/device_intf.hpp>
 #include <Ripple/src/netstack/types.hpp>
+#include <Ripple/src/netstack/net_mgr_intf.hpp>
+#include <Ripple/src/netstack/packets/packet.hpp>
 
 namespace Ripple
 {
@@ -40,7 +42,8 @@ namespace Ripple
    *  Network context manager that handles high level operations, typically
    *  revolving around memory management.
    */
-  class Context : public Chimera::Callback::DelegateService<Context, CallbackId>, public Chimera::Thread::Lockable<Context>
+  class Context : public INetMgr,
+                  public Chimera::Callback::DelegateService<Context, CallbackId>
   {
   public:
     Context();
@@ -95,7 +98,6 @@ namespace Ripple
 
   protected:
     friend class Socket;
-    friend Chimera::Thread::Lockable<Context>;
     friend Context_rPtr create( void *, const size_t );
 
     /**
@@ -126,13 +128,6 @@ namespace Ripple
      */
     void processTX();
 
-    /**
-     * @brief Frees the memory associated with the packet
-     *
-     * @param packet    Memory to free
-     */
-    void freePacket( MsgFrag *const packet );
-
     /*-------------------------------------------------
     Callbacks for NetIf CallbackId
     -------------------------------------------------*/
@@ -147,25 +142,12 @@ namespace Ripple
 
   private:
     IPAddress mIP;
-
-    struct FragAssem
-    {
-      bool inProgress;
-      bool remove;
-      MsgFrag *fragment;
-      size_t bytesRcvd;
-      size_t startRxTime;
-      size_t lastTimeoutCheck;
-      size_t timeout;
-    };
-
-    NetIf::INetIf *mNetIf;                           /**< Network interface driver */
-    Aurora::Memory::Heap mHeap;                      /**< Managed memory pool for the whole network */
-    etl::list<Socket *, 16> mSocketList;             /**< Socket control structures */
-    etl::map<uint32_t, FragAssem, 16> mFragAssembly; /**< Workspace for assembling fragments */
+    NetIf::INetIf *mNetIf;              /**< Network interface driver */
+    Aurora::Memory::Heap mHeap;         /**< Managed memory pool for the whole network */
+    etl::list<Socket *, 4> mSocketList; /**< Socket control structures */
+    AssemblyMap<8> mPacketAssembly;     /**< Workspace for assembling fragments */
 
 
-    MsgFrag *copyFragmentToHeap( MsgFrag &frag );
     void freeFragmentsWithUUID( uint32_t uuid );
 
     void pruneStaleRXFragments();

@@ -18,7 +18,7 @@
 /* Ripple Includes */
 #include <Ripple/netstack>
 
-namespace Ripple::Fragment
+namespace Ripple::TMPFragment
 {
   /*-------------------------------------------------------------------------------
   Fragment Actions
@@ -65,7 +65,7 @@ namespace Ripple::Fragment
       return nullptr;
     }
 
-    const size_t allocationSize = Fragment::memoryConsumption( head );
+    const size_t allocationSize = TMPFragment::memoryConsumption( head );
     if ( allocationSize > size )
     {
       return nullptr;
@@ -117,32 +117,6 @@ namespace Ripple::Fragment
     return newRootPtr;
   }
 
-  bool copyPayloadToBuffer( const MsgFrag *const head, void *const buffer, const size_t size )
-  {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !head || !buffer || !size )
-    {
-      return false;
-    }
-
-    /*-------------------------------------------------
-    Copy the data over
-    -------------------------------------------------*/
-    const MsgFrag * fragPtr = head;
-    size_t offset = 0;
-
-    while( fragPtr && ( offset < size ) )
-    {
-      memcpy( reinterpret_cast<uint8_t *const>( buffer ) + offset, fragPtr->fragmentData, fragPtr->fragmentLength );
-      offset += fragPtr->fragmentLength;
-      fragPtr = fragPtr->next;
-    }
-
-    return ( !fragPtr && ( offset <= size ) );
-  }
-
 
   /*-------------------------------------------------------------------------------
   Fragment Information
@@ -160,7 +134,7 @@ namespace Ripple::Fragment
     /*-------------------------------------------------
     Input Protections
     -------------------------------------------------*/
-    if ( !fragment || !Fragment::isValid( fragment ) )
+    if ( !fragment || !TMPFragment::isValid( fragment ) )
     {
       return 0;
     }
@@ -335,7 +309,7 @@ namespace Ripple::Fragment
     /*-------------------------------------------------
     Input Protection
     -------------------------------------------------*/
-    if ( !Fragment::isValid( head ) )
+    if ( !TMPFragment::isValid( head ) )
     {
       LOG_ERROR( "Cannot print invalid packet\r\n" );
       return;

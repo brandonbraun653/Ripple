@@ -139,7 +139,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   }
 
 
-  Chimera::Status_t DataLink::recv( MsgFrag **fragmentList )
+  Chimera::Status_t DataLink::recv( Fragment_sPtr &fragmentList )
   {
     /*-------------------------------------------------
     Input Protection
@@ -152,83 +152,83 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Is the RX queue empty?
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard queueLock( mRXMutex );
-    if ( mRXQueue.empty() )
-    {
-      return Chimera::Status::EMPTY;
-    }
+    // Chimera::Thread::LockGuard queueLock( mRXMutex );
+    // if ( mRXQueue.empty() )
+    // {
+    //   return Chimera::Status::EMPTY;
+    // }
 
-    /*-------------------------------------------------
-    Pull out each packet and assemble into a list
-    -------------------------------------------------*/
-    Chimera::Thread::LockGuard contextLock( *mContext );
+    // /*-------------------------------------------------
+    // Pull out each packet and assemble into a list
+    // -------------------------------------------------*/
+    // Chimera::Thread::LockGuard contextLock( *mContext );
 
-    MsgFrag *rootMsg = nullptr;
+    // MsgFrag *rootMsg = nullptr;
 
-    while ( !mRXQueue.empty() )
-    {
-      /*-------------------------------------------------
-      Make sure enough memory exists to allocate
-      -------------------------------------------------*/
-      Frame &tmpFrame = mRXQueue.front();
-      mRXQueue.pop();
+    // while ( !mRXQueue.empty() )
+    // {
+    //   /*-------------------------------------------------
+    //   Make sure enough memory exists to allocate
+    //   -------------------------------------------------*/
+    //   Frame &tmpFrame = mRXQueue.front();
+    //   mRXQueue.pop();
 
-      const size_t freeMem = mContext->availableMemory();
-      const size_t needMem = sizeof( MsgFrag ) + tmpFrame.wireData.control.dataLength;
+    //   const size_t freeMem = mContext->availableMemory();
+    //   const size_t needMem = sizeof( MsgFrag ) + tmpFrame.wireData.control.dataLength;
 
-      if ( freeMem < needMem )
-      {
-        return Chimera::Status::MEMORY;
-      }
+    //   if ( freeMem < needMem )
+    //   {
+    //     return Chimera::Status::MEMORY;
+    //   }
 
-      /*-------------------------------------------------
-      Allocate the new fragment
-      -------------------------------------------------*/
-      uint8_t *pool      = reinterpret_cast<uint8_t *>( mContext->malloc( needMem ) );
-      const auto endAddr = reinterpret_cast<std::uintptr_t>( pool ) + needMem;
+    //   /*-------------------------------------------------
+    //   Allocate the new fragment
+    //   -------------------------------------------------*/
+    //   uint8_t *pool      = reinterpret_cast<uint8_t *>( mContext->malloc( needMem ) );
+    //   const auto endAddr = reinterpret_cast<std::uintptr_t>( pool ) + needMem;
 
-      MsgFrag *newFrag = new ( pool ) MsgFrag();
-      pool += sizeof( MsgFrag );
+    //   MsgFrag *newFrag = new ( pool ) MsgFrag();
+    //   pool += sizeof( MsgFrag );
 
-      /*-------------------------------------------------
-      Copy in fragment fields
-      -------------------------------------------------*/
-      newFrag->fragmentData   = pool;
-      newFrag->fragmentLength = tmpFrame.wireData.control.dataLength;
-      newFrag->fragmentNumber = tmpFrame.wireData.control.frameNumber;
-      newFrag->totalLength    = tmpFrame.wireData.control.totalLength;
-      newFrag->uuid           = tmpFrame.wireData.control.uuid;
+    //   /*-------------------------------------------------
+    //   Copy in fragment fields
+    //   -------------------------------------------------*/
+    //   newFrag->fragmentData   = pool;
+    //   newFrag->fragmentLength = tmpFrame.wireData.control.dataLength;
+    //   newFrag->fragmentNumber = tmpFrame.wireData.control.frameNumber;
+    //   newFrag->totalLength    = tmpFrame.wireData.control.totalLength;
+    //   newFrag->uuid           = tmpFrame.wireData.control.uuid;
 
-      tmpFrame.readUserData( newFrag->fragmentData, newFrag->fragmentLength );
-      pool += newFrag->fragmentLength;
+    //   tmpFrame.readUserData( newFrag->fragmentData, newFrag->fragmentLength );
+    //   pool += newFrag->fragmentLength;
 
-      RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) == endAddr );
+    //   RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) == endAddr );
 
-      /*-------------------------------------------------
-      Link the fragments
-      -------------------------------------------------*/
-      if ( !rootMsg )
-      {
-        newFrag->next = nullptr;
-        rootMsg       = newFrag;
-      }
-      else
-      {
-        MsgFrag *prevRoot = rootMsg;
-        rootMsg           = newFrag;
-        rootMsg->next     = prevRoot;
-      }
-    }
+    //   /*-------------------------------------------------
+    //   Link the fragments
+    //   -------------------------------------------------*/
+    //   if ( !rootMsg )
+    //   {
+    //     newFrag->next = nullptr;
+    //     rootMsg       = newFrag;
+    //   }
+    //   else
+    //   {
+    //     MsgFrag *prevRoot = rootMsg;
+    //     rootMsg           = newFrag;
+    //     rootMsg->next     = prevRoot;
+    //   }
+    // }
 
-    /*-------------------------------------------------
-    Clean up the queue and return
-    -------------------------------------------------*/
-    *fragmentList = rootMsg;
+    // /*-------------------------------------------------
+    // Clean up the queue and return
+    // -------------------------------------------------*/
+    // *fragmentList = rootMsg;
     return Chimera::Status::READY;
   }
 
 
-  Chimera::Status_t DataLink::send( const MsgFrag *const msg, const IPAddress &ip )
+  Chimera::Status_t DataLink::send( const Fragment_sPtr msg, const IPAddress &ip )
   {
     /*-------------------------------------------------
     Input Protections
@@ -238,74 +238,74 @@ namespace Ripple::NetIf::NRF24::DataLink
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
 
-    const MsgFrag *fragPtr = msg;
+    // const MsgFrag *fragPtr = msg;
 
-    /*-------------------------------------------------
-    Are there enough slots in the TX queue to allow for
-    transmitting the entire packet? Can the TX data
-    structure even handle this many fragments?
-    -------------------------------------------------*/
-    Chimera::Thread::LockGuard txLock( mTXMutex );
+    // /*-------------------------------------------------
+    // Are there enough slots in the TX queue to allow for
+    // transmitting the entire packet? Can the TX data
+    // structure even handle this many fragments?
+    // -------------------------------------------------*/
+    // Chimera::Thread::LockGuard txLock( mTXMutex );
 
-    if ( msg->totalFragments > mTXQueue.available() )
-    {
-      mPhyHandle.txQueueOverflows++;
-      mCBService_registry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
-      return Chimera::Status::FULL;
-    }
-    else if ( msg->totalFragments > this->maxNumFragments() )
-    {
-      return Chimera::Status::INVAL_FUNC_PARAM;
-    }
+    // if ( msg->totalFragments > mTXQueue.available() )
+    // {
+    //   mPhyHandle.txQueueOverflows++;
+    //   mCBService_registry.call<CallbackId::CB_ERROR_TX_QUEUE_FULL>();
+    //   return Chimera::Status::FULL;
+    // }
+    // else if ( msg->totalFragments > this->maxNumFragments() )
+    // {
+    //   return Chimera::Status::INVAL_FUNC_PARAM;
+    // }
 
-    /*-------------------------------------------------
-    Construct the NRF24 data link layer packets
-    -------------------------------------------------*/
-    while ( fragPtr )
-    {
-      /*-------------------------------------------------
-      Check the incoming data for validity. Fragmented
-      messages must not exceed a certain number.
-      -------------------------------------------------*/
-      if ( !fragPtr->fragmentData || ( fragPtr->fragmentLength > sizeof( PackedFrame::userData ) ) )
-      {
-        return Chimera::Status::MEMORY;
-      }
+    // /*-------------------------------------------------
+    // Construct the NRF24 data link layer packets
+    // -------------------------------------------------*/
+    // while ( fragPtr )
+    // {
+    //   /*-------------------------------------------------
+    //   Check the incoming data for validity. Fragmented
+    //   messages must not exceed a certain number.
+    //   -------------------------------------------------*/
+    //   if ( !fragPtr->fragmentData || ( fragPtr->fragmentLength > sizeof( PackedFrame::userData ) ) )
+    //   {
+    //     return Chimera::Status::MEMORY;
+    //   }
 
-      /*-------------------------------------------------
-      Build up the raw frame information
-      -------------------------------------------------*/
-      Frame tmpFrame;
+    //   /*-------------------------------------------------
+    //   Build up the raw frame information
+    //   -------------------------------------------------*/
+    //   Frame tmpFrame;
 
-      /* Some high level packet parameters */
-      tmpFrame.nextHop      = ip;
-      tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
-      tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
-      tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
+    //   /* Some high level packet parameters */
+    //   tmpFrame.nextHop      = ip;
+    //   tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
+    //   tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
+    //   tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
 
-      /* Set packet control parameters */
-      memset( &tmpFrame.wireData, 0, sizeof( PackedFrame ) );
-      tmpFrame.wireData.control.multicast   = false;
-      tmpFrame.wireData.control.requireACK  = true;
-      tmpFrame.wireData.control.frameNumber = static_cast<uint8_t>( fragPtr->fragmentNumber );
-      tmpFrame.wireData.control.totalLength = static_cast<uint8_t>( fragPtr->totalLength );
-      tmpFrame.wireData.control.endpoint    = Endpoint::EP_APPLICATION_DATA_0;
-      tmpFrame.wireData.control.uuid        = fragPtr->uuid;
+    //   /* Set packet control parameters */
+    //   memset( &tmpFrame.wireData, 0, sizeof( PackedFrame ) );
+    //   tmpFrame.wireData.control.multicast   = false;
+    //   tmpFrame.wireData.control.requireACK  = true;
+    //   tmpFrame.wireData.control.frameNumber = static_cast<uint8_t>( fragPtr->fragmentNumber );
+    //   tmpFrame.wireData.control.totalLength = static_cast<uint8_t>( fragPtr->totalLength );
+    //   tmpFrame.wireData.control.endpoint    = Endpoint::EP_APPLICATION_DATA_0;
+    //   tmpFrame.wireData.control.uuid        = fragPtr->uuid;
 
-      /* Copy in the data */
-      tmpFrame.writeUserData( fragPtr->fragmentData, fragPtr->fragmentLength );
+    //   /* Copy in the data */
+    //   tmpFrame.writeUserData( fragPtr->fragmentData, fragPtr->fragmentLength );
 
-      /*-------------------------------------------------
-      Enqueue and clean up
-      -------------------------------------------------*/
-      mTXQueue.push( tmpFrame );
-      fragPtr = fragPtr->next;
-    }
+    //   /*-------------------------------------------------
+    //   Enqueue and clean up
+    //   -------------------------------------------------*/
+    //   mTXQueue.push( tmpFrame );
+    //   fragPtr = fragPtr->next;
+    // }
 
-    /*-------------------------------------------------
-    Free the memory since this layer is done with it
-    -------------------------------------------------*/
-    mContext->free( ( void * )msg );
+    // /*-------------------------------------------------
+    // Free the memory since this layer is done with it
+    // -------------------------------------------------*/
+    // mContext->free( ( void * )msg );
     return Chimera::Status::READY;
   }
 

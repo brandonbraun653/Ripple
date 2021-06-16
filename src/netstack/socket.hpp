@@ -141,8 +141,8 @@ namespace Ripple
     size_t allocMem;    /**< Currently allocated memory */
 
     bool mTXReady;
-    etl::queue<MsgFrag*, 5> mTXQueue;
-    etl::queue<MsgFrag*, 5> mRXQueue;
+    PacketQueue<5> mTXQueue;
+    PacketQueue<5> mRXQueue;
     Chimera::Thread::RecursiveMutex *mLock;
 
     Port      mThisPort;    /**< Port of this socket */

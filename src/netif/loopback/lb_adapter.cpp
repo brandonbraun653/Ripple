@@ -90,7 +90,7 @@ namespace Ripple::NetIf::Loopback
   }
 
 
-  Chimera::Status_t Adapter::recv( MsgFrag ** fragmentList )
+  Chimera::Status_t Adapter::recv( Fragment_sPtr &fragmentList )
   {
     Chimera::Thread::LockGuard lck( *mLock );
 
@@ -102,67 +102,17 @@ namespace Ripple::NetIf::Loopback
       return Chimera::Status::EMPTY;
     }
 
-    *fragmentList = mPacketQueue.front();
-    mPacketQueue.pop();
-
-    // /*-------------------------------------------------
-    // Dump all remaining data to a local array
-    // -------------------------------------------------*/
-    // std::array<MsgFrag, LB_QUEUE_DEPTH> tmpArray;
-    // int cnt = 0;
-
-    // while( !mPacketQueue.empty() )
-    // {
-    //   tmpArray[ cnt ] = mPacketQueue.front();
-    //   mPacketQueue.pop();
-    //   cnt++;
-    // }
-
-    // /*-------------------------------------------------
-    // Re-shuffle the order of the packets for a naive
-    // simulation of complex network data arrival timing.
-    // -------------------------------------------------*/
-    // while( cnt > 0 )
-    // {
-    //   int nextChoice = rand() % cnt;
-    //   RT_HARD_ASSERT( ( nextChoice >= 0 ) && ( nextChoice < LB_QUEUE_DEPTH ) );
-
-    //   mPacketQueue.push( tmpArray[ nextChoice ] );
-    //   tmpArray[ nextChoice ] = {};
-
-    //   cnt--;
-    // }
-
+    mPacketQueue.pop_into( fragmentList );
     return Chimera::Status::READY;
   }
 
 
-  Chimera::Status_t Adapter::send( const MsgFrag *const msg, const IPAddress &ip )
+  Chimera::Status_t Adapter::send( const Fragment_sPtr msg, const IPAddress &ip )
   {
     Chimera::Thread::LockGuard lck( *mLock );
 
-    /*-------------------------------------------------
-    Simulate moving memory into the ether and TX-ing
-    -------------------------------------------------*/
-    size_t allocationSize = Fragment::memoryConsumption( msg );
-    void *buffer = mContext->malloc( allocationSize );
-
-    MsgFrag * copiedMessage = Fragment::copyToBuffer( msg, buffer, allocationSize );
-
-    /*-------------------------------------------------
-    Push all messages into the queue
-    -------------------------------------------------*/
-    if( copiedMessage )
-    {
-      mPacketQueue.push( copiedMessage );
-      mContext->free( ( void * )( msg ) );
-
-      return Chimera::Status::OK;
-    }
-    else
-    {
-      return Chimera::Status::MEMORY;
-    }
+    mPacketQueue.push( msg );
+    return Chimera::Status::OK;
   }
 
 

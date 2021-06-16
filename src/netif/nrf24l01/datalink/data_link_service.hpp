@@ -53,8 +53,8 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------------------------------------*/
     bool powerUp( void * context ) final override;
     void powerDn() final override;
-    Chimera::Status_t recv( MsgFrag ** fragmentList ) final override;
-    Chimera::Status_t send( const MsgFrag *const msg, const IPAddress &ip ) final override;
+    Chimera::Status_t recv( Fragment_sPtr &fragmentList ) final override;
+    Chimera::Status_t send( const Fragment_sPtr msg, const IPAddress &ip ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t maxNumFragments() const final override;

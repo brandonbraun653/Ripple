@@ -14,6 +14,7 @@
 
 /* ETL Includes */
 #include <etl/map.h>
+#include <etl/queue.h>
 
 /* Chimera Includes */
 #include <Chimera/thread>
@@ -50,8 +51,8 @@ namespace Ripple::NetIf::Loopback
     -------------------------------------------------------------------------------*/
     bool powerUp( void * context ) final override;
     void powerDn() final override;
-    Chimera::Status_t recv( MsgFrag ** fragmentList ) final override;
-    Chimera::Status_t send( const MsgFrag *const head, const IPAddress &ip ) final override;
+    Chimera::Status_t recv( Fragment_sPtr &fragmentList ) final override;
+    Chimera::Status_t send( const Fragment_sPtr head, const IPAddress &ip ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t maxNumFragments() const final override;
@@ -69,7 +70,7 @@ namespace Ripple::NetIf::Loopback
   private:
     Context_rPtr mContext;
     etl::map<IPAddress, uint64_t, 32> mAddressCache;
-    etl::queue<MsgFrag *, LB_QUEUE_DEPTH> mPacketQueue;
+    etl::queue<Fragment_sPtr, LB_QUEUE_DEPTH> mPacketQueue;
     Chimera::Thread::RecursiveMutex *mLock;
   };
 

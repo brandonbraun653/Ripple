@@ -15,7 +15,7 @@
 /* Ripple Includes */
 #include <Ripple/src/netstack/types.hpp>
 
-namespace Ripple::Fragment
+namespace Ripple::TMPFragment
 {
   /*-------------------------------------------------------------------------------
   Public Functions

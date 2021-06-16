@@ -11,7 +11,7 @@
 /* Ripple Includes */
 #include <Ripple/netstack>
 
-namespace Ripple::Fragment
+namespace Ripple::TMPFragment
 {
   /*-------------------------------------------------------------------------------
   Static Declarations

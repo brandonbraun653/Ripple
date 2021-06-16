@@ -27,6 +27,9 @@
 /* Chimera Includes */
 #include <Chimera/callback>
 
+/* Ripple Includes */
+#include <Ripple/src/shared/cmn_types.hpp>
+
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------

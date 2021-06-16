@@ -170,7 +170,7 @@ namespace Ripple
     /*-------------------------------------------------
     Initialize the fragment assembly workspace
     -------------------------------------------------*/
-    for ( auto &assemblyItem : mFragAssembly )
+    for ( auto &assemblyItem : mPacketAssembly )
     {
       assemblyItem.second.inProgress = false;
     }
@@ -248,10 +248,10 @@ namespace Ripple
         continue;
       }
 
-      MsgFrag *msg = nullptr;
+      Packet_sPtr msg;
       ( *sock )->mTXQueue.pop_into( msg );
 
-      if ( !Fragment::isValid( msg ) )
+      if ( !msg->isValid() )
       {
         continue;
       }
@@ -259,7 +259,7 @@ namespace Ripple
       /*-------------------------------------------------
       Move the data into the network interface
       -------------------------------------------------*/
-      auto sts = mNetIf->send( msg, ( *sock )->mDestAddress );
+      auto sts = mNetIf->send( msg->head, ( *sock )->mDestAddress );
 
       /*-------------------------------------------------
       Update transmit status
@@ -267,27 +267,7 @@ namespace Ripple
       ( *sock )->mTXReady = false;
       if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
       {
-        this->free( msg );
         LOG_DEBUG( "Failed TX to netif\r\n" );
-      }
-    }
-  }
-
-
-  void Context::freePacket( MsgFrag *const packet )
-  {
-    Chimera::Thread::LockGuard lck( *this );
-
-    /*-------------------------------------------------
-    Find the assembly associated with this packet and
-    mark it for removal.
-    -------------------------------------------------*/
-    for ( auto &assemblyItem : mFragAssembly )
-    {
-      if ( assemblyItem.second.fragment == packet )
-      {
-        assemblyItem.second.remove = true;
-        break;
       }
     }
   }
@@ -349,10 +329,10 @@ namespace Ripple
     /*-------------------------------------------------
     Iterate over all the current assembly operations
     -------------------------------------------------*/
-    for ( auto &assemblyItem : mFragAssembly )
+    for ( auto &assemblyItem : mPacketAssembly )
     {
-      FragAssem *const assembly = &assemblyItem.second;
-      const uint32_t uuid       = assemblyItem.first;
+      PacketAssemblyCB *const assembly = &assemblyItem.second;
+      const uint32_t uuid              = assemblyItem.first;
 
       /*-------------------------------------------------
       Mark for removal if explicitly told to or if the
@@ -377,11 +357,10 @@ namespace Ripple
     -------------------------------------------------*/
     for ( size_t idx = 0; idx < removeIdx; idx++ )
     {
-      auto iter = mFragAssembly.find( uuidToRemove[ idx ] );
-      if ( iter != mFragAssembly.end() )
+      auto iter = mPacketAssembly.find( uuidToRemove[ idx ] );
+      if ( iter != mPacketAssembly.end() )
       {
-        this->free( iter->second.fragment );
-        mFragAssembly.erase( iter );
+        mPacketAssembly.erase( iter );
       }
     }
 
@@ -394,16 +373,16 @@ namespace Ripple
     /*-------------------------------------------------
     Iterate over each possible assembly task
     -------------------------------------------------*/
-    for ( auto &assemblyItem : mFragAssembly )
+    for ( auto &assemblyItem : mPacketAssembly )
     {
-      FragAssem *const assembly = &assemblyItem.second;
+      PacketAssemblyCB *const assembly = &assemblyItem.second;
       const uint32_t uuid       = assemblyItem.first;
 
       /*-------------------------------------------------
       Is this item not assembling anything or not all
       bytes have been received?
       -------------------------------------------------*/
-      if ( !assembly->inProgress || ( assembly->bytesRcvd < assembly->fragment->totalLength ) )
+      if ( !assembly->inProgress || ( assembly->bytesRcvd < assembly->packet->maxSize() ) )
       {
         continue;
       }
@@ -411,7 +390,7 @@ namespace Ripple
       /*-------------------------------------------------
       Too many bytes received?
       -------------------------------------------------*/
-      if ( assembly->bytesRcvd > assembly->fragment->totalLength )
+      if ( assembly->bytesRcvd > assembly->packet->maxSize() )
       {
         LOG_ERROR( "Packet overrun!\r\n" );
         assembly->inProgress = false;
@@ -423,13 +402,12 @@ namespace Ripple
       All bytes received. Sort the packets, erasing them
       if the packet doesn't have the proper structure.
       -------------------------------------------------*/
-      RT_HARD_ASSERT( assembly->bytesRcvd == assembly->fragment->totalLength );
+      RT_HARD_ASSERT( assembly->bytesRcvd == assembly->packet->maxSize() );
       assembly->inProgress = false;
 
-      Fragment::sort( &assembly->fragment );
-
-      if ( !( assembly->fragment->fragmentNumber == 0 ) ||
-           !( assembly->fragment->fragmentLength == sizeof( TransportHeader ) ) )
+      assembly->packet->sort();
+      if ( !( assembly->packet->head->number == 0 ) ||
+           !( assembly->packet->head->length == sizeof( TransportHeader ) ) )
       {
         LOG_ERROR( "Fragment sorting error or packet corruption!\r\n" );
         assembly->remove = true;
@@ -440,7 +418,7 @@ namespace Ripple
       Find the socket associated with the UUID and push
       the message into its receive queue.
       -------------------------------------------------*/
-      auto *header = reinterpret_cast<TransportHeader *>( assembly->fragment->fragmentData );
+      auto *header = reinterpret_cast<TransportHeader *>( assembly->packet->head->data.get() );
 
       for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
       {
@@ -472,12 +450,12 @@ namespace Ripple
           /*-------------------------------------------------
           Validate the CRC is correct
           -------------------------------------------------*/
-          auto calc_crc = Fragment::calcCRC32( assembly->fragment );
-          auto real_crc = Fragment::readCRC32( assembly->fragment );
+          auto calc_crc = assembly->packet->calcCRC();
+          auto real_crc = assembly->packet->readCRC();
 
           if( calc_crc != real_crc )
           {
-            LOG_ERROR( "CRC32 does not match in packet %d on port %d\r\n", assembly->fragment->uuid, ( *sock )->port() );
+            LOG_ERROR( "CRC32 does not match in packet %d on port %d\r\n", assembly->packet->getUUID(), ( *sock )->port() );
             assembly->remove = true;
             break;
           }
@@ -486,7 +464,7 @@ namespace Ripple
           Push the root fragment into the queue, effectively
           informing the socket of the entire ordered packet.
           -------------------------------------------------*/
-          ( *sock )->mRXQueue.push( assembly->fragment );
+          ( *sock )->mRXQueue.push( assembly->packet );
           LOG_DEBUG( "Received packet on port %d\r\n", ( *sock )->port() );
           break;
         }
@@ -497,7 +475,7 @@ namespace Ripple
 
   void Context::acquireFragments()
   {
-    MsgFrag *list;
+    Fragment_sPtr list;
     auto state = Chimera::Status::READY;
 
     while ( state == Chimera::Status::READY )
@@ -505,10 +483,10 @@ namespace Ripple
       /*-------------------------------------------------
       Try to receive a message
       -------------------------------------------------*/
-      list  = nullptr;
-      state = mNetIf->recv( &list );
+      list = Fragment_sPtr();
+      state = mNetIf->recv( list );
 
-      if ( ( state != Chimera::Status::READY ) || ( list == nullptr ) )
+      if ( ( state != Chimera::Status::READY ) || !list )
       {
         continue;
       }
@@ -522,26 +500,25 @@ namespace Ripple
         /*-------------------------------------------------
         Cache the next item in the list for later.
         -------------------------------------------------*/
-        MsgFrag *nextFragment = list->next;
-        list->next            = nullptr;
+        Fragment_sPtr nextFragment = list->next;
+        list->next                 = Fragment_sPtr();
 
         /*-------------------------------------------------
         Does the fragment UUID exist in the assembly area?
         -------------------------------------------------*/
-        auto iter = mFragAssembly.find( list->uuid );
-        if ( iter != mFragAssembly.end() )
+        auto iter = mPacketAssembly.find( list->uuid );
+        if ( iter != mPacketAssembly.end() )
         {
           /*-------------------------------------------------
           Does this packet already exist in the assembly?
           -------------------------------------------------*/
-          MsgFrag *frag    = iter->second.fragment;
-          bool isDuplicate = false;
+          Fragment_sPtr frag = iter->second.packet->head;
+          bool isDuplicate   = false;
           while( frag )
           {
-            if( list->fragmentNumber == frag->fragmentNumber )
+            if( list->number == frag->number )
             {
               isDuplicate = true;
-              this->free( list );
               break;
             }
 
@@ -555,20 +532,20 @@ namespace Ripple
           -------------------------------------------------*/
           if( !isDuplicate )
           {
-            MsgFrag *prevAssemblyFragPtr = iter->second.fragment;
+            Fragment_sPtr prevAssemblyFragPtr = iter->second.packet->head;
 
-            iter->second.fragment         = list;
-            iter->second.fragment->next   = prevAssemblyFragPtr;
-            iter->second.bytesRcvd += list->fragmentLength;
+            iter->second.packet->head         = list;
+            iter->second.packet->head->next   = prevAssemblyFragPtr;
+            iter->second.bytesRcvd += list->length;
           }
         }
-        else if ( !mFragAssembly.full() )
+        else if ( !mPacketAssembly.full() )
         {
-          FragAssem newAssembly;
+          PacketAssemblyCB newAssembly;
           newAssembly.inProgress       = true;
           newAssembly.remove           = false;
-          newAssembly.bytesRcvd        = list->fragmentLength;
-          newAssembly.fragment         = list;
+          newAssembly.bytesRcvd        = list->length;
+          newAssembly.packet->head     = list;
           newAssembly.startRxTime      = Chimera::millis();
           newAssembly.lastTimeoutCheck = newAssembly.startRxTime;
           newAssembly.timeout          = 500 * Chimera::Thread::TIMEOUT_1MS;
@@ -576,9 +553,8 @@ namespace Ripple
           /*-------------------------------------------------
           First item in the list. Ensure it's terminated.
           -------------------------------------------------*/
-          newAssembly.fragment->next = nullptr;
-
-          mFragAssembly.insert( { list->uuid, newAssembly } );
+          newAssembly.packet->head->next = Fragment_sPtr();
+          mPacketAssembly.insert( { list->uuid, newAssembly } );
         }
         else
         {

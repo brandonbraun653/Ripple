@@ -1,5 +1,6 @@
 include("${COMMON_TOOL_ROOT}/cmake/utility/embedded.cmake")
 
+add_subdirectory(packets)
 add_subdirectory(util)
 
 gen_static_lib_variants(
