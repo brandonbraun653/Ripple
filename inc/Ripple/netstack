@@ -16,7 +16,5 @@
 #include <Ripple/src/netstack/packets/fragment.hpp>
 #include <Ripple/src/netstack/socket.hpp>
 #include <Ripple/src/netstack/context.hpp>
-#include <Ripple/src/netstack/util/fragment.hpp>
-
 
 #endif /* !RIPPLE_NET_STACK_INCLUDES */

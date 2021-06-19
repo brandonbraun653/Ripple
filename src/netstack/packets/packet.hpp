@@ -45,7 +45,7 @@ namespace Ripple
   {
     bool inProgress;
     bool remove;
-    RefPtr<Packet> packet;
+    Packet_sPtr packet;
     size_t bytesRcvd;
     size_t startRxTime;
     size_t lastTimeoutCheck;
@@ -75,10 +75,7 @@ namespace Ripple
     /*-------------------------------------------------
     Actions
     -------------------------------------------------*/
-    bool isValid();
     void sort();
-    void updateCRC();
-
     bool pack( const void *const buffer, const size_t size );
     bool unpack( void *const buffer, const size_t size );
 
@@ -86,6 +83,7 @@ namespace Ripple
     Information
     -------------------------------------------------*/
     size_t numFragments();
+
     /**
      * @brief Current size held in the fragment list
      *
@@ -93,14 +91,6 @@ namespace Ripple
      */
     size_t size();
 
-    /**
-     * @brief Expected max size of this packet
-     *
-     * @return size_t
-     */
-    size_t maxSize();
-    uint32_t readCRC();
-    uint32_t calcCRC();
     uint16_t getUUID();
 
     /*-------------------------------------------------
@@ -111,11 +101,18 @@ namespace Ripple
 
     Fragment_sPtr head;
 
-  private:
+  protected:
+    friend Packet_sPtr allocPacket( INetMgr *const context );
+
     INetMgr * mContext;
+    void assignCRC( uint32_t value );
+
+  private:
+
+    size_t mFragmentationSize;
     uint16_t uuid;
     uint16_t totalLength;
-    uint16_t totalFragments;
+    uint16_t mTotalFragments;
 
   };
 

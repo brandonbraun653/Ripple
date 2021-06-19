@@ -251,11 +251,6 @@ namespace Ripple
       Packet_sPtr msg;
       ( *sock )->mTXQueue.pop_into( msg );
 
-      if ( !msg->isValid() )
-      {
-        continue;
-      }
-
       /*-------------------------------------------------
       Move the data into the network interface
       -------------------------------------------------*/
@@ -376,25 +371,14 @@ namespace Ripple
     for ( auto &assemblyItem : mPacketAssembly )
     {
       PacketAssemblyCB *const assembly = &assemblyItem.second;
-      const uint32_t uuid       = assemblyItem.first;
+      const uint32_t uuid              = assemblyItem.first;
 
       /*-------------------------------------------------
       Is this item not assembling anything or not all
       bytes have been received?
       -------------------------------------------------*/
-      if ( !assembly->inProgress || ( assembly->bytesRcvd < assembly->packet->maxSize() ) )
+      if ( !assembly->inProgress /* TODO: || packet is missing fragments */)
       {
-        continue;
-      }
-
-      /*-------------------------------------------------
-      Too many bytes received?
-      -------------------------------------------------*/
-      if ( assembly->bytesRcvd > assembly->packet->maxSize() )
-      {
-        LOG_ERROR( "Packet overrun!\r\n" );
-        assembly->inProgress = false;
-        assembly->remove     = true;
         continue;
       }
 
@@ -402,10 +386,9 @@ namespace Ripple
       All bytes received. Sort the packets, erasing them
       if the packet doesn't have the proper structure.
       -------------------------------------------------*/
-      RT_HARD_ASSERT( assembly->bytesRcvd == assembly->packet->maxSize() );
       assembly->inProgress = false;
-
       assembly->packet->sort();
+
       if ( !( assembly->packet->head->number == 0 ) ||
            !( assembly->packet->head->length == sizeof( TransportHeader ) ) )
       {
@@ -448,19 +431,6 @@ namespace Ripple
           }
 
           /*-------------------------------------------------
-          Validate the CRC is correct
-          -------------------------------------------------*/
-          auto calc_crc = assembly->packet->calcCRC();
-          auto real_crc = assembly->packet->readCRC();
-
-          if( calc_crc != real_crc )
-          {
-            LOG_ERROR( "CRC32 does not match in packet %d on port %d\r\n", assembly->packet->getUUID(), ( *sock )->port() );
-            assembly->remove = true;
-            break;
-          }
-
-          /*-------------------------------------------------
           Push the root fragment into the queue, effectively
           informing the socket of the entire ordered packet.
           -------------------------------------------------*/
@@ -493,7 +463,7 @@ namespace Ripple
 
       /*-------------------------------------------------
       Extract each fragment from the list and push it to
-      it's respective packet assembly area.
+      its respective packet assembly area.
       -------------------------------------------------*/
       while ( list )
       {

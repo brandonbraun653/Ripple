@@ -31,19 +31,19 @@ namespace Ripple::TMPFragment
    */
   void setCRC32( MsgFrag *const head, const uint32_t crc32 )
   {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !head || ( head->fragmentNumber != 0 ) || ( head->fragmentLength != sizeof( TransportHeader ) ) )
-    {
-      return;
-    }
+    // /*-------------------------------------------------
+    // Input Protection
+    // -------------------------------------------------*/
+    // if ( !head || ( head->fragmentNumber != 0 ) || ( head->fragmentLength != sizeof( TransportHeader ) ) )
+    // {
+    //   return;
+    // }
 
-    /*-------------------------------------------------
-    Assign the CRC
-    -------------------------------------------------*/
-    auto hdr = reinterpret_cast<TransportHeader *>( head->fragmentData );
-    hdr->crc = crc32;
+    // /*-------------------------------------------------
+    // Assign the CRC
+    // -------------------------------------------------*/
+    // auto hdr = reinterpret_cast<TransportHeader *>( head->fragmentData );
+    // hdr->crc = crc32;
   }
 
 
@@ -57,64 +57,64 @@ namespace Ripple::TMPFragment
    */
   MsgFrag *copyToBuffer( const MsgFrag *const head, void *const buffer, const size_t size )
   {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !head || !buffer || !size )
-    {
-      return nullptr;
-    }
+    // /*-------------------------------------------------
+    // Input Protection
+    // -------------------------------------------------*/
+    // if ( !head || !buffer || !size )
+    // {
+    //   return nullptr;
+    // }
 
-    const size_t allocationSize = TMPFragment::memoryConsumption( head );
-    if ( allocationSize > size )
-    {
-      return nullptr;
-    }
+    // const size_t allocationSize = TMPFragment::memoryConsumption( head );
+    // if ( allocationSize > size )
+    // {
+    //   return nullptr;
+    // }
 
-    /*-------------------------------------------------
-    Move the data over into the buffer
-    -------------------------------------------------*/
-    const MsgFrag *fragPtr = head;
-    uint8_t *pool          = reinterpret_cast<uint8_t *>( buffer );
-    const auto endAddr     = reinterpret_cast<std::uintptr_t>( pool + allocationSize );
+    // /*-------------------------------------------------
+    // Move the data over into the buffer
+    // -------------------------------------------------*/
+    // const MsgFrag *fragPtr = head;
+    // uint8_t *pool          = reinterpret_cast<uint8_t *>( buffer );
+    // const auto endAddr     = reinterpret_cast<std::uintptr_t>( pool + allocationSize );
 
-    size_t offset   = 0;
-    MsgFrag *newPtr = new ( pool ) MsgFrag();
-    pool += sizeof( MsgFrag );
+    // size_t offset   = 0;
+    // MsgFrag *newPtr = new ( pool ) MsgFrag();
+    // pool += sizeof( MsgFrag );
 
-    MsgFrag *newRootPtr = newPtr;
+    // MsgFrag *newRootPtr = newPtr;
 
-    while ( fragPtr && newPtr )
-    {
-      /*-------------------------------------------------
-      Copy over the fragment meta-data
-      -------------------------------------------------*/
-      *newPtr = *fragPtr;
+    // while ( fragPtr && newPtr )
+    // {
+    //   /*-------------------------------------------------
+    //   Copy over the fragment meta-data
+    //   -------------------------------------------------*/
+    //   *newPtr = *fragPtr;
 
-      /*-------------------------------------------------
-      Copy over the fragment data
-      -------------------------------------------------*/
-      newPtr->fragmentData = pool;
-      memcpy( newPtr->fragmentData, fragPtr->fragmentData, fragPtr->fragmentLength );
-      pool += fragPtr->fragmentLength;
+    //   /*-------------------------------------------------
+    //   Copy over the fragment data
+    //   -------------------------------------------------*/
+    //   newPtr->fragmentData = pool;
+    //   memcpy( newPtr->fragmentData, fragPtr->fragmentData, fragPtr->fragmentLength );
+    //   pool += fragPtr->fragmentLength;
 
-      /*-------------------------------------------------
-      Allocate a new fragment at the end of the list
-      -------------------------------------------------*/
-      if ( fragPtr->next )
-      {
-        MsgFrag *tmpPtr = new ( pool ) MsgFrag();
-        pool += sizeof( MsgFrag );
+    //   /*-------------------------------------------------
+    //   Allocate a new fragment at the end of the list
+    //   -------------------------------------------------*/
+    //   if ( fragPtr->next )
+    //   {
+    //     MsgFrag *tmpPtr = new ( pool ) MsgFrag();
+    //     pool += sizeof( MsgFrag );
 
-        newPtr->next = tmpPtr;
-        newPtr       = newPtr->next;
-      }
+    //     newPtr->next = tmpPtr;
+    //     newPtr       = newPtr->next;
+    //   }
 
-      fragPtr = fragPtr->next;
-    }
+    //   fragPtr = fragPtr->next;
+    // }
 
-    RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) == endAddr );
-    return newRootPtr;
+    // RT_HARD_ASSERT( reinterpret_cast<std::uintptr_t>( pool ) == endAddr );
+    // return newRootPtr;
   }
 
 
@@ -131,40 +131,40 @@ namespace Ripple::TMPFragment
    */
   uint32_t calcCRC32( const MsgFrag *const fragment )
   {
-    /*-------------------------------------------------
-    Input Protections
-    -------------------------------------------------*/
-    if ( !fragment || !TMPFragment::isValid( fragment ) )
-    {
-      return 0;
-    }
+    // /*-------------------------------------------------
+    // Input Protections
+    // -------------------------------------------------*/
+    // if ( !fragment || !TMPFragment::isValid( fragment ) )
+    // {
+    //   return 0;
+    // }
 
-    /*-------------------------------------------------
-    Initialize the CRC generator
-    -------------------------------------------------*/
-    etl::crc32 crc_gen;
-    crc_gen.reset();
+    // /*-------------------------------------------------
+    // Initialize the CRC generator
+    // -------------------------------------------------*/
+    // etl::crc32 crc_gen;
+    // crc_gen.reset();
 
-    /*-------------------------------------------------
-    CRC of the header itself, minus the CRC field
-    -------------------------------------------------*/
-    // auto header = reinterpret_cast<TransportHeader *>( fragment->fragmentData );
+    // /*-------------------------------------------------
+    // CRC of the header itself, minus the CRC field
+    // -------------------------------------------------*/
+    // // auto header = reinterpret_cast<TransportHeader *>( fragment->fragmentData );
 
-    // crc_gen.add( reinterpret_cast<uint8_t *>( &header + sizeof( TransportHeader::crc ) ),
-    //              reinterpret_cast<uint8_t *>( &header + sizeof( header ) ) );
+    // // crc_gen.add( reinterpret_cast<uint8_t *>( &header + sizeof( TransportHeader::crc ) ),
+    // //              reinterpret_cast<uint8_t *>( &header + sizeof( header ) ) );
 
-    /*-------------------------------------------------
-    CRC of all the data payload fields
-    -------------------------------------------------*/
-    auto fragPtr = fragment->next;
-    while ( fragPtr->next )
-    {
-      crc_gen.add( reinterpret_cast<uint8_t *>( fragPtr->fragmentData ),
-                   reinterpret_cast<uint8_t *>( fragPtr->fragmentData ) + fragPtr->fragmentLength );
-      fragPtr = fragPtr->next;
-    }
+    // /*-------------------------------------------------
+    // CRC of all the data payload fields
+    // -------------------------------------------------*/
+    // auto fragPtr = fragment->next;
+    // while ( fragPtr->next )
+    // {
+    //   crc_gen.add( reinterpret_cast<uint8_t *>( fragPtr->fragmentData ),
+    //                reinterpret_cast<uint8_t *>( fragPtr->fragmentData ) + fragPtr->fragmentLength );
+    //   fragPtr = fragPtr->next;
+    // }
 
-    return crc_gen.value();
+    // return crc_gen.value();
   }
 
 
@@ -176,164 +176,20 @@ namespace Ripple::TMPFragment
    */
   uint32_t readCRC32( const MsgFrag *const head )
   {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !head || ( head->fragmentNumber != 0 ) || ( head->fragmentLength != sizeof( TransportHeader ) ) )
-    {
-      return 0;
-    }
+    // /*-------------------------------------------------
+    // Input Protection
+    // -------------------------------------------------*/
+    // if ( !head || ( head->fragmentNumber != 0 ) || ( head->fragmentLength != sizeof( TransportHeader ) ) )
+    // {
+    //   return 0;
+    // }
 
-    /*-------------------------------------------------
-    Read back the CRC data
-    -------------------------------------------------*/
-    auto hdr = reinterpret_cast<TransportHeader *>( head->fragmentData );
-    return hdr->crc;
+    // /*-------------------------------------------------
+    // Read back the CRC data
+    // -------------------------------------------------*/
+    // auto hdr = reinterpret_cast<TransportHeader *>( head->fragmentData );
+    // return hdr->crc;
   }
 
-
-  /**
-   * @brief Validates a fragmented packet has the expected structure
-   *
-   * @param head    Start of the packet
-   * @return true   Packet is valid
-   * @return false  Packet is not valid
-   */
-  bool isValid( const MsgFrag *const head )
-  {
-    /*-------------------------------------------------
-    Input Protections
-    -------------------------------------------------*/
-    if ( !head )
-    {
-      return false;
-    }
-
-    /*-------------------------------------------------
-    Walk each node in the list and verify parameters
-    -------------------------------------------------*/
-    const size_t expectedBytes = head->totalLength;
-    const size_t expectedUUID  = head->uuid;
-
-    size_t currentBytes   = 0;
-    size_t currentIdx     = 0;
-    const MsgFrag *packet = head;
-
-    while ( packet )
-    {
-      /*-------------------------------------------------
-      Packet number is in order?
-      -------------------------------------------------*/
-      if ( packet->fragmentNumber != currentIdx )
-      {
-        return false;
-      }
-      currentIdx++;
-
-      /*-------------------------------------------------
-      Data field is valid?
-      -------------------------------------------------*/
-      if ( !packet->fragmentData )
-      {
-        return false;
-      }
-
-      /*-------------------------------------------------
-      Packet UUID is marked as expected?
-      -------------------------------------------------*/
-      if ( packet->uuid != expectedUUID )
-      {
-        return false;
-      }
-
-      /*-------------------------------------------------
-      Accumulate total number of bytes
-      -------------------------------------------------*/
-      currentBytes += packet->fragmentLength;
-
-      /*-------------------------------------------------
-      Move on to the next packet in the list
-      -------------------------------------------------*/
-      packet = packet->next;
-    }
-
-    /*-------------------------------------------------
-    Total number of accumulated bytes match?
-    -------------------------------------------------*/
-    return ( currentBytes == expectedBytes );
-  }
-
-
-  /**
-   * @brief Deduces the total memory consumption of the packet in bytes
-   *
-   * @param head      Start of the packet
-   * @return size_t
-   */
-  size_t memoryConsumption( const MsgFrag *const head )
-  {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !head )
-    {
-      return 0;
-    }
-
-    /*-------------------------------------------------
-    Walk the list and accumulate bytes
-    -------------------------------------------------*/
-    const MsgFrag *list = head;
-    size_t byteSize     = 0;
-
-    while ( list )
-    {
-      byteSize += sizeof( MsgFrag ) + list->fragmentLength;
-      list = list->next;
-    }
-
-    return byteSize;
-  }
-
-
-  /*-------------------------------------------------------------------------------
-  Debugging Utilities
-  -------------------------------------------------------------------------------*/
-  /**
-   * @brief Prints the data fields of a complete fragmented packet
-   *
-   * @param head      Packet to print
-   */
-  void printPacketData( const MsgFrag *const head )
-  {
-    /*-------------------------------------------------
-    Input Protection
-    -------------------------------------------------*/
-    if ( !TMPFragment::isValid( head ) )
-    {
-      LOG_ERROR( "Cannot print invalid packet\r\n" );
-      return;
-    }
-
-    /*-------------------------------------------------
-    Print out the data
-    -------------------------------------------------*/
-    const MsgFrag *data = head->next;
-
-    char msgBuffer[ 512 ];
-
-    auto bytes = scnprintf( msgBuffer, sizeof( msgBuffer ), "Fragment Data: " );
-    while ( data )
-    {
-      for ( size_t byte = 0; byte < data->fragmentLength; byte++ )
-      {
-        bytes += scnprintf( msgBuffer + bytes, sizeof( msgBuffer ), "0x%02x ",
-                            reinterpret_cast<const uint8_t *>( data->fragmentData )[ byte ] );
-      }
-      data = data->next;
-    }
-
-    LOG_INFO( "%s\r\n", msgBuffer );
-  }
 
 }    // namespace Ripple::Fragment

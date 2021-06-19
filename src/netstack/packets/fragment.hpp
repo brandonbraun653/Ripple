@@ -32,23 +32,24 @@ namespace Ripple
   class Fragment
   {
   public:
-    Fragment();
-
     RefPtr<Fragment> next; /**< Next fragment */
     RefPtr<Fragment> prev; /**< Previous fragment */
     RefPtr<void *> data;   /**< Allocated memory for this fragment */
     uint16_t length;       /**< Length of the current fragment */
     uint16_t number;       /**< Which fragment number this is, zero indexed */
     uint16_t uuid;
-
-  private:
-
   };
 
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
   using Fragment_sPtr = RefPtr<Fragment>;
+
+  /*-------------------------------------------------------------------------------
+  Public Functions
+  -------------------------------------------------------------------------------*/
+  Fragment_sPtr allocFragment( INetMgr *const context, const size_t payload_bytes );
+  void fragmentSort( Fragment_sPtr *headPtr );
 
 }  // namespace Ripple
 

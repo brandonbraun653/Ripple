@@ -13,9 +13,6 @@
 #include <cstdint>
 #include <cstddef>
 
-/* ETL Includes */
-#include <etl/random.h>
-
 /* Aurora Includes */
 #include <Aurora/logging>
 
@@ -28,11 +25,6 @@
 
 namespace Ripple
 {
-  /*-------------------------------------------------------------------------------
-  Static Data
-  -------------------------------------------------------------------------------*/
-  static etl::random_xorshift s_rng;
-
   /*-------------------------------------------------------------------------------
   Socket Class
   -------------------------------------------------------------------------------*/
@@ -66,7 +58,6 @@ namespace Ripple
     /*-------------------------------------------------
     Initialize the socket
     -------------------------------------------------*/
-    s_rng.initialise( Chimera::millis() );
     mThisPort = port;
 
     return Chimera::Status::OK;

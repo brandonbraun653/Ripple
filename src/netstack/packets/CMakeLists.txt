@@ -4,6 +4,7 @@ gen_static_lib_variants(
   TARGET
     ripple_packets
   SOURCES
+    fragment.cpp
     packet.cpp
   PRV_LIBRARIES
     aurora_intf_inc

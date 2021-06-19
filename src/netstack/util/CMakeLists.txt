@@ -5,7 +5,6 @@ gen_static_lib_variants(
     ripple_util
   SOURCES
     fragment_util.cpp
-    fragment_sort.cpp
   PRV_LIBRARIES
     aurora_intf_inc
     chimera_intf_inc

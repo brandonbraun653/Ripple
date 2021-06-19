@@ -12,6 +12,9 @@
 #ifndef RIPPLE_UTIL_MEMORY_HPP
 #define RIPPLE_UTIL_MEMORY_HPP
 
+/* STL Includes */
+#include <type_traits>
+
 /* Chimera Includes */
 #include <Chimera/assert>
 #include <Chimera/thread>
@@ -46,14 +49,28 @@ namespace Ripple
      *
      * @param context   Network memory context to allocate from
      */
-    explicit RefPtr( INetMgr * context ) : mContext( context )
+    explicit RefPtr( INetMgr *const context ) : RefPtr( context, 0 )
+    {
+    }
+
+    /**
+     * @brief Construct a new Ref Ptr object
+     * Allocates enough memory for this object type + whatever data is being
+     * held. Typically used for arrays.
+     *
+     * @param context   Network memory context to allocate from
+     * @param size      Additional bytes to allocate
+     */
+    explicit RefPtr( INetMgr * context, const size_t size ) : mContext( context )
     {
       Chimera::Thread::LockGuard lck( *context );
+
+      const auto total_size = this->size() + size;
 
       /*-------------------------------------------------
       Check to ensure memory requirements are met
       -------------------------------------------------*/
-      if ( context->availableMemory() < this->size() )
+      if ( context->availableMemory() < total_size )
       {
         mPtr      = nullptr;
         mRefCount = nullptr;
@@ -63,8 +80,8 @@ namespace Ripple
       /*-------------------------------------------------
       Allocate memory from the network context
       -------------------------------------------------*/
-      uint8_t *pool                = reinterpret_cast<uint8_t *>( context->malloc( this->size() ) );
-      const auto expected_end_addr = reinterpret_cast<std::uintptr_t>( this->size() );
+      uint8_t *pool                = reinterpret_cast<uint8_t *>( context->malloc( total_size ) );
+      const auto expected_end_addr = reinterpret_cast<std::uintptr_t>( pool ) + total_size;
 
       /*-------------------------------------------------
       Construct the reference counter
@@ -78,6 +95,21 @@ namespace Ripple
       mPtr = new ( pool ) T();
       pool += sizeof( T );
 
+      /*-------------------------------------------------
+      If additional size was specified, assume the object
+      type will hold the remaining bytes.
+      -------------------------------------------------*/
+      if constexpr( std::is_pointer<T>::value )
+      {
+        if ( size )
+        {
+          *mPtr = pool;
+          memset( *mPtr, 0xCC, size );
+
+          pool += size;
+        }
+      }
+
       RT_HARD_ASSERT( expected_end_addr == reinterpret_cast<std::uintptr_t>( pool ) );
     }
 
@@ -88,6 +120,7 @@ namespace Ripple
      */
     RefPtr( const RefPtr<T> &obj )
     {
+      this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
 
@@ -104,11 +137,13 @@ namespace Ripple
      */
     explicit RefPtr( RefPtr<T> &&obj )
     {
+      this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
 
       obj.mPtr      = nullptr;
       obj.mRefCount = nullptr;
+      obj.mContext  = nullptr;
     }
 
     /**
@@ -135,6 +170,7 @@ namespace Ripple
       /*-------------------------------------------------
       Copy in the new data
       -------------------------------------------------*/
+      this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
 
@@ -162,11 +198,13 @@ namespace Ripple
       /*-------------------------------------------------
       Copy in the new data
       -------------------------------------------------*/
+      this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
 
       obj.mPtr      = nullptr;
       obj.mRefCount = nullptr;
+      obj.mContext  = nullptr;
 
       return *this;
     }
@@ -207,28 +245,22 @@ namespace Ripple
       return this->mPtr;
     }
 
-  protected:
-    using CountType = size_t;
-
-    size_t size() const
+    static constexpr size_t size()
     {
       return sizeof( T ) + sizeof( CountType );
     }
+
+  protected:
+    using CountType = size_t;
 
   private:
     INetMgr *mContext;
     CountType *mRefCount;
     T *mPtr;
 
-    /*-------------------------------------------------
-    Double check the data is trivial. This class is
-    really only meant for the most basic structures.
-    -------------------------------------------------*/
-    // static_assert( std::is_trivial<T>::value );
-
     /**
-     * @brief Deallocate
-     *
+     * @brief Handle reference counting on destruction
+     * Can optionally release memory.
      */
     void do_cleanup()
     {
@@ -240,6 +272,9 @@ namespace Ripple
         return;
       }
 
+      /*-------------------------------------------------
+      Decrement the reference count
+      -------------------------------------------------*/
       ( *mRefCount )--;
       if ( *mRefCount != 0 )
       {
@@ -247,14 +282,26 @@ namespace Ripple
       }
 
       /*-------------------------------------------------
-      Deallocate the memory. Must explicitly call the ptr
-      destructor due to creation with placement new.
+      If the type isn't a pointer, there is a non-trivial
+      destructor that needs calling. Type was constructed
+      with placement new, which won't automatically call
+      the destructor on free.
       -------------------------------------------------*/
       RT_HARD_ASSERT( mRefCount && mPtr && mContext );
 
-      mPtr->~T();
+      if constexpr( !std::is_pointer<T>::value )
+      {
+        mPtr->~T();
+      }
+
+      /*-------------------------------------------------
+      The entire packet was allocated in a single block,
+      with mRefCount being the first item. This points to
+      the start of the block and thus is the only item
+      that needs freeing. All other pointers from this
+      class are assigned or allocated with placement new.
+      -------------------------------------------------*/
       mContext->free( mRefCount );
-      mContext->free( mPtr );
     }
   };
 
