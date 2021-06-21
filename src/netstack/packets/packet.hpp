@@ -39,6 +39,11 @@ namespace Ripple
   using Packet_sPtr = RefPtr<Packet>;
 
   /*-------------------------------------------------------------------------------
+  Public Functions
+  -------------------------------------------------------------------------------*/
+  Packet_sPtr allocPacket( INetMgr *const context );
+
+  /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
   struct PacketAssemblyCB
@@ -50,6 +55,40 @@ namespace Ripple
     size_t startRxTime;
     size_t lastTimeoutCheck;
     size_t timeout;
+
+    /**
+     * @brief Default construct a new PacketAssemblyCB
+     */
+    PacketAssemblyCB()
+    {
+      clear();
+    }
+
+    /**
+     * @brief Construct a new PacketAssemblyCB object with memory allocator
+     *
+     * @param context     Memory allocator
+     */
+    PacketAssemblyCB( INetMgr *const context )
+    {
+      clear();
+      packet = allocPacket( context );
+    }
+
+    /**
+     * @brief Resets the assembly to defaults
+     *
+     */
+    void clear()
+    {
+      inProgress       = false;
+      remove           = false;
+      packet           = Packet_sPtr();
+      bytesRcvd        = 0;
+      startRxTime      = 0;
+      lastTimeoutCheck = 0;
+      timeout          = 0;
+    }
   };
 
   /*-------------------------------------------------------------------------------
@@ -77,7 +116,7 @@ namespace Ripple
     -------------------------------------------------*/
     void sort();
     bool pack( const void *const buffer, const size_t size );
-    bool unpack( void *const buffer, const size_t size );
+    bool unpack( void * buffer, const size_t size );
 
     /*-------------------------------------------------
     Information
@@ -104,24 +143,16 @@ namespace Ripple
   protected:
     friend Packet_sPtr allocPacket( INetMgr *const context );
 
-    INetMgr * mContext;
+    INetMgr *mContext;
     void assignCRC( uint32_t value );
 
   private:
-
     size_t mFragmentationSize;
     uint16_t uuid;
     uint16_t totalLength;
     uint16_t mTotalFragments;
-
   };
 
+}    // namespace Ripple
 
-  /*-------------------------------------------------------------------------------
-  Public Functions
-  -------------------------------------------------------------------------------*/
-  Packet_sPtr allocPacket( INetMgr *const context );
-
-}  // namespace Ripple
-
-#endif  /* !RIPPLE_PACKET_HPP */
+#endif /* !RIPPLE_PACKET_HPP */

@@ -56,7 +56,7 @@ namespace Ripple
     /**
      * @brief Construct a new Ref Ptr object
      * Allocates enough memory for this object type + whatever data is being
-     * held. Typically used for arrays.
+     * held. Typically used for arrays, but can hold more complex types too.
      *
      * @param context   Network memory context to allocate from
      * @param size      Additional bytes to allocate
@@ -84,20 +84,22 @@ namespace Ripple
       const auto expected_end_addr = reinterpret_cast<std::uintptr_t>( pool ) + total_size;
 
       /*-------------------------------------------------
-      Construct the reference counter
+      Construct the reference counter. Order important.
+      See do_cleanup() for details.
       -------------------------------------------------*/
       mRefCount = new ( pool ) CountType( 1 );
       pool += sizeof( CountType );
 
       /*-------------------------------------------------
-      Construct the object
+      Construct the underlying object
       -------------------------------------------------*/
       mPtr = new ( pool ) T();
       pool += sizeof( T );
 
       /*-------------------------------------------------
-      If additional size was specified, assume the object
-      type will hold the remaining bytes.
+      If additional size was specified and the underlying
+      type is a pointer, assume that pointer will hold
+      the remaining bytes.
       -------------------------------------------------*/
       if constexpr( std::is_pointer<T>::value )
       {
@@ -110,6 +112,10 @@ namespace Ripple
         }
       }
 
+      /*-------------------------------------------------
+      Make it abundantly clear at runtime if some kind of
+      allocation error occurred.
+      -------------------------------------------------*/
       RT_HARD_ASSERT( expected_end_addr == reinterpret_cast<std::uintptr_t>( pool ) );
     }
 
@@ -162,11 +168,6 @@ namespace Ripple
      */
     RefPtr<T> &operator=( const RefPtr<T> &obj )
     {
-      /*-------------------------------------------------
-      Clean up existing data
-      -------------------------------------------------*/
-      do_cleanup();
-
       /*-------------------------------------------------
       Copy in the new data
       -------------------------------------------------*/
@@ -240,11 +241,21 @@ namespace Ripple
       return mContext && mRefCount && mPtr;
     }
 
+    /**
+     * @brief Returns pointer to underlying data
+     *
+     * @return T*
+     */
     T * get() const
     {
       return this->mPtr;
     }
 
+    /**
+     * @brief Returns the total size of the object and managed data
+     *
+     * @return constexpr size_t
+     */
     static constexpr size_t size()
     {
       return sizeof( T ) + sizeof( CountType );
@@ -281,14 +292,15 @@ namespace Ripple
         return;
       }
 
+      /* By this point, all references need to be valid */
+      RT_HARD_ASSERT( mRefCount && mPtr && mContext );
+
       /*-------------------------------------------------
       If the type isn't a pointer, there is a non-trivial
       destructor that needs calling. Type was constructed
       with placement new, which won't automatically call
       the destructor on free.
       -------------------------------------------------*/
-      RT_HARD_ASSERT( mRefCount && mPtr && mContext );
-
       if constexpr( !std::is_pointer<T>::value )
       {
         mPtr->~T();

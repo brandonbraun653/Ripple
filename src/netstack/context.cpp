@@ -389,11 +389,16 @@ namespace Ripple
       assembly->inProgress = false;
       assembly->packet->sort();
 
-      if ( !( assembly->packet->head->number == 0 ) ||
-           !( assembly->packet->head->length == sizeof( TransportHeader ) ) )
+      assembly->packet->printPayload();
+
+      /*-------------------------------------------------
+      Double check the first fragment is large enough to
+      contain the header.
+      -------------------------------------------------*/
+      if ( ( assembly->packet->head->number != 0 ) || ( assembly->packet->head->length < sizeof( TransportHeader ) ) )
       {
-        LOG_ERROR( "Fragment sorting error or packet corruption!\r\n" );
         assembly->remove = true;
+        LOG_ERROR( "Invalid fragment header\r\n" );
         continue;
       }
 
@@ -401,7 +406,8 @@ namespace Ripple
       Find the socket associated with the UUID and push
       the message into its receive queue.
       -------------------------------------------------*/
-      auto *header = reinterpret_cast<TransportHeader *>( assembly->packet->head->data.get() );
+      void **raw_data = assembly->packet->head->data.get();
+      auto header = reinterpret_cast<TransportHeader *>( *raw_data );
 
       for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
       {
@@ -435,6 +441,7 @@ namespace Ripple
           informing the socket of the entire ordered packet.
           -------------------------------------------------*/
           ( *sock )->mRXQueue.push( assembly->packet );
+          assembly->remove = true;
           LOG_DEBUG( "Received packet on port %d\r\n", ( *sock )->port() );
           break;
         }
@@ -511,7 +518,8 @@ namespace Ripple
         }
         else if ( !mPacketAssembly.full() )
         {
-          PacketAssemblyCB newAssembly;
+          PacketAssemblyCB newAssembly( this );
+
           newAssembly.inProgress       = true;
           newAssembly.remove           = false;
           newAssembly.bytesRcvd        = list->length;

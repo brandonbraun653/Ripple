@@ -181,7 +181,7 @@ namespace Ripple
   }
 
 
-  bool Packet::unpack( void *const buffer, const size_t size )
+  bool Packet::unpack( void * buffer, const size_t size )
   {
     /*-------------------------------------------------
     Input Protection
@@ -200,8 +200,10 @@ namespace Ripple
     while( fragPtr && ( offset < size ) )
     {
       void **data_ptr = fragPtr->data.get();
+      uint8_t *dest   = reinterpret_cast<uint8_t *>( buffer ) + offset;
 
-      memcpy( reinterpret_cast<uint8_t *const>( buffer ) + offset, *( data_ptr ), fragPtr->length );
+      memcpy( dest, *( data_ptr ), fragPtr->length );
+
       offset += fragPtr->length;
       fragPtr = fragPtr->next;
     }
@@ -234,13 +236,13 @@ namespace Ripple
     /*-------------------------------------------------
     Walk the list and accumulate bytes
     -------------------------------------------------*/
-    Fragment_sPtr list = head;
+    Fragment_sPtr fragPtr = head;
     size_t byteSize     = 0;
 
-    while ( list )
+    while ( fragPtr )
     {
-      byteSize += sizeof( MsgFrag ) + list->length;
-      list = list->next;
+      byteSize += fragPtr->length;
+      fragPtr = fragPtr->next;
     }
 
     return byteSize;
@@ -258,19 +260,20 @@ namespace Ripple
     /*-------------------------------------------------
     Print out the data
     -------------------------------------------------*/
-    Fragment_sPtr data = head;
+    Fragment_sPtr fragPtr = head;
 
     char msgBuffer[ 512 ];
 
     auto bytes = scnprintf( msgBuffer, sizeof( msgBuffer ), "Fragment Data: " );
-    while ( data )
+    while ( fragPtr )
     {
-      for ( size_t byte = 0; byte < data->length; byte++ )
+      for ( size_t byte = 0; byte < fragPtr->length; byte++ )
       {
-        bytes += scnprintf( msgBuffer + bytes, sizeof( msgBuffer ), "0x%02x ",
-                            reinterpret_cast<const uint8_t *>( data->length )[ byte ] );
+        void ** raw_buffer = fragPtr->data.get();
+        bytes += scnprintf( msgBuffer + bytes, sizeof( msgBuffer ) - bytes, "0x%02x ",
+                            reinterpret_cast<const uint8_t *>( *raw_buffer )[ byte ] );
       }
-      data = data->next;
+      fragPtr = fragPtr->next;
     }
 
     LOG_INFO( "%s\r\n", msgBuffer );
