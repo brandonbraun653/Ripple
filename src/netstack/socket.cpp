@@ -177,23 +177,20 @@ namespace Ripple
     /*-------------------------------------------------
     Build the full packet in some scratch memory
     -------------------------------------------------*/
-    const size_t packetSize = packet->size();
+    const size_t packetSize    = packet->size();
     const size_t crcDataOffset = offsetof( TransportHeader, dstPort );
-    const size_t dataSize   = packetSize - sizeof( TransportHeader );
-    void *scratch = mContext->malloc( packetSize );
-    std::memset( scratch, 0, packetSize );
-
+    const size_t dataSize      = packetSize - sizeof( TransportHeader );
+    uint8_t *scratch           = reinterpret_cast<uint8_t*>( mContext->malloc( packetSize ) );
+    memset( scratch, 0, packetSize );
     packet->printPayload();
     packet->unpack( scratch, packetSize );
 
     /*-------------------------------------------------
     Calculate the CRC over the packet data
     -------------------------------------------------*/
-    uint8_t *user_data = ( uint8_t *)scratch;
-
     etl::crc32 crc_gen;
     crc_gen.reset();
-    crc_gen.add( user_data + crcDataOffset, user_data + packetSize );
+    crc_gen.add( scratch + crcDataOffset, scratch + packetSize );
 
     auto hdr_ptr = reinterpret_cast<TransportHeader *>( scratch );
 
@@ -204,7 +201,7 @@ namespace Ripple
     uint32_t crc = crc_gen.value();
     if ( ( hdr_ptr->crc == crc ) && ( bytes <= dataSize ) )
     {
-      memcpy( data, user_data + crcDataOffset, bytes );
+      memcpy( data, scratch + sizeof( TransportHeader ), bytes );
     }
     else
     {
