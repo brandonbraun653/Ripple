@@ -355,6 +355,7 @@ namespace Ripple
       auto iter = mPacketAssembly.find( uuidToRemove[ idx ] );
       if ( iter != mPacketAssembly.end() )
       {
+        LOG_DEBUG( "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
         mPacketAssembly.erase( iter );
       }
     }
@@ -533,6 +534,7 @@ namespace Ripple
           -------------------------------------------------*/
           newAssembly.packet->head->next = Fragment_sPtr();
           mPacketAssembly.insert( { list->uuid, newAssembly } );
+          LOG_DEBUG( "Starting assembly for UUID: %d\r\n", list->uuid );
         }
         else
         {
