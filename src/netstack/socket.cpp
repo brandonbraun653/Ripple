@@ -182,7 +182,6 @@ namespace Ripple
     const size_t dataSize      = packetSize - sizeof( TransportHeader );
     uint8_t *scratch           = reinterpret_cast<uint8_t*>( mContext->malloc( packetSize ) );
     memset( scratch, 0, packetSize );
-    packet->printPayload();
     packet->unpack( scratch, packetSize );
 
     /*-------------------------------------------------

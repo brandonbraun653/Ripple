@@ -33,7 +33,6 @@ namespace Ripple
   {
   public:
     RefPtr<Fragment> next; /**< Next fragment */
-    RefPtr<Fragment> prev; /**< Previous fragment */
     RefPtr<void *> data;   /**< Allocated memory for this fragment */
     uint16_t length;       /**< Length of the current fragment */
     uint16_t number;       /**< Which fragment number this is, zero indexed */
@@ -50,6 +49,7 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   Fragment_sPtr allocFragment( INetMgr *const context, const size_t payload_bytes );
   void fragmentSort( Fragment_sPtr *headPtr );
+  Fragment_sPtr fragmentShallowCopy( INetMgr *const context, const Fragment_sPtr &fragment );
 
 }  // namespace Ripple
 

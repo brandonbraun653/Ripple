@@ -8,6 +8,9 @@
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
+/* STL Includes */
+#include <utility>
+
 /* ETL Includes */
 #include <etl/random.h>
 
@@ -163,7 +166,7 @@ namespace Ripple
       /*-------------------------------------------------
       Insert the packet into the list
       -------------------------------------------------*/
-      Fragment_sPtr previousHead = head;
+      Fragment_sPtr previousHead = std::move( head );
 
       head       = newFrag;
       head->next = previousHead;

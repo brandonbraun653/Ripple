@@ -23,7 +23,7 @@ namespace Ripple
    * @param b               Second list
    * @return Fragment_sPtr  Resulting merged list
    */
-  static Fragment_sPtr merge( Fragment_sPtr &a,  Fragment_sPtr &b )
+  static Fragment_sPtr merge( Fragment_sPtr &a, Fragment_sPtr &b )
   {
     Fragment_sPtr result;
 
@@ -67,8 +67,8 @@ namespace Ripple
    */
   static void frontBackSplit( Fragment_sPtr src, Fragment_sPtr *front, Fragment_sPtr *back )
   {
-    Fragment_sPtr slow      = src;
-    Fragment_sPtr fast      = src->next;
+    Fragment_sPtr slow = src;
+    Fragment_sPtr fast = src->next;
     Fragment_sPtr slow_prev;
 
     /*-------------------------------------------------
@@ -180,4 +180,34 @@ namespace Ripple
     -------------------------------------------------*/
     *headPtr = merge( a, b );
   }
-}  // namespace Ripple
+
+
+  /**
+   * @brief Copies a fragment into freshly allocated memory.
+   *
+   * @param context       Memory context
+   * @param fragment      Fragment being copied
+   * @return Fragment_sPtr
+   */
+  Fragment_sPtr fragmentShallowCopy( INetMgr *const context, const Fragment_sPtr &fragment )
+  {
+    /*-------------------------------------------------
+    Allocate a new fragment
+    -------------------------------------------------*/
+    auto newFrag = allocFragment( context, fragment->length );
+
+    /*-------------------------------------------------
+    Copy over the old fragment data, but discard links
+    -------------------------------------------------*/
+    newFrag->next   = Fragment_sPtr();
+    newFrag->length = fragment->length;
+    newFrag->number = fragment->number;
+    newFrag->uuid   = fragment->uuid;
+
+    void **dst = newFrag->data.get();
+    void **src = fragment->data.get();
+    memcpy( *dst, *src, fragment->length );
+
+    return newFrag;
+  }
+}    // namespace Ripple

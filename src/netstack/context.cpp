@@ -359,7 +359,7 @@ namespace Ripple
       }
     }
 
-    LOG_IF_DEBUG( ( removeIdx == 0 ), "Pruned %d packets from assembly\r\n", removeIdx );
+    LOG_IF_DEBUG( removeIdx, "Pruned %d packets from assembly\r\n", removeIdx );
   }
 
 
@@ -388,8 +388,6 @@ namespace Ripple
       -------------------------------------------------*/
       assembly->inProgress = false;
       assembly->packet->sort();
-
-      assembly->packet->printPayload();
 
       /*-------------------------------------------------
       Double check the first fragment is large enough to
@@ -486,6 +484,8 @@ namespace Ripple
         auto iter = mPacketAssembly.find( list->uuid );
         if ( iter != mPacketAssembly.end() )
         {
+          LOG_DEBUG( "Received fragment UUID: %d\r\n", list->uuid );
+
           /*-------------------------------------------------
           Does this packet already exist in the assembly?
           -------------------------------------------------*/
@@ -526,7 +526,7 @@ namespace Ripple
           newAssembly.packet->head     = list;
           newAssembly.startRxTime      = Chimera::millis();
           newAssembly.lastTimeoutCheck = newAssembly.startRxTime;
-          newAssembly.timeout          = 500 * Chimera::Thread::TIMEOUT_1MS;
+          newAssembly.timeout          = 1000 * Chimera::Thread::TIMEOUT_1MS;
 
           /*-------------------------------------------------
           First item in the list. Ensure it's terminated.

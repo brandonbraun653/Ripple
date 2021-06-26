@@ -143,6 +143,11 @@ namespace Ripple
      */
     explicit RefPtr( RefPtr<T> &&obj )
     {
+      /*-------------------------------------------------
+      Clean up existing data
+      -------------------------------------------------*/
+      do_cleanup();
+
       this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
@@ -168,6 +173,11 @@ namespace Ripple
      */
     RefPtr<T> &operator=( const RefPtr<T> &obj )
     {
+      /*-------------------------------------------------
+      Clean up existing data
+      -------------------------------------------------*/
+      do_cleanup();
+
       /*-------------------------------------------------
       Copy in the new data
       -------------------------------------------------*/
@@ -314,6 +324,13 @@ namespace Ripple
       class are assigned or allocated with placement new.
       -------------------------------------------------*/
       mContext->free( mRefCount );
+
+      /*-------------------------------------------------
+      All memory is released. Invalidate the pointers.
+      -------------------------------------------------*/
+      mRefCount = nullptr;
+      mPtr      = nullptr;
+      mContext  = nullptr;
     }
   };
 

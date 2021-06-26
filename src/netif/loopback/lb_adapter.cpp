@@ -111,7 +111,19 @@ namespace Ripple::NetIf::Loopback
   {
     Chimera::Thread::LockGuard lck( *mLock );
 
-    mPacketQueue.push( msg );
+    Fragment_sPtr fragPtr = msg;
+    while( fragPtr )
+    {
+      auto newFragment = fragmentShallowCopy( mContext, fragPtr );
+
+      if( !mPacketQueue.full() )
+      {
+        mPacketQueue.push( newFragment );
+      }
+
+      fragPtr = fragPtr->next;
+    }
+
     return Chimera::Status::OK;
   }
 
