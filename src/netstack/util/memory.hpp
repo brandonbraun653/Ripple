@@ -39,7 +39,7 @@ namespace Ripple
     /**
      * @brief Default construct a new Ref Ptr object
      */
-    explicit RefPtr() : mContext( nullptr ), mRefCount( nullptr ), mPtr( nullptr )
+    explicit RefPtr() : mContext( nullptr ), mRefCount( nullptr ), mPtr( nullptr ), mLock( nullptr )
     {
     }
 
@@ -61,7 +61,7 @@ namespace Ripple
      * @param context   Network memory context to allocate from
      * @param size      Additional bytes to allocate
      */
-    explicit RefPtr( INetMgr * context, const size_t size ) : mContext( context )
+    explicit RefPtr( INetMgr *context, const size_t size ) : mContext( context ), mLock( nullptr )
     {
       Chimera::Thread::LockGuard lck( *context );
 
@@ -90,6 +90,9 @@ namespace Ripple
       mRefCount = new ( pool ) CountType( 1 );
       pool += sizeof( CountType );
 
+      mLock = new ( pool ) Chimera::Thread::Mutex();
+      pool += sizeof( Chimera::Thread::Mutex );
+
       /*-------------------------------------------------
       Construct the underlying object
       -------------------------------------------------*/
@@ -101,7 +104,7 @@ namespace Ripple
       type is a pointer, assume that pointer will hold
       the remaining bytes.
       -------------------------------------------------*/
-      if constexpr( std::is_pointer<T>::value )
+      if constexpr ( std::is_pointer<T>::value )
       {
         if ( size )
         {
@@ -129,9 +132,13 @@ namespace Ripple
       this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
+      this->mLock     = obj.mLock;
 
       if ( obj.mPtr && obj.mRefCount )
       {
+        RT_HARD_ASSERT( this->mLock );
+        Chimera::Thread::LockGuard lck( *this->mLock );
+
         ( *this->mRefCount )++;
       }
     }
@@ -151,10 +158,12 @@ namespace Ripple
       this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
+      this->mLock     = obj.mLock;
 
       obj.mPtr      = nullptr;
       obj.mRefCount = nullptr;
       obj.mContext  = nullptr;
+      obj.mLock     = nullptr;
     }
 
     /**
@@ -184,9 +193,12 @@ namespace Ripple
       this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
+      this->mLock     = obj.mLock;
 
       if ( obj.mPtr && obj.mRefCount )
       {
+        RT_HARD_ASSERT( this->mLock );
+        Chimera::Thread::LockGuard lck( *this->mLock );
         ( *this->mRefCount )++;
       }
 
@@ -212,10 +224,12 @@ namespace Ripple
       this->mContext  = obj.mContext;
       this->mPtr      = obj.mPtr;
       this->mRefCount = obj.mRefCount;
+      this->mLock     = obj.mLock;
 
       obj.mPtr      = nullptr;
       obj.mRefCount = nullptr;
       obj.mContext  = nullptr;
+      obj.mLock     = nullptr;
 
       return *this;
     }
@@ -248,7 +262,7 @@ namespace Ripple
      */
     explicit operator bool() const
     {
-      return mContext && mRefCount && mPtr;
+      return mContext && mRefCount && mPtr && mLock;
     }
 
     /**
@@ -256,7 +270,7 @@ namespace Ripple
      *
      * @return T*
      */
-    T * get() const
+    T *get() const
     {
       return this->mPtr;
     }
@@ -268,7 +282,7 @@ namespace Ripple
      */
     static constexpr size_t size()
     {
-      return sizeof( T ) + sizeof( CountType );
+      return sizeof( T ) + sizeof( CountType ) + sizeof( Chimera::Thread::Mutex );
     }
 
   protected:
@@ -278,6 +292,7 @@ namespace Ripple
     INetMgr *mContext;
     CountType *mRefCount;
     T *mPtr;
+    Chimera::Thread::Mutex *mLock;
 
     /**
      * @brief Handle reference counting on destruction
@@ -288,7 +303,7 @@ namespace Ripple
       /*-------------------------------------------------
       No references?
       -------------------------------------------------*/
-      if ( !mRefCount )
+      if ( !mRefCount || ( *mRefCount == 0 ) )
       {
         return;
       }
@@ -296,6 +311,9 @@ namespace Ripple
       /*-------------------------------------------------
       Decrement the reference count
       -------------------------------------------------*/
+      RT_HARD_ASSERT( mLock );
+      Chimera::Thread::LockGuard lck( *this->mLock );
+
       ( *mRefCount )--;
       if ( *mRefCount != 0 )
       {
@@ -303,7 +321,7 @@ namespace Ripple
       }
 
       /* By this point, all references need to be valid */
-      RT_HARD_ASSERT( mRefCount && mPtr && mContext );
+      RT_HARD_ASSERT( mRefCount && mPtr && mContext && mLock );
 
       /*-------------------------------------------------
       If the type isn't a pointer, there is a non-trivial
@@ -311,10 +329,12 @@ namespace Ripple
       with placement new, which won't automatically call
       the destructor on free.
       -------------------------------------------------*/
-      if constexpr( !std::is_pointer<T>::value )
+      if constexpr ( !std::is_pointer<T>::value )
       {
         mPtr->~T();
       }
+
+      mLock->~Mutex();
 
       /*-------------------------------------------------
       The entire packet was allocated in a single block,

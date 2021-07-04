@@ -205,7 +205,6 @@ namespace Ripple
     /*-------------------------------------------------
     Perform RX procedures
     -------------------------------------------------*/
-    pruneStaleRXFragments();
     processRXPacketAssembly();
     acquireFragments();
   }
@@ -367,7 +366,14 @@ namespace Ripple
   void Context::processRXPacketAssembly()
   {
     /*-------------------------------------------------
-    Iterate over each possible assembly task
+    Clean the assembly area to prepare for new frags
+    -------------------------------------------------*/
+    pruneStaleRXFragments();
+
+    /*-------------------------------------------------
+    Iterate over each possible assembly task and update
+    their status. If completely ready, push to the RX
+    queue of the destination socket.
     -------------------------------------------------*/
     for ( auto &assemblyItem : mPacketAssembly )
     {
@@ -454,6 +460,14 @@ namespace Ripple
     Fragment_sPtr list;
     auto state = Chimera::Status::READY;
 
+    /*-------------------------------------------------
+    Clean the assembly area to prepare for new frags
+    -------------------------------------------------*/
+    pruneStaleRXFragments();
+
+    /*-------------------------------------------------
+    Keep pulling in data while NetIf says it's ready
+    -------------------------------------------------*/
     while ( state == Chimera::Status::READY )
     {
       /*-------------------------------------------------

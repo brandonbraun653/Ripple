@@ -148,8 +148,6 @@ namespace Ripple
 
   private:
     size_t mFragmentationSize;
-    uint16_t uuid;
-    uint16_t totalLength;
     uint16_t mTotalFragments;
   };
 

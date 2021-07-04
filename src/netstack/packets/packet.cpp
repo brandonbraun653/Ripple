@@ -184,7 +184,7 @@ namespace Ripple
   }
 
 
-  bool Packet::unpack( void * buffer, const size_t size )
+  bool Packet::unpack( void *buffer, const size_t size )
   {
     /*-------------------------------------------------
     Input Protection
@@ -197,10 +197,12 @@ namespace Ripple
     /*-------------------------------------------------
     Copy the data over
     -------------------------------------------------*/
-    Fragment_sPtr fragPtr = head;
-    size_t offset = 0;
+    Chimera::Thread::LockGuard<INetMgr> lock( *mContext );
 
-    while( fragPtr && ( offset < size ) )
+    Fragment_sPtr fragPtr = head;
+    size_t offset         = 0;
+
+    while ( fragPtr && ( offset < size ) )
     {
       void **data_ptr = fragPtr->data.get();
       uint8_t *dest   = reinterpret_cast<uint8_t *>( buffer ) + offset;
@@ -240,7 +242,7 @@ namespace Ripple
     Walk the list and accumulate bytes
     -------------------------------------------------*/
     Fragment_sPtr fragPtr = head;
-    size_t byteSize     = 0;
+    size_t byteSize       = 0;
 
     while ( fragPtr )
     {
@@ -272,7 +274,7 @@ namespace Ripple
     {
       for ( size_t byte = 0; byte < fragPtr->length; byte++ )
       {
-        void ** raw_buffer = fragPtr->data.get();
+        void **raw_buffer = fragPtr->data.get();
         bytes += scnprintf( msgBuffer + bytes, sizeof( msgBuffer ) - bytes, "0x%02x ",
                             reinterpret_cast<const uint8_t *>( *raw_buffer )[ byte ] );
       }
