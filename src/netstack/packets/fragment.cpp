@@ -8,6 +8,9 @@
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
+/* Aurora Includes */
+#include <Aurora/memory>
+
 /* Ripple Includes */
 #include <Ripple/netstack>
 
@@ -132,10 +135,10 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Fragment_sPtr allocFragment( INetMgr *const context, const size_t payload_bytes )
+  Fragment_sPtr allocFragment( Aurora::Memory::IHeapAllocator *const context, const size_t payload_bytes )
   {
     Fragment_sPtr local( context );
-    local->data = RefPtr<void *>( context, payload_bytes );
+    local->data = Aurora::Memory::shared_ptr<void *>( context, payload_bytes );
 
     return local;
   }
@@ -189,7 +192,7 @@ namespace Ripple
    * @param fragment      Fragment being copied
    * @return Fragment_sPtr
    */
-  Fragment_sPtr fragmentShallowCopy( INetMgr *const context, const Fragment_sPtr &fragment )
+  Fragment_sPtr fragmentShallowCopy( Aurora::Memory::IHeapAllocator *const context, const Fragment_sPtr &fragment )
   {
     /*-------------------------------------------------
     Allocate a new fragment

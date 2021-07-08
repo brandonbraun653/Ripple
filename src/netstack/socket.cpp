@@ -136,7 +136,7 @@ namespace Ripple
     /*-------------------------------------------------
     Push the packet to the queue
     -------------------------------------------------*/
-    Packet_sPtr newPacket = allocPacket( mContext );
+    Packet_sPtr newPacket = allocPacket( &mContext->mHeap );
     auto result = Chimera::Status::FAIL;
 
     if ( newPacket && newPacket->pack( scratch, allocationSize ) )

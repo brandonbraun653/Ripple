@@ -37,7 +37,7 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Packet_sPtr allocPacket( INetMgr *const context )
+  Packet_sPtr allocPacket( Aurora::Memory::IHeapAllocator *const context )
   {
     s_rng.initialise( Chimera::millis() );
 
@@ -56,7 +56,7 @@ namespace Ripple
   }
 
 
-  Packet::Packet( INetMgr *const context ) : mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE )
+  Packet::Packet( Aurora::Memory::IHeapAllocator *const context ) : mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE )
   {
   }
 
@@ -119,8 +119,8 @@ namespace Ripple
     Check if enough memory is available to handle the
     raw data + the fragment control structure overhead.
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<INetMgr> lock( *mContext );
-    const size_t freeMem = mContext->availableMemory();
+    Chimera::Thread::LockGuard<Aurora::Memory::IHeapAllocator> lock( *mContext );
+    const size_t freeMem = mContext->available();
 
     /*-------------------------------------------------
     Calculate the expected memory consumption:
@@ -131,7 +131,7 @@ namespace Ripple
       --------------------------------------
       = allocation Size
     -------------------------------------------------*/
-    const size_t allocationSize = size + ( Fragment_sPtr::size() * mTotalFragments );
+    const size_t allocationSize = size + ( Fragment_sPtr().size() * mTotalFragments );
     if ( freeMem <= allocationSize )
     {
       LOG_DEBUG( "Socket out of memory. Tried to allocate %d bytes from remaining %d\r\n", allocationSize, freeMem );
@@ -197,7 +197,7 @@ namespace Ripple
     /*-------------------------------------------------
     Copy the data over
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<INetMgr> lock( *mContext );
+    Chimera::Thread::LockGuard<Aurora::Memory::IHeapAllocator> lock( *mContext );
 
     Fragment_sPtr fragPtr = head;
     size_t offset         = 0;

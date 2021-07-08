@@ -17,9 +17,10 @@
 #include <etl/map.h>
 #include <etl/queue.h>
 
+/* Aurora Includes */
+#include <Aurora/memory>
+
 /* Ripple Includes */
-#include <Ripple/src/netstack/net_mgr_intf.hpp>
-#include <Ripple/src/netstack/util/memory.hpp>
 #include <Ripple/src/netstack/packets/fragment.hpp>
 
 namespace Ripple
@@ -34,14 +35,14 @@ namespace Ripple
   Aliases
   -------------------------------------------------------------------------------*/
   template<size_t SIZE>
-  using PacketQueue = etl::queue<RefPtr<Packet>, SIZE>;
+  using PacketQueue = etl::queue<Aurora::Memory::shared_ptr<Packet>, SIZE>;
 
-  using Packet_sPtr = RefPtr<Packet>;
+  using Packet_sPtr = Aurora::Memory::shared_ptr<Packet>;
 
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Packet_sPtr allocPacket( INetMgr *const context );
+  Packet_sPtr allocPacket( Aurora::Memory::IHeapAllocator *const context );
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -69,7 +70,7 @@ namespace Ripple
      *
      * @param context     Memory allocator
      */
-    PacketAssemblyCB( INetMgr *const context )
+    PacketAssemblyCB( Aurora::Memory::IHeapAllocator *const context )
     {
       clear();
       packet = allocPacket( context );
@@ -108,7 +109,7 @@ namespace Ripple
   {
   public:
     Packet();
-    Packet( INetMgr *const context );
+    Packet( Aurora::Memory::IHeapAllocator *const context );
     ~Packet();
 
     /*-------------------------------------------------
@@ -141,9 +142,9 @@ namespace Ripple
     Fragment_sPtr head;
 
   protected:
-    friend Packet_sPtr allocPacket( INetMgr *const context );
+    friend Packet_sPtr allocPacket( Aurora::Memory::IHeapAllocator *const context );
 
-    INetMgr *mContext;
+    Aurora::Memory::IHeapAllocator *mContext;
     void assignCRC( uint32_t value );
 
   private:

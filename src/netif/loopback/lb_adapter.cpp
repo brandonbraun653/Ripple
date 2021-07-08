@@ -114,7 +114,7 @@ namespace Ripple::NetIf::Loopback
     Fragment_sPtr fragPtr = msg;
     while( fragPtr )
     {
-      auto newFragment = fragmentShallowCopy( mContext, fragPtr );
+      auto newFragment = fragmentShallowCopy( &mContext->mHeap, fragPtr );
 
       if( !mPacketQueue.full() )
       {

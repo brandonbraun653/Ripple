@@ -12,8 +12,8 @@
 #ifndef RIPPLE_FRAGMENT_TYPE_HPP
 #define RIPPLE_FRAGMENT_TYPE_HPP
 
-/* Ripple Includes */
-#include <Ripple/src/netstack/util/memory.hpp>
+/* Aurora Includes  */
+#include <Aurora/memory>
 
 namespace Ripple
 {
@@ -32,24 +32,24 @@ namespace Ripple
   class Fragment
   {
   public:
-    RefPtr<Fragment> next; /**< Next fragment */
-    RefPtr<void *> data;   /**< Allocated memory for this fragment */
-    uint16_t length;       /**< Length of the current fragment */
-    uint16_t number;       /**< Which fragment number this is, zero indexed */
-    uint16_t uuid;
+    Aurora::Memory::shared_ptr<Fragment> next; /**< Next fragment */
+    Aurora::Memory::shared_ptr<void *> data;   /**< Allocated memory for this fragment */
+    uint16_t length;                           /**< Length of the current fragment */
+    uint16_t number;                           /**< Which fragment number this is, zero indexed */
+    uint16_t uuid;                             /**< Unique ID for the fragment */
   };
 
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
-  using Fragment_sPtr = RefPtr<Fragment>;
+  using Fragment_sPtr = Aurora::Memory::shared_ptr<Fragment>;
 
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
-  Fragment_sPtr allocFragment( INetMgr *const context, const size_t payload_bytes );
+  Fragment_sPtr allocFragment( Aurora::Memory::IHeapAllocator *const context, const size_t payload_bytes );
   void fragmentSort( Fragment_sPtr *headPtr );
-  Fragment_sPtr fragmentShallowCopy( INetMgr *const context, const Fragment_sPtr &fragment );
+  Fragment_sPtr fragmentShallowCopy( Aurora::Memory::IHeapAllocator *const context, const Fragment_sPtr &fragment );
 
 }  // namespace Ripple
 

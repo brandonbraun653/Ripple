@@ -533,7 +533,7 @@ namespace Ripple
         }
         else if ( !mPacketAssembly.full() )
         {
-          PacketAssemblyCB newAssembly( this );
+          PacketAssemblyCB newAssembly( &this->mHeap );
 
           newAssembly.inProgress       = true;
           newAssembly.remove           = false;

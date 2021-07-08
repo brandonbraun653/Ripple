@@ -30,7 +30,6 @@
 /* Ripple Includes */
 #include <Ripple/src/netif/device_intf.hpp>
 #include <Ripple/src/netstack/types.hpp>
-#include <Ripple/src/netstack/net_mgr_intf.hpp>
 #include <Ripple/src/netstack/packets/packet.hpp>
 
 namespace Ripple
@@ -42,7 +41,7 @@ namespace Ripple
    *  Network context manager that handles high level operations, typically
    *  revolving around memory management.
    */
-  class Context : public INetMgr,
+  class Context : public Chimera::Thread::Lockable<Context>,
                   public Chimera::Callback::DelegateService<Context, CallbackId>
   {
   public:
@@ -96,8 +95,12 @@ namespace Ripple
     size_t availableMemory() const;
 
 
+    Aurora::Memory::Heap mHeap;         /**< Managed memory pool for the whole network */
+
+
   protected:
     friend class Socket;
+    friend class Chimera::Thread::Lockable<Context>;
     friend Context_rPtr create( void *, const size_t );
 
     /**
@@ -143,7 +146,6 @@ namespace Ripple
   private:
     IPAddress mIP;
     NetIf::INetIf *mNetIf;              /**< Network interface driver */
-    Aurora::Memory::Heap mHeap;         /**< Managed memory pool for the whole network */
     etl::list<Socket *, 4> mSocketList; /**< Socket control structures */
     AssemblyMap<8> mPacketAssembly;     /**< Workspace for assembling fragments */
 

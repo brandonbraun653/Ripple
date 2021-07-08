@@ -48,14 +48,7 @@ namespace Ripple
     initialize the context object.
     -------------------------------------------------*/
     Heap tmpHeap;
-    if( !tmpHeap.assignPool( mem_pool, mem_size ) )
-    {
-      return nullptr;
-    }
-    else
-    {
-      tmpHeap.staticReset();
-    }
+    tmpHeap.assignMemoryPool( mem_pool, mem_size );
 
     /*-------------------------------------------------
     Construct the network context with the memory pool
