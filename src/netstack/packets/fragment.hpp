@@ -36,6 +36,7 @@ namespace Ripple
     Aurora::Memory::shared_ptr<void *> data;   /**< Allocated memory for this fragment */
     uint16_t length;                           /**< Length of the current fragment */
     uint16_t number;                           /**< Which fragment number this is, zero indexed */
+    uint16_t total;                            /**< Total number of fragments */
     uint16_t uuid;                             /**< Unique ID for the fragment */
   };
 

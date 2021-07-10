@@ -21,7 +21,7 @@
 /*-------------------------------------------------------------------------------
 Literals
 -------------------------------------------------------------------------------*/
-#define DEBUG_MODULE ( false )
+#define DEBUG_MODULE ( true )
 
 namespace Ripple
 {
@@ -68,6 +68,7 @@ namespace Ripple
     -------------------------------------------------*/
     if ( ( cacheSize < sizeof( Socket ) ) || ( ( cacheSize % sizeof( size_t ) ) != 0 ) )
     {
+      LOG_DEBUG_IF( DEBUG_MODULE, "Cache size of %d is too small for socket of size %d!\r\n", cacheSize, sizeof( Socket ) );
       return nullptr;
     }
 
@@ -77,6 +78,7 @@ namespace Ripple
     Chimera::Thread::LockGuard<Context>( *this );
     if ( ( availableMemory() < cacheSize ) || mSocketList.full() )
     {
+      LOG_DEBUG_IF( DEBUG_MODULE, "Out of memory to create socket!\r\n" );
       return nullptr;
     }
 
@@ -170,7 +172,7 @@ namespace Ripple
     -------------------------------------------------*/
     Ripple::TaskWaitInit();
     this_thread::set_name( "NetMgr" );
-    LOG_IF_DEBUG( DEBUG_MODULE, "Starting Ripple Net Manager\r\n" );
+    LOG_DEBUG_IF( DEBUG_MODULE, "Starting Ripple Net Manager\r\n" );
 
     /*-------------------------------------------------
     Initialize the fragment assembly workspace
@@ -266,7 +268,7 @@ namespace Ripple
       ( *sock )->mTXReady = false;
       if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
       {
-        LOG_IF_DEBUG( DEBUG_MODULE, "Failed TX to netif\r\n" );
+        LOG_DEBUG_IF( DEBUG_MODULE, "Failed TX to netif\r\n" );
       }
     }
   }
@@ -359,12 +361,12 @@ namespace Ripple
       auto iter = mPacketAssembly.find( uuidToRemove[ idx ] );
       if ( iter != mPacketAssembly.end() )
       {
-        LOG_IF_DEBUG( DEBUG_MODULE, "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
+        LOG_DEBUG_IF( DEBUG_MODULE, "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
         mPacketAssembly.erase( iter );
       }
     }
 
-    LOG_IF_DEBUG( ( DEBUG_MODULE && removeIdx ), "Pruned %d packets from assembly\r\n", removeIdx );
+    LOG_DEBUG_IF( ( DEBUG_MODULE && removeIdx ), "Pruned %d packets from assembly\r\n", removeIdx );
   }
 
 
@@ -386,10 +388,10 @@ namespace Ripple
       const uint32_t uuid              = assemblyItem.first;
 
       /*-------------------------------------------------
-      Is this item not assembling anything or not all
-      bytes have been received?
+      Check for a completed packet. Partial packets will
+      auto-remove themselves if not all data arrives.
       -------------------------------------------------*/
-      if ( !assembly->inProgress /* TODO: || packet is missing fragments */ )
+      if ( !assembly->inProgress || assembly->packet->isMissingFragments() )
       {
         continue;
       }
@@ -452,7 +454,7 @@ namespace Ripple
           -------------------------------------------------*/
           ( *sock )->mRXQueue.push( assembly->packet );
           assembly->remove = true;
-          LOG_IF_DEBUG( DEBUG_MODULE, "Received packet on port %d\r\n", ( *sock )->port() );
+          LOG_DEBUG_IF( DEBUG_MODULE, "Received packet on port %d\r\n", ( *sock )->port() );
           break;
         }
       }
@@ -504,7 +506,7 @@ namespace Ripple
         auto iter = mPacketAssembly.find( list->uuid );
         if ( iter != mPacketAssembly.end() )
         {
-          LOG_IF_DEBUG( DEBUG_MODULE, "Received fragment UUID: %d\r\n", list->uuid );
+          LOG_DEBUG_IF( DEBUG_MODULE, "Received fragment UUID: %d\r\n", list->uuid );
 
           /*-------------------------------------------------
           Does this packet already exist in the assembly?
@@ -558,10 +560,10 @@ namespace Ripple
           else some memory issues occur with transferring the
           internal shared_ptr objects.
           -------------------------------------------------*/
-          std::pair<const unsigned int, Ripple::PacketAssemblyCB> x{ list->uuid, std::move( newAssembly ) };
+          std::pair<const uint32_t, Ripple::PacketAssemblyCB> x{ list->uuid, std::move( newAssembly ) };
           mPacketAssembly.insert( std::move( x ) );
 
-          LOG_IF_DEBUG( DEBUG_MODULE, "Starting assembly for UUID: %d\r\n", list->uuid );
+          LOG_DEBUG_IF( DEBUG_MODULE, "Starting assembly for UUID: %d\r\n", list->uuid );
         }
         else
         {

@@ -3,12 +3,14 @@
  *    packet.cpp
  *
  *  Description:
- *    Implementation of a packet
+ *    Implementation of a generic packet that may be transmitted over the Ripple
+ *    network. Supports fragmentation.
  *
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
 /* STL Includes */
+#include <limits>
 #include <utility>
 
 /* ETL Includes */
@@ -27,6 +29,7 @@ namespace Ripple
   Constants
   -------------------------------------------------------------------------------*/
   static constexpr size_t DFLT_FRAG_SIZE = 24;
+  static constexpr size_t MAX_NUM_FRAGS  = 32;
 
   /*-------------------------------------------------------------------------------
   Static Data
@@ -106,9 +109,9 @@ namespace Ripple
     Check that the number of fragments are supported by
     the underlying network interface.
     -------------------------------------------------*/
-    if ( mTotalFragments > 32 )    // TODO: Redirect to the current netif
+    if ( mTotalFragments > MAX_NUM_FRAGS )    // TODO: Redirect to the current netif
     {
-      LOG_ERROR( "Packet too large. NetIf only supports %d fragments, but %d are needed.\r\n", 32, mTotalFragments );
+      LOG_ERROR( "Packet too large. NetIf only supports %d fragments, but %d are needed.\r\n", MAX_NUM_FRAGS, mTotalFragments );
       return Chimera::Status::NOT_SUPPORTED;
     }
 
@@ -159,6 +162,7 @@ namespace Ripple
       newFrag->length = fragmentDataSize;
       newFrag->uuid   = randomUUID;
       newFrag->number = fragCnt;
+      newFrag->total  = mTotalFragments;
 
       void **data_buffer = newFrag->data.get();
       memcpy( *( data_buffer ), ( reinterpret_cast<const uint8_t *const>( buffer ) + dataOffset ), fragmentDataSize );
@@ -217,17 +221,12 @@ namespace Ripple
   }
 
 
-  size_t Packet::numFragments()
+  size_t Packet::numFragments() const
   {
     return mTotalFragments;
   }
 
-  /**
-   * @brief Deduces the total memory consumption of the packet in bytes
-   *
-   * @param head      Start of the packet
-   * @return size_t
-   */
+
   size_t Packet::size()
   {
     /*-------------------------------------------------
@@ -257,6 +256,76 @@ namespace Ripple
   uint16_t Packet::getUUID()
   {
     return head->uuid;
+  }
+
+
+  bool Packet::isMissingFragments() const
+  {
+    static_assert( MAX_NUM_FRAGS % sizeof( uint8_t ) == 0 );
+
+    static constexpr size_t FLAG_BIT = std::numeric_limits<uint8_t>::digits;
+
+    /*-------------------------------------------------
+    Use individual bits to mark a fragment as received
+    -------------------------------------------------*/
+    uint8_t flagBits[ MAX_NUM_FRAGS / FLAG_BIT ];
+    memset( flagBits, 0, sizeof( flagBits ) );
+
+    static constexpr size_t SEARCHABLE_BITS = sizeof( flagBits ) * FLAG_BIT;
+
+    /*-------------------------------------------------
+    Verify fragment sizing constraints
+    -------------------------------------------------*/
+    const size_t existingFrags = this->numFragments();
+    if( ( head->total > SEARCHABLE_BITS ) || ( existingFrags > SEARCHABLE_BITS ) )
+    {
+      LOG_ERROR( "Too many fragments exist (%d) to determine completeness!\r\n", head->total );
+      return false;
+    }
+
+    /*-------------------------------------------------
+    Walk each fragment that exists
+    -------------------------------------------------*/
+    Fragment_sPtr fragPtr = head;
+
+    while( fragPtr )
+    {
+      /*-------------------------------------------------
+      Check for out of bounds values
+      -------------------------------------------------*/
+      if( fragPtr->number >= head->total )
+      {
+        LOG_ERROR( "Packet corruption. Reported fragment number is greater than total.\r\n" );
+      }
+
+      /*-------------------------------------------------
+      Mark the appropriate bit
+      -------------------------------------------------*/
+      size_t index  = fragPtr->number / FLAG_BIT;
+      size_t offset = fragPtr->number - ( index * FLAG_BIT );
+
+      flagBits[ index ] |= ( 1u << offset );
+
+      fragPtr = fragPtr->next;
+    }
+
+    /*-------------------------------------------------
+    Are all fragments present?
+    -------------------------------------------------*/
+    size_t countedFragments = 0;
+
+    for( size_t bitNumber = 0; ( bitNumber < SEARCHABLE_BITS ) && ( bitNumber < head->total ); bitNumber++ )
+    {
+      size_t index  = bitNumber / FLAG_BIT;
+      size_t offset = bitNumber - ( index * FLAG_BIT );
+
+      if( ( flagBits[ index ] >> offset ) & 0x1 )
+      {
+        countedFragments++;
+      }
+    }
+
+    return !( countedFragments == head->total );
   }
 
 

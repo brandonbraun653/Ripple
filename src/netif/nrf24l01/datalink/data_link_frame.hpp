@@ -71,7 +71,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     uint8_t   frameNumber   : FRAME_NUMBER_BITS;    /**< Frame number in a fragmented packet */
     uint8_t   endpoint      : ENDPOINT_BITS;        /**< Endpoint this frame is destined for on the target */
     uint16_t  uuid;                                 /**< Unique id of the packet */
-    uint8_t   totalLength;                          /**< Total number of bytes */
+    uint8_t   totalFrames;                          /**< Total number of frames in the packet */
     bool      multicast     : 1;                    /**< Should this be blasted across the network to everyone? */
     bool      requireACK    : 1;                    /**< Payload should require an ACK */
     bool      _pad0         : 6;                    /**< Pad for alignment */

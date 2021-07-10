@@ -115,7 +115,7 @@ namespace Ripple
   Aliases
   -------------------------------------------------------------------------------*/
   template<size_t SIZE>
-  using AssemblyMap = etl::map<uint32_t, PacketAssemblyCB, SIZE>;
+  using AssemblyMap = etl::map<const uint32_t, PacketAssemblyCB, SIZE>;
 
   /*-------------------------------------------------------------------------------
   Classes
@@ -141,7 +141,12 @@ namespace Ripple
     /*-------------------------------------------------
     Information
     -------------------------------------------------*/
-    size_t numFragments();
+    /**
+     * @brief Total number of fragments the packet is broken into
+     *
+     * @return size_t
+     */
+    size_t numFragments() const;
 
     /**
      * @brief Current size held in the fragment list
@@ -150,7 +155,21 @@ namespace Ripple
      */
     size_t size();
 
+    /**
+     * @brief Returns the unique ID of the packet
+     *
+     * @return uint16_t
+     */
     uint16_t getUUID();
+
+    /**
+     * @brief Validates if all expected fragments exist
+     * @note Assumes packet memory is not modified while function executes
+     *
+     * @return true     All fragments are present
+     * @return false    One or more fragments are missing
+     */
+    bool isMissingFragments() const;
 
     /*-------------------------------------------------
     Debugging Utilities
