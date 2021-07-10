@@ -71,7 +71,7 @@ namespace Ripple::NetIf::Loopback
     Context_rPtr mContext;
     etl::map<IPAddress, uint64_t, 32> mAddressCache;
     etl::queue<Fragment_sPtr, LB_QUEUE_DEPTH> mPacketQueue;
-    Chimera::Thread::RecursiveMutex *mLock;
+    Chimera::Thread::Mutex *mLock;
   };
 
   /*-------------------------------------------------------------------------------

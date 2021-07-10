@@ -18,6 +18,11 @@
 #include <Ripple/shared>
 #include <Ripple/netstack>
 
+/*-------------------------------------------------------------------------------
+Literals
+-------------------------------------------------------------------------------*/
+#define DEBUG_MODULE ( false )
+
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
@@ -165,7 +170,7 @@ namespace Ripple
     -------------------------------------------------*/
     Ripple::TaskWaitInit();
     this_thread::set_name( "NetMgr" );
-    LOG_DEBUG( "Starting Ripple Net Manager\r\n" );
+    LOG_IF_DEBUG( DEBUG_MODULE, "Starting Ripple Net Manager\r\n" );
 
     /*-------------------------------------------------
     Initialize the fragment assembly workspace
@@ -261,7 +266,7 @@ namespace Ripple
       ( *sock )->mTXReady = false;
       if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
       {
-        LOG_DEBUG( "Failed TX to netif\r\n" );
+        LOG_IF_DEBUG( DEBUG_MODULE, "Failed TX to netif\r\n" );
       }
     }
   }
@@ -280,37 +285,37 @@ namespace Ripple
 
   void Context::cb_OnFragmentRX( size_t callbackID )
   {
-    //LOG_INFO( "NetIf received fragment\r\n" );
+    // LOG_INFO( "NetIf received fragment\r\n" );
   }
 
 
   void Context::cb_OnFragmentTXFail( size_t callbackID )
   {
-    //LOG_ERROR( "NetIf fragment TX fail\r\n" );
+    // LOG_ERROR( "NetIf fragment TX fail\r\n" );
   }
 
 
   void Context::cb_OnRXQueueFull( size_t callbackID )
   {
-    //LOG_ERROR( "NetIf RX queue full\r\n" );
+    // LOG_ERROR( "NetIf RX queue full\r\n" );
   }
 
 
   void Context::cb_OnTXQueueFull( size_t callbackID )
   {
-    //LOG_ERROR( "NetIf TX queue full\r\n" );
+    // LOG_ERROR( "NetIf TX queue full\r\n" );
   }
 
 
   void Context::cb_OnARPResolveError( size_t callbackID )
   {
-    //LOG_ERROR( "NetIf ARP resolve error\r\n" );
+    // LOG_ERROR( "NetIf ARP resolve error\r\n" );
   }
 
 
   void Context::cb_OnARPStorageLimit( size_t callbackID )
   {
-    //LOG_ERROR( "NetIf storage limit reached\r\n" );
+    // LOG_ERROR( "NetIf storage limit reached\r\n" );
   }
 
 
@@ -354,12 +359,12 @@ namespace Ripple
       auto iter = mPacketAssembly.find( uuidToRemove[ idx ] );
       if ( iter != mPacketAssembly.end() )
       {
-        LOG_DEBUG( "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
+        LOG_IF_DEBUG( DEBUG_MODULE, "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
         mPacketAssembly.erase( iter );
       }
     }
 
-    LOG_IF_DEBUG( removeIdx, "Pruned %d packets from assembly\r\n", removeIdx );
+    LOG_IF_DEBUG( ( DEBUG_MODULE && removeIdx ), "Pruned %d packets from assembly\r\n", removeIdx );
   }
 
 
@@ -384,7 +389,7 @@ namespace Ripple
       Is this item not assembling anything or not all
       bytes have been received?
       -------------------------------------------------*/
-      if ( !assembly->inProgress /* TODO: || packet is missing fragments */)
+      if ( !assembly->inProgress /* TODO: || packet is missing fragments */ )
       {
         continue;
       }
@@ -412,7 +417,7 @@ namespace Ripple
       the message into its receive queue.
       -------------------------------------------------*/
       void **raw_data = assembly->packet->head->data.get();
-      auto header = reinterpret_cast<TransportHeader *>( *raw_data );
+      auto header     = reinterpret_cast<TransportHeader *>( *raw_data );
 
       for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
       {
@@ -447,7 +452,7 @@ namespace Ripple
           -------------------------------------------------*/
           ( *sock )->mRXQueue.push( assembly->packet );
           assembly->remove = true;
-          LOG_DEBUG( "Received packet on port %d\r\n", ( *sock )->port() );
+          LOG_IF_DEBUG( DEBUG_MODULE, "Received packet on port %d\r\n", ( *sock )->port() );
           break;
         }
       }
@@ -473,7 +478,7 @@ namespace Ripple
       /*-------------------------------------------------
       Try to receive a message
       -------------------------------------------------*/
-      list = Fragment_sPtr();
+      list  = Fragment_sPtr();
       state = mNetIf->recv( list );
 
       if ( ( state != Chimera::Status::READY ) || !list )
@@ -499,16 +504,16 @@ namespace Ripple
         auto iter = mPacketAssembly.find( list->uuid );
         if ( iter != mPacketAssembly.end() )
         {
-          LOG_DEBUG( "Received fragment UUID: %d\r\n", list->uuid );
+          LOG_IF_DEBUG( DEBUG_MODULE, "Received fragment UUID: %d\r\n", list->uuid );
 
           /*-------------------------------------------------
           Does this packet already exist in the assembly?
           -------------------------------------------------*/
           Fragment_sPtr frag = iter->second.packet->head;
           bool isDuplicate   = false;
-          while( frag )
+          while ( frag )
           {
-            if( list->number == frag->number )
+            if ( list->number == frag->number )
             {
               isDuplicate = true;
               break;
@@ -522,12 +527,12 @@ namespace Ripple
           sorting process will come later once all packets
           have been received.
           -------------------------------------------------*/
-          if( !isDuplicate )
+          if ( !isDuplicate )
           {
             Fragment_sPtr prevAssemblyFragPtr = iter->second.packet->head;
 
-            iter->second.packet->head         = list;
-            iter->second.packet->head->next   = prevAssemblyFragPtr;
+            iter->second.packet->head       = list;
+            iter->second.packet->head->next = prevAssemblyFragPtr;
             iter->second.bytesRcvd += list->length;
           }
         }
@@ -547,8 +552,16 @@ namespace Ripple
           First item in the list. Ensure it's terminated.
           -------------------------------------------------*/
           newAssembly.packet->head->next = Fragment_sPtr();
-          mPacketAssembly.insert( { list->uuid, newAssembly } );
-          LOG_DEBUG( "Starting assembly for UUID: %d\r\n", list->uuid );
+
+          /*-------------------------------------------------
+          Need to explicitly move the newly created assembly
+          else some memory issues occur with transferring the
+          internal shared_ptr objects.
+          -------------------------------------------------*/
+          std::pair<const unsigned int, Ripple::PacketAssemblyCB> x{ list->uuid, std::move( newAssembly ) };
+          mPacketAssembly.insert( std::move( x ) );
+
+          LOG_IF_DEBUG( DEBUG_MODULE, "Starting assembly for UUID: %d\r\n", list->uuid );
         }
         else
         {

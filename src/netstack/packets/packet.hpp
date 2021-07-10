@@ -60,7 +60,7 @@ namespace Ripple
     /**
      * @brief Default construct a new PacketAssemblyCB
      */
-    PacketAssemblyCB()
+    explicit PacketAssemblyCB()
     {
       clear();
     }
@@ -70,10 +70,29 @@ namespace Ripple
      *
      * @param context     Memory allocator
      */
-    PacketAssemblyCB( Aurora::Memory::IHeapAllocator *const context )
+    explicit PacketAssemblyCB( Aurora::Memory::IHeapAllocator *const context )
     {
       clear();
       packet = allocPacket( context );
+    }
+
+    explicit PacketAssemblyCB( PacketAssemblyCB &&obj )
+    {
+      this->inProgress       = obj.inProgress;
+      this->remove           = obj.remove;
+      this->packet           = obj.packet;
+      this->bytesRcvd        = obj.bytesRcvd;
+      this->startRxTime      = obj.startRxTime;
+      this->lastTimeoutCheck = obj.lastTimeoutCheck;
+      this->timeout          = obj.timeout;
+
+      obj.inProgress       = false;
+      obj.remove           = false;
+      obj.packet           = Packet_sPtr();
+      obj.bytesRcvd        = 0;
+      obj.startRxTime      = 0;
+      obj.lastTimeoutCheck = 0;
+      obj.timeout          = 0;
     }
 
     /**

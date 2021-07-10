@@ -72,10 +72,10 @@ namespace Ripple::NetIf::Loopback
     mAddressCache.clear();
     mPacketQueue.clear();
 
-    auto lock_mem = mContext->malloc( sizeof( Chimera::Thread::RecursiveMutex ) );
+    auto lock_mem = mContext->malloc( sizeof( Chimera::Thread::Mutex ) );
     if( lock_mem )
     {
-      mLock = new ( lock_mem ) Chimera::Thread::RecursiveMutex();
+      mLock = new ( lock_mem ) Chimera::Thread::Mutex();
       return true;
     }
     else

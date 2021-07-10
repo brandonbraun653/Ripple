@@ -100,6 +100,7 @@ namespace Ripple
       return Chimera::Status::INVAL_FUNC_PARAM;
     }
 
+    Chimera::Thread::LockGuard sockLock( *this );
     Chimera::Thread::LockGuard lck( *mContext );
 
     /*-------------------------------------------------
@@ -157,6 +158,7 @@ namespace Ripple
 
   Chimera::Status_t Socket::read( void *const data, const size_t bytes )
   {
+    Chimera::Thread::LockGuard sockLock( *this );
     Chimera::Thread::LockGuard<Context> lock( *mContext );
 
     /*-------------------------------------------------
@@ -219,6 +221,7 @@ namespace Ripple
 
   size_t Socket::available()
   {
+    Chimera::Thread::LockGuard sockLock( *this );
     Chimera::Thread::LockGuard<Context> lock( *mContext );
 
     if ( mRXQueue.empty() )
