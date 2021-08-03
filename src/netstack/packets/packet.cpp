@@ -295,7 +295,8 @@ namespace Ripple
       -------------------------------------------------*/
       if( fragPtr->number >= head->total )
       {
-        LOG_ERROR( "Packet corruption. Reported fragment number is greater than total.\r\n" );
+        LOG_ERROR( "Packet corruption. Reported fragment number [%d] is greater than total [%d].\r\n", fragPtr->number,
+                   head->total );
       }
 
       /*-------------------------------------------------

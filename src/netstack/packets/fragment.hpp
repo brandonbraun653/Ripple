@@ -28,6 +28,8 @@ namespace Ripple
    * a full packet. The fragment's memory is dynamically allocated inside of
    * the network context manager and its lifetime is controlled via reference
    * counting.
+   *
+   * @warning If updating fields, please update fragmentShallowCopy() as well.
    */
   class Fragment
   {

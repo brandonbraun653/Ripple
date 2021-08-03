@@ -93,17 +93,6 @@ namespace Ripple
   Chimera::Status_t Socket::write( const void *const data, const size_t bytes )
   {
     /*-------------------------------------------------
-    Input protection
-    -------------------------------------------------*/
-    if ( !data || !bytes )
-    {
-      return Chimera::Status::INVAL_FUNC_PARAM;
-    }
-
-    Chimera::Thread::LockGuard sockLock( *this );
-    Chimera::Thread::LockGuard lck( *mContext );
-
-    /*-------------------------------------------------
     Create a header for the packet
     -------------------------------------------------*/
     TransportHeader header;
@@ -115,42 +104,18 @@ namespace Ripple
     header._pad       = 0;
 
     /*-------------------------------------------------
-    Build the full packet in some scratch memory
-    -------------------------------------------------*/
-    const size_t allocationSize = bytes + sizeof( TransportHeader );
-    uint8_t *scratch            = reinterpret_cast<uint8_t *>( mContext->malloc( allocationSize ) );
-
-    memset( scratch, 0, allocationSize );
-    memcpy( scratch, &header, sizeof( TransportHeader ) );
-    memcpy( scratch + sizeof(TransportHeader ), data, bytes );
-
-    /*-------------------------------------------------
-    Add the CRC to the packet header
-    -------------------------------------------------*/
-    etl::crc32 crc_gen;
-    crc_gen.reset();
-    crc_gen.add( scratch + offsetof( TransportHeader, dstPort ), scratch + allocationSize );
-
-    auto hdr_ptr = reinterpret_cast<TransportHeader *>( scratch );
-    hdr_ptr->crc = crc_gen.value();
-
-    /*-------------------------------------------------
     Push the packet to the queue
     -------------------------------------------------*/
-    Packet_sPtr newPacket = allocPacket( &mContext->mHeap );
+    Packet_sPtr newPacket = Transport::constructPacket( &mContext->mHeap, header, data, bytes );
     auto result = Chimera::Status::FAIL;
 
-    if ( newPacket && newPacket->pack( scratch, allocationSize ) )
+    if ( newPacket )
     {
       mTXQueue.push( newPacket );
       mTXReady = true;
       result =  Chimera::Status::OK;
     }
 
-    /*-------------------------------------------------
-    Free the scratch memory
-    -------------------------------------------------*/
-    mContext->free( scratch );
 
     return result;
   }

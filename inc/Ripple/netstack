@@ -12,9 +12,11 @@
 #ifndef RIPPLE_NET_STACK_INCLUDES
 #define RIPPLE_NET_STACK_INCLUDES
 
-#include <Ripple/src/netstack/packets/packet.hpp>
-#include <Ripple/src/netstack/packets/fragment.hpp>
-#include <Ripple/src/netstack/socket.hpp>
 #include <Ripple/src/netstack/context.hpp>
+#include <Ripple/src/netstack/packets/decoder.hpp>
+#include <Ripple/src/netstack/packets/encoder.hpp>
+#include <Ripple/src/netstack/packets/fragment.hpp>
+#include <Ripple/src/netstack/packets/packet.hpp>
+#include <Ripple/src/netstack/socket.hpp>
 
 #endif /* !RIPPLE_NET_STACK_INCLUDES */

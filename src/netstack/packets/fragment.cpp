@@ -206,6 +206,7 @@ namespace Ripple
     newFrag->length = fragment->length;
     newFrag->number = fragment->number;
     newFrag->uuid   = fragment->uuid;
+    newFrag->total  = fragment->total;
 
     void **dst = newFrag->data.get();
     void **src = fragment->data.get();

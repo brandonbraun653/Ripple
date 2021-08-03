@@ -17,6 +17,7 @@ gen_intf_lib(
     ./lib/zeromq
   INTF_LIBRARIES
     ctre_inc
+    nanopb_intf_inc
   EXPORT_DIR
     "${PROJECT_BINARY_DIR}/Ripple"
 )
