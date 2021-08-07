@@ -30,8 +30,9 @@
 #include <Aurora/memory>
 
 /* Ripple Includes */
-#include <Ripple/src/userif/user_contract.hpp>
 #include <Ripple/src/netstack/packets/packet.hpp>
+#include <Ripple/src/netstack/types.hpp>
+#include <Ripple/src/user/user_contract.hpp>
 
 namespace Ripple
 {

@@ -3,7 +3,7 @@ include("${COMMON_TOOL_ROOT}/cmake/utility/embedded.cmake")
 add_subdirectory(src/shared)
 add_subdirectory(src/netif)
 add_subdirectory(src/netstack)
-add_subdirectory(src/userif)
+add_subdirectory(src/user)
 
 # ====================================================
 # Various exports

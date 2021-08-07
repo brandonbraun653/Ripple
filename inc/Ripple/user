@@ -12,6 +12,7 @@
 #ifndef RIPPLE_USER_INCLUDES
 #define RIPPLE_USER_INCLUDES
 
-#include <Ripple/src/userif/user_init.hpp>
+#include <Ripple/src/user/user_init.hpp>
+#include <Ripple/src/user/user_transaction.hpp>
 
 #endif /* !RIPPLE_USER_INCLUDES */

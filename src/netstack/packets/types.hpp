@@ -37,9 +37,9 @@ namespace Ripple
    */
   struct PacketDef
   {
-    PacketId id;          /**< System identifier for the packet */
-    size_t size;          /**< Size of the packet on the wire (encoded) */
-    pb_msgdesc_t *fields; /**< NanoPB fields descriptor */
+    PacketId id;                /**< System identifier for the packet */
+    size_t size;                /**< Size of the packet on the wire (encoded) */
+    const pb_msgdesc_t *fields; /**< NanoPB fields descriptor */
   };
 
 }  // namespace Ripple

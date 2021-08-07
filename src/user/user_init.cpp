@@ -16,7 +16,7 @@
 
 /* Ripple Includes  */
 #include <Ripple/src/netstack/context.hpp>
-#include <Ripple/src/userif/user_init.hpp>
+#include <Ripple/src/user/user_init.hpp>
 
 namespace Ripple
 {

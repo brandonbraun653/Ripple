@@ -22,7 +22,7 @@
 
 namespace Ripple
 {
-  extern etl::map<PacketId, PacketDef, RIPPLE_NUM_PACKETS> PacketDefinitions;
+  extern etl::map<PacketId, PacketDef, RIPPLE_MAX_NUM_PKTS> PacketDefinitions;
 }  // namespace Ripple
 
 #endif  /* !RIPPLE_PACKET_DEFINTIONS_CONTRACT_HPP */
