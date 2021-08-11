@@ -30,6 +30,23 @@
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
+  Public Functions
+  -------------------------------------------------------------------------------*/
+  bool packetInFilter( const PacketId pkt, const PacketFilter &filter )
+  {
+    for( auto &filter_pkt : filter )
+    {
+      if( pkt == filter_pkt )
+      {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+
+  /*-------------------------------------------------------------------------------
   Socket Class
   -------------------------------------------------------------------------------*/
   Socket::Socket( Context_rPtr ctx, const SocketType type, const size_t memory ) : mContext( ctx ), mSocketType( type )
@@ -57,12 +74,10 @@ namespace Ripple
   }
 
 
-  Chimera::Status_t Socket::open( const Port port )
+  Chimera::Status_t Socket::open( const SocketConfig &cfg )
   {
-    /*-------------------------------------------------
-    Initialize the socket
-    -------------------------------------------------*/
-    mThisPort = port;
+    mThisPort = cfg.devicePort;
+    mConfig = cfg;
 
     return Chimera::Status::OK;
   }
@@ -197,6 +212,41 @@ namespace Ripple
     {
       auto packet = mRXQueue.front();
       return packet->size() - sizeof( TransportHeader );
+    }
+  }
+
+
+  void Socket::processData()
+  {
+    auto bytesAvailable = this->available();
+    while ( bytesAvailable )
+    {
+      /*-----------------------------------------------------------------
+      Allocate temporary storage for the packet
+      -----------------------------------------------------------------*/
+      uint8_t *rxData = reinterpret_cast<uint8_t*>( mContext->malloc( bytesAvailable ) );
+      if( !rxData )
+      {
+        LOG_ERROR( "Out of storage for socket\r\n" );
+        return;
+      }
+
+      /*-----------------------------------------------------------------
+      Read out the data packet
+      -----------------------------------------------------------------*/
+      auto result = this->read( rxData, bytesAvailable );
+      LOG_INFO( "Read %d bytes\r\n", bytesAvailable );
+
+      /*-----------------------------------------------------------------
+      Read the header and invoke the appropriate handler
+      -----------------------------------------------------------------*/
+      // Might want to make the handler have the data available to it
+
+      /*-----------------------------------------------------------------
+      Free the temporary storage and grab the next packet size
+      -----------------------------------------------------------------*/
+      mContext->free( rxData );
+      bytesAvailable = this->available();
     }
   }
 

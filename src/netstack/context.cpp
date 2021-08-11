@@ -199,9 +199,9 @@ namespace Ripple
 
   void Context::processRX()
   {
-    /*-------------------------------------------------
-    Input protections
-    -------------------------------------------------*/
+    /*-----------------------------------------------------------------
+    Input Protections
+    -----------------------------------------------------------------*/
     Chimera::Thread::LockGuard<Context>( *this );
 
     if ( !mNetIf )
@@ -209,11 +209,24 @@ namespace Ripple
       return;
     }
 
-    /*-------------------------------------------------
-    Perform RX procedures
-    -------------------------------------------------*/
+    /*-----------------------------------------------------------------
+    Push completed packets into their destinations or remove them from
+    the processing queue.
+    -----------------------------------------------------------------*/
     processRXPacketAssembly();
+
+    /*-----------------------------------------------------------------
+    Talk with the NetIf driver to get any pending packet fragments
+    -----------------------------------------------------------------*/
     acquireFragments();
+
+    /*-----------------------------------------------------------------
+    Process all socket periodic functionality
+    -----------------------------------------------------------------*/
+    for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
+    {
+      ( *sock )->processData();
+    }
   }
 
 

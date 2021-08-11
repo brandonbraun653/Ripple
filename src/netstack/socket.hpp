@@ -29,6 +29,15 @@
 /* Ripple Includes */
 #include <Ripple/src/netif/device_intf.hpp>
 #include <Ripple/src/netstack/types.hpp>
+#include <Ripple/src/netstack/packets/types.hpp>
+
+/*
+need some way of dynamically assigning packet lists for filtering and holding handlers.
+It is like I need a structure that contains socket specific items. Factory functions
+for generating these structures? Each understands the size associate and builds up the
+structure from scratch using the context manager. The handlers could be expanded at
+runtime with a copy and replace mechanism. I'm going to need a lot of shared_ptrs...
+*/
 
 namespace Ripple
 {
@@ -44,6 +53,50 @@ namespace Ripple
   static constexpr IPAddress LOCAL_HOST_IP = 127001; /* 127.0.0.1 */
 
   /*-------------------------------------------------------------------------------
+  Structures
+  -------------------------------------------------------------------------------*/
+  /**
+   * @brief Runtime configuration options for a socket
+   */
+  struct SocketConfig
+  {
+    Port devicePort;       /**< Port the socket will listen on */
+    PacketFilter txFilter; /**< Packets the socket is allowed to TX */
+    PacketFilter rxFilter; /**< Packets the socket will allow to be RX'd */
+  };
+
+  /**
+   * @brief A gathering of stats for a socket
+   */
+  struct SocketStats
+  {
+    size_t txPackets;
+    size_t rxPackets;
+
+    size_t allocatedMem;
+  };
+
+
+  // struct Socket
+  // {
+  //   PacketId id;
+
+  // };
+
+  /*-------------------------------------------------------------------------------
+  Public Functions
+  -------------------------------------------------------------------------------*/
+  /**
+   * @brief Checks if a packet is in the given filter
+   *
+   * @param pkt       Packet to look for
+   * @param filter    Which filter to look in
+   * @return true     The packet is in the filter
+   * @return false    The packet is not in the filter
+   */
+  bool packetInFilter( const PacketId pkt, const PacketFilter &filter );
+
+  /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
   /**
@@ -56,14 +109,12 @@ namespace Ripple
     ~Socket();
 
     /**
-     *  Opens the socket for operation on the given port. The socket will
-     *  automatically inherit the address of its creation context as well
-     *  as the direction of the data stream.
+     * @brief Opens the socket for operation
      *
-     *  @param[in]  port    Port to open as
-     *  @return Chimera::Status_t
+     * @param cfg   Socket configuration parameters
+     * @return Chimera::Status_t
      */
-    Chimera::Status_t open( const Port port );
+    Chimera::Status_t open( const SocketConfig &cfg );
 
     /**
      *  Closes the socket and places it in an idle state
@@ -89,28 +140,11 @@ namespace Ripple
     Chimera::Status_t disconnect();
 
     /**
-     *  Writes a number of bytes into a connection stream
+     * @brief Gather statistics for the socket
      *
-     *  @param[in]  data      Data to write
-     *  @param[in]  bytes     Number of bytes to write
-     *  @return Chimera::Status_t
+     * @param stats   Output object for the gathered data
      */
-    Chimera::Status_t write( const void *const data, const size_t bytes );
-
-    /**
-     *  Reads a number of bytes out from the connection stream
-     *
-     *  @param[out] data      Data to read into
-     *  @param[in]  bytes     Number of bytes to read
-     *  @return Chimera::Status_t
-     */
-    Chimera::Status_t read( void *const data, const size_t bytes );
-
-    /**
-     *  Queries the number of bytes available to read from the the connection.
-     *  @return size_t
-     */
-    size_t available();
+    void getStatistics( SocketStats &stats );
 
     /**
      *  Comparison function for list sorting
@@ -134,7 +168,53 @@ namespace Ripple
 
   protected:
     friend class Context;
+    friend bool transmit( const PacketId, Socket &, const void *const, const size_t );
+    friend bool onReceive( const PacketId, Socket &, PacketCallback );
+    friend bool onReceive( Socket &, PacketCallback );
+
+    /**
+     * @brief Construct a new Socket object
+     *
+     * Used by the context manager for creating a new object with
+     * dynamically allocated memory.
+     *
+     * @param ctx     Context manager to use
+     * @param type    What type of socket this is
+     * @param memory  How much memory should be allocated for socket use
+     */
     Socket( Context_rPtr ctx, const SocketType type, const size_t memory );
+
+    /**
+     *  @brief Low level function to write a number of bytes into a connection stream
+     *
+     *  @param[in]  data      Data to write
+     *  @param[in]  bytes     Number of bytes to write
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t write( const void *const data, const size_t bytes );
+
+    /**
+     *  @brief Low level function to read a number of bytes out from the connection stream
+     *
+     *  @param[out] data      Data to read into
+     *  @param[in]  bytes     Number of bytes to read
+     *  @return Chimera::Status_t
+     */
+    Chimera::Status_t read( void *const data, const size_t bytes );
+
+    /**
+     *  @brief Queries the number of bytes available to read from the the connection stream
+     *  @return size_t
+     */
+    size_t available();
+
+    /**
+     * @brief Periodic processing for the socket
+     *
+     * Handles reading data out of the RX queue and translating that into
+     * packets. Upon reception of a good packet, calls reception handler.
+     */
+    void processData();
 
 
     size_t maxMem;      /**< Maximum memory assigned to this socket */
@@ -148,6 +228,10 @@ namespace Ripple
     Port      mThisPort;    /**< Port of this socket */
     IPAddress mDestAddress; /**< Destination network address */
     Port      mDestPort;    /**< Destination network port */
+    SocketConfig mConfig;
+
+    PacketCallback mCommonPktCallback;
+    etl::map<PacketId, PacketCallback, 10> mPktCallbacks;
 
   private:
     Context_rPtr mContext;

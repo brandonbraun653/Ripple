@@ -15,6 +15,9 @@
 /* STL Includes */
 #include <cstdint>
 
+/* ETL Includes */
+#include <etl/list.h>
+
 /* NanoPB Includes */
 #include "pb.h"
 
@@ -25,6 +28,8 @@ namespace Ripple
   Aliases
   -------------------------------------------------------------------------------*/
   using PacketId = uint32_t;
+  using PacketCallback = void( * )( const PacketId );
+  using PacketFilter = std::array<PacketId, 32>;
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -38,8 +43,15 @@ namespace Ripple
   struct PacketDef
   {
     PacketId id;                /**< System identifier for the packet */
-    size_t size;                /**< Size of the packet on the wire (encoded) */
+    uint8_t size;               /**< Size of the packet on the wire (encoded) */
     const pb_msgdesc_t *fields; /**< NanoPB fields descriptor */
+  };
+
+  struct PacketHdr
+  {
+    PacketId id;
+    uint8_t  size;
+    uint8_t  pad0[ 3 ];
   };
 
 }  // namespace Ripple
