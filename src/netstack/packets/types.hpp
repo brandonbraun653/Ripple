@@ -27,9 +27,9 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Aliases
   -------------------------------------------------------------------------------*/
-  using PacketId = uint32_t;
-  using PacketCallback = void( * )( const PacketId );
-  using PacketFilter = std::array<PacketId, 32>;
+  using PacketId       = uint32_t;
+  using PacketCallback = void ( * )( const PacketId, const void *const, const size_t );
+  using PacketFilter   = std::array<PacketId, 32>;
 
   /*-------------------------------------------------------------------------------
   Structures
@@ -50,10 +50,10 @@ namespace Ripple
   struct PacketHdr
   {
     PacketId id;
-    uint8_t  size;
-    uint8_t  pad0[ 3 ];
+    uint8_t size;
+    uint8_t pad0[ 3 ];
   };
 
-}  // namespace Ripple
+}    // namespace Ripple
 
-#endif  /* !RIPPLE_PACKET_TYPES_HPP */
+#endif /* !RIPPLE_PACKET_TYPES_HPP */

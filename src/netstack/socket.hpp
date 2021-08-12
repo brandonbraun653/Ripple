@@ -76,13 +76,6 @@ namespace Ripple
     size_t allocatedMem;
   };
 
-
-  // struct Socket
-  // {
-  //   PacketId id;
-
-  // };
-
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
@@ -217,17 +210,17 @@ namespace Ripple
     void processData();
 
 
-    size_t maxMem;      /**< Maximum memory assigned to this socket */
-    size_t allocMem;    /**< Currently allocated memory */
+    size_t maxMem;   /**< Maximum memory assigned to this socket */
+    size_t allocMem; /**< Currently allocated memory */
 
     bool mTXReady;
     PacketQueue<5> mTXQueue;
     PacketQueue<5> mRXQueue;
     Chimera::Thread::RecursiveMutex *mLock;
 
-    Port      mThisPort;    /**< Port of this socket */
+    Port mThisPort;         /**< Port of this socket */
     IPAddress mDestAddress; /**< Destination network address */
-    Port      mDestPort;    /**< Destination network port */
+    Port mDestPort;         /**< Destination network port */
     SocketConfig mConfig;
 
     PacketCallback mCommonPktCallback;
@@ -239,6 +232,6 @@ namespace Ripple
   };
 
 
-}  // namespace Ripple
+}    // namespace Ripple
 
-#endif  /* !RIPPLE_NETSTACK_SOCKET_HPP */
+#endif /* !RIPPLE_NETSTACK_SOCKET_HPP */

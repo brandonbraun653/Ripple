@@ -34,9 +34,9 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   bool packetInFilter( const PacketId pkt, const PacketFilter &filter )
   {
-    for( auto &filter_pkt : filter )
+    for ( auto &filter_pkt : filter )
     {
-      if( pkt == filter_pkt )
+      if ( pkt == filter_pkt )
       {
         return true;
       }
@@ -77,7 +77,7 @@ namespace Ripple
   Chimera::Status_t Socket::open( const SocketConfig &cfg )
   {
     mThisPort = cfg.devicePort;
-    mConfig = cfg;
+    mConfig   = cfg;
 
     return Chimera::Status::OK;
   }
@@ -122,13 +122,13 @@ namespace Ripple
     Push the packet to the queue
     -------------------------------------------------*/
     Packet_sPtr newPacket = Transport::constructPacket( &mContext->mHeap, header, data, bytes );
-    auto result = Chimera::Status::FAIL;
+    auto result           = Chimera::Status::FAIL;
 
     if ( newPacket )
     {
       mTXQueue.push( newPacket );
       mTXReady = true;
-      result =  Chimera::Status::OK;
+      result   = Chimera::Status::OK;
     }
 
 
@@ -162,7 +162,7 @@ namespace Ripple
     const size_t packetSize    = packet->size();
     const size_t crcDataOffset = offsetof( TransportHeader, dstPort );
     const size_t dataSize      = packetSize - sizeof( TransportHeader );
-    uint8_t *scratch           = reinterpret_cast<uint8_t*>( mContext->malloc( packetSize ) );
+    uint8_t *scratch           = reinterpret_cast<uint8_t *>( mContext->malloc( packetSize ) );
     memset( scratch, 0, packetSize );
     packet->unpack( scratch, packetSize );
 
@@ -218,14 +218,28 @@ namespace Ripple
 
   void Socket::processData()
   {
+    /*-----------------------------------------------------------------
+    Ensure thread safety on memory accesses
+    -----------------------------------------------------------------*/
+    Chimera::Thread::LockGuard sockLock( *this );
+    Chimera::Thread::LockGuard<Context> lock( *mContext );
+
+    /*-----------------------------------------------------------------
+    Verify some runtime assumptions
+    -----------------------------------------------------------------*/
+    RT_HARD_ASSERT( mCommonPktCallback ); /* Required default handler for RX pkts */
+
+    /*-----------------------------------------------------------------
+    Process all pending packets
+    -----------------------------------------------------------------*/
     auto bytesAvailable = this->available();
     while ( bytesAvailable )
     {
       /*-----------------------------------------------------------------
       Allocate temporary storage for the packet
       -----------------------------------------------------------------*/
-      uint8_t *rxData = reinterpret_cast<uint8_t*>( mContext->malloc( bytesAvailable ) );
-      if( !rxData )
+      uint8_t *rxData = reinterpret_cast<uint8_t *>( mContext->malloc( bytesAvailable ) );
+      if ( !rxData )
       {
         LOG_ERROR( "Out of storage for socket\r\n" );
         return;
@@ -235,12 +249,45 @@ namespace Ripple
       Read out the data packet
       -----------------------------------------------------------------*/
       auto result = this->read( rxData, bytesAvailable );
-      LOG_INFO( "Read %d bytes\r\n", bytesAvailable );
 
       /*-----------------------------------------------------------------
       Read the header and invoke the appropriate handler
       -----------------------------------------------------------------*/
-      // Might want to make the handler have the data available to it
+      if ( result == Chimera::Status::OK )
+      {
+        /*-----------------------------------------------------------------
+        Is the packet allowed to be received by the socket?
+        -----------------------------------------------------------------*/
+        PacketHdr *hdr = reinterpret_cast<PacketHdr *>( rxData );
+        if ( packetInFilter( hdr->id, mConfig.rxFilter ) )
+        {
+          /*-----------------------------------------------------------------
+          Calculate the offset in to the buffer where the raw data lives
+          -----------------------------------------------------------------*/
+          uint8_t *pktData = rxData + sizeof( PacketHdr );
+
+          /*-----------------------------------------------------------------
+          Call the specific handler if available, else call default handler
+          -----------------------------------------------------------------*/
+          auto callbackIterator = mPktCallbacks.find( hdr->id );
+          if ( callbackIterator == mPktCallbacks.end() )
+          {
+            mCommonPktCallback( hdr->id, pktData, hdr->size );
+          }
+          else
+          {
+            callbackIterator->second( hdr->id, pktData, hdr->size );
+          }
+        }
+        else
+        {
+          LOG_DEBUG( "Packet id [%d] rejected by socket\r\n", hdr->id );
+        }
+      }
+      else
+      {
+        LOG_ERROR( "Packet read failure: %d\r\n", result );
+      }
 
       /*-----------------------------------------------------------------
       Free the temporary storage and grab the next packet size
