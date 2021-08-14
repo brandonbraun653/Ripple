@@ -776,6 +776,7 @@ namespace Ripple::NetIf::NRF24::DataLink
       mTXQueue.pop();
       mTXMutex.unlock();
       mTCB.inProgress = false;
+      LOG_ERROR_IF( DEBUG_MODULE, "NRF24 ARP lookup failure for next hop: %d\r\n", cacheFrame.nextHop );
 
       return;
     }

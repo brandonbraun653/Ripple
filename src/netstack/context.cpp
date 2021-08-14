@@ -434,14 +434,15 @@ namespace Ripple
       void **raw_data = assembly->packet->head->data.get();
       auto header     = reinterpret_cast<TransportHeader *>( *raw_data );
 
-      for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
+      for ( auto sock = mSocketList.begin(); /* Check exit below*/; sock++ )
       {
         /*-------------------------------------------------
-        No socket matched the received UUID
+        No socket matched the received UUID. Perform loop
+        termination check here to take actions on exit.
         -------------------------------------------------*/
         if ( sock == mSocketList.end() )
         {
-          LOG_ERROR( "Destination port %d for packet %d doesn't exist!\r\n", ( *sock )->port(), uuid );
+          LOG_ERROR( "No socket has port %d for packet %d\r\n", header->dstPort, uuid );
           assembly->remove = true;
           break;
         }
