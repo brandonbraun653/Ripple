@@ -154,7 +154,6 @@ namespace Ripple::NetIf::NRF24::Physical
       -------------------------------------------------*/
       if ( ( readValue & sRegDefaults[ x ].rwMask ) != maskedValue )
       {
-        Chimera::insert_debug_breakpoint();
         return Chimera::Status::FAIL;
       }
     }
@@ -1049,7 +1048,6 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     if ( !driverReady( handle ) )
     {
-      Chimera::insert_debug_breakpoint();
       return RFPower::PA_INVALID;
     }
 
@@ -1150,7 +1148,6 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     if ( !driverReady( handle ) )
     {
-      Chimera::insert_debug_breakpoint();
       return DataRate::DR_250KBPS;
     }
 

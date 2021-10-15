@@ -134,7 +134,6 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
 
   void RadioControl::handleBadRequest( const etl::imessage &msg )
   {
-    Chimera::insert_debug_breakpoint();
   }
 
 
@@ -179,7 +178,6 @@ namespace Ripple::NetIf::NRF24::Physical::FSM
     }
     else
     {
-      Chimera::insert_debug_breakpoint();
       return StateId::POWERED_OFF;
     }
   }

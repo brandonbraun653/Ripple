@@ -204,23 +204,12 @@ namespace Ripple::NetIf::NRF24::Physical
 
       if( memcmp( tmpBuffer, buffer, len ) != 0 )
       {
-        Chimera::insert_debug_breakpoint();
         return INVALID_STATUS_REG;
       }
 
       static_assert( ARRAY_BYTES( tmpBuffer ) == ARRAY_BYTES( Handle::rxBuffer ) );
     }
 
-
-    if( addr == REG_ADDR_CONFIG )
-    {
-      uint8_t data = reinterpret_cast<const uint8_t *const >( buffer )[ 0 ];
-
-      if( data & ( 1u << 5 ) )
-      {
-        Chimera::insert_debug_breakpoint();
-      }
-    }
     return handle.lastStatus;
   }
 
