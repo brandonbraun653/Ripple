@@ -27,7 +27,7 @@
 /*-------------------------------------------------------------------------------
 Literals
 -------------------------------------------------------------------------------*/
-#define DEBUG_MODULE ( true )
+#define DEBUG_MODULE ( false )
 
 namespace Ripple::NetIf::NRF24::DataLink
 {
@@ -109,7 +109,7 @@ namespace Ripple::NetIf::NRF24::DataLink
 
     cfg.arg                                   = nullptr;
     cfg.function                              = dlFunc;
-    cfg.priority                              = Priority::LEVEL_4;
+    cfg.priority                              = 4;
     cfg.stackWords                            = THREAD_STACK_WORDS;
     cfg.type                                  = TaskInitType::STATIC;
     cfg.name                                  = THREAD_NAME.data();
