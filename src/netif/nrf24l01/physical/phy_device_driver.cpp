@@ -10,6 +10,9 @@
 
 #if defined( EMBEDDED )
 
+/* Aurora Includes */
+#include <Aurora/logging>
+
 /* Chimera Includes */
 #include <Chimera/assert>
 #include <Chimera/common>
@@ -20,6 +23,11 @@
 
 namespace Ripple::NetIf::NRF24::Physical
 {
+  /*-----------------------------------------------------------------------------
+  Constants
+  -----------------------------------------------------------------------------*/
+  static constexpr bool DBG_MODULE = true;
+
   /*-------------------------------------------------------------------------------
   Private Structures
   -------------------------------------------------------------------------------*/
@@ -140,6 +148,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Reset each register back to power-on defaults
     -------------------------------------------------*/
+    size_t mismatched_registers = 0;
     for ( size_t x = 0; x < ARRAY_COUNT( sRegDefaults ); x++ )
     {
       /*-------------------------------------------------
@@ -154,7 +163,8 @@ namespace Ripple::NetIf::NRF24::Physical
       -------------------------------------------------*/
       if ( ( readValue & sRegDefaults[ x ].rwMask ) != maskedValue )
       {
-        return Chimera::Status::FAIL;
+        mismatched_registers++;
+        LOG_WARN_IF( DBG_MODULE, "Failed to set register 0x%02x\r\n", sRegDefaults[ x ].reg );
       }
     }
 
@@ -171,7 +181,7 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     writeRegister( handle, REG_ADDR_STATUS, STATUS_Clear );
 
-    return Chimera::Status::OK;
+    return mismatched_registers ? Chimera::Status::FAIL : Chimera::Status::OK;
   }
 
 
@@ -470,7 +480,7 @@ namespace Ripple::NetIf::NRF24::Physical
       -------------------------------------------------*/
       setRegisterBits( handle, REG_ADDR_DYNPD, dynpd_mask );
 
-      handle.flags |=  DEV_DYNAMIC_PAYLOADS;
+      handle.flags |= DEV_DYNAMIC_PAYLOADS;
     }
     else
     {
@@ -1007,7 +1017,7 @@ namespace Ripple::NetIf::NRF24::Physical
     /*-------------------------------------------------
     Assign the appropriate power level
     -------------------------------------------------*/
-    switch( level )
+    switch ( level )
     {
       /* -12dBm */
       case RFPower::PA_LVL_1:
@@ -1063,7 +1073,7 @@ namespace Ripple::NetIf::NRF24::Physical
     setup &= RF_SETUP_RF_PWR_Msk;
     setup >>= RF_SETUP_RF_PWR_Pos;
 
-    switch( setup )
+    switch ( setup )
     {
       /* -18dBm */
       case 0:
@@ -1664,7 +1674,7 @@ namespace Ripple::NetIf::NRF24::Physical
     -------------------------------------------------*/
     uint8_t pipe = ( getStatusRegister( handle ) & STATUS_RX_P_NO_Msk ) >> STATUS_RX_P_NO_Pos;
 
-    switch( pipe )
+    switch ( pipe )
     {
       /*-------------------------------------------------
       Not Used (0b110) or RX FIFO Empty (0b111)
@@ -1710,6 +1720,6 @@ namespace Ripple::NetIf::NRF24::Physical
     }
   }
 
-}    // namespace Ripple::Physical
+}    // namespace Ripple::NetIf::NRF24::Physical
 
-#endif  /* EMBEDDED */
+#endif /* EMBEDDED */

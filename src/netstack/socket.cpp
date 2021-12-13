@@ -225,11 +225,6 @@ namespace Ripple
     Chimera::Thread::LockGuard<Context> lock( *mContext );
 
     /*-----------------------------------------------------------------
-    Verify some runtime assumptions
-    -----------------------------------------------------------------*/
-    RT_HARD_ASSERT( mCommonPktCallback ); /* Required default handler for RX pkts */
-
-    /*-----------------------------------------------------------------
     Process all pending packets
     -----------------------------------------------------------------*/
     auto bytesAvailable = this->available();
@@ -272,6 +267,7 @@ namespace Ripple
           auto callbackIterator = mPktCallbacks.find( hdr->id );
           if ( callbackIterator == mPktCallbacks.end() )
           {
+            RT_HARD_ASSERT( mCommonPktCallback );
             mCommonPktCallback( hdr->id, pktData, hdr->size );
           }
           else

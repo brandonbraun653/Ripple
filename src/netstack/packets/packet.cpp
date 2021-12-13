@@ -54,12 +54,12 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Classes
   -------------------------------------------------------------------------------*/
-  Packet::Packet() : mContext( nullptr ), mFragmentationSize( DFLT_FRAG_SIZE )
+  Packet::Packet() : mContext( nullptr ), mFragmentationSize( DFLT_FRAG_SIZE ), mTotalFragments( 0 )
   {
   }
 
 
-  Packet::Packet( Aurora::Memory::IHeapAllocator *const context ) : mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE )
+  Packet::Packet( Aurora::Memory::IHeapAllocator *const context ) : mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE ), mTotalFragments( 0 )
   {
   }
 
