@@ -14,6 +14,7 @@
 
 /* STL Includes */
 #include <cstdint>
+#include <cstddef>
 
 namespace Ripple::NetIf
 {
@@ -45,6 +46,23 @@ namespace Ripple::NetIf
   {
     CallbackId id;
     // Could use union for data storage?
+  };
+
+
+  struct PerfStats
+  {
+    uint32_t tx_bytes;      /**< Raw number of bytes transmitted */
+    uint32_t tx_bytes_lost; /**< Total bytes lost */
+    uint32_t rx_bytes;      /**< Raw number of bytes received */
+    uint32_t rx_bytes_lost; /**< Raw number of bytes lost */
+    uint32_t frame_tx;      /**< Frames transmitted */
+    uint32_t frame_rx;      /**< Frames received */
+    uint32_t frame_tx_fail; /**< Frames failed to be transmitted */
+    uint32_t frame_tx_drop; /**< Total frames dropped due to failure */
+    uint32_t frame_rx_drop; /**< Total frames lost */
+    uint32_t link_speed_rx; /**< Received bytes per second */
+    uint32_t link_speed_tx; /**< Transmitted bytes per second */
+    uint32_t link_up_time;  /**< Time the link has been up (ms) */
   };
 
 }  // namespace Ripple

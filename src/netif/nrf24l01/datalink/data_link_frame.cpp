@@ -20,7 +20,7 @@ namespace Ripple::NetIf::NRF24::DataLink
   Classes
   -------------------------------------------------------------------------------*/
   Frame::Frame() :
-      nextHop( 0 ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
+      txAttempts( 0 ), nextHop( 0 ), receivedPipe( Physical::PipeNumber::PIPE_INVALID ),
       rtxCount( Physical::AutoRetransmitCount::ART_COUNT_INVALID ), rtxDelay( Physical::AutoRetransmitDelay::ART_DELAY_UNKNOWN )
   {
     /*-------------------------------------------------
@@ -35,14 +35,16 @@ namespace Ripple::NetIf::NRF24::DataLink
 
 
   Frame::Frame( const Frame &other ) :
-      nextHop( other.nextHop ), receivedPipe( other.receivedPipe ), rtxCount( other.rtxCount ), rtxDelay( other.rtxDelay )
+      txAttempts( other.txAttempts ), nextHop( other.nextHop ), receivedPipe( other.receivedPipe ), rtxCount( other.rtxCount ),
+      rtxDelay( other.rtxDelay )
   {
     memcpy( &wireData, &other.wireData, sizeof( PackedFrame ) );
   }
 
 
   Frame::Frame( const Frame &&other ) :
-      nextHop( other.nextHop ), receivedPipe( other.receivedPipe ), rtxCount( other.rtxCount ), rtxDelay( other.rtxDelay )
+      txAttempts( other.txAttempts ), nextHop( other.nextHop ), receivedPipe( other.receivedPipe ), rtxCount( other.rtxCount ),
+      rtxDelay( other.rtxDelay )
   {
     memcpy( &wireData, &other.wireData, sizeof( PackedFrame ) );
   }
@@ -54,6 +56,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     This was required for integration with the
     FrameQueue ETL structure.
     -------------------------------------------------*/
+    txAttempts   = other.txAttempts;
     nextHop      = other.nextHop;
     receivedPipe = other.receivedPipe;
     rtxCount     = other.rtxCount;
@@ -113,6 +116,12 @@ namespace Ripple::NetIf::NRF24::DataLink
   void Frame::unpack( const FrameBuffer &buffer )
   {
     memcpy( &wireData, buffer.data(), sizeof( PackedFrame ) );
+  }
+
+
+  size_t Frame::size()
+  {
+    return sizeof( PackedFrame );
   }
 
 }    // namespace Ripple::NetIf::NRF24::DataLink

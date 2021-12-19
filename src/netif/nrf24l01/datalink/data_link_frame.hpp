@@ -105,6 +105,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     /*-------------------------------------------------
     Public Attributes
     -------------------------------------------------*/
+    size_t txAttempts;                      /**< Number of times this frame has tried to be TX'd */
     IPAddress nextHop;                      /**< Which node this data is going to (IPAddress) */
     PackedFrame wireData;                   /**< Data frame transmitted on the wire */
     Physical::PipeNumber receivedPipe;      /**< Which pipe the data came from */
@@ -161,6 +162,13 @@ namespace Ripple::NetIf::NRF24::DataLink
      *  @return void
      */
     void unpack( const FrameBuffer &buffer );
+
+    /**
+     * @brief Gets the size of the frame
+     *
+     * @return size_t
+     */
+    size_t size();
   };
 }    // namespace Ripple::NetIf::NRF24::DataLink
 

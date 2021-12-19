@@ -23,6 +23,7 @@ Literals
 -------------------------------------------------------------------------------*/
 #define DEBUG_MODULE ( false )
 
+
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
@@ -162,6 +163,34 @@ namespace Ripple
   }
 
 
+  void Context::printStats()
+  {
+    /*-------------------------------------------------------------------------
+    Grab the latest stats
+    -------------------------------------------------------------------------*/
+    NetIf::PerfStats stats;
+    mNetIf->getStats( stats );
+
+    /*-------------------------------------------------------------------------
+    Format a string for printing to the console
+    -------------------------------------------------------------------------*/
+    char buf[ 512 ];
+    memset( buf, 0, ARRAY_BYTES( buf ) );
+
+    snprintf( buf, ARRAY_BYTES( buf ),
+      "\r\n\tRX:\tbytes\tframes\tspeed\tdropped\tlost"
+      "\r\n\t\t%ld\t%ld\t%ld\t%ld\t%ld"
+      "\r\n\tTX:\tbytes\tframes\tspeed\tdropped\tlost"
+      "\r\n\t\t%ld\t%ld\t%ld\t%ld\t%ld"
+      "\r\n"
+      ,
+      stats.rx_bytes, stats.frame_rx, stats.link_speed_rx, stats.frame_rx_drop, stats.rx_bytes_lost,
+      stats.tx_bytes, stats.frame_tx, stats.link_speed_tx, stats.frame_tx_drop, stats.tx_bytes_lost );
+
+    LOG_INFO( buf );
+  }
+
+
   void Context::ManagerThread( void *arg )
   {
     using namespace Aurora::Logging;
@@ -213,12 +242,12 @@ namespace Ripple
     Push completed packets into their destinations or remove them from
     the processing queue.
     -----------------------------------------------------------------*/
-    processRXPacketAssembly();
+    unsafe_processRXFrags();
 
     /*-----------------------------------------------------------------
     Talk with the NetIf driver to get any pending packet fragments
     -----------------------------------------------------------------*/
-    acquireFragments();
+    unsafe_pumpRXFrags();
 
     /*-----------------------------------------------------------------
     Process all socket periodic functionality
@@ -300,175 +329,181 @@ namespace Ripple
 
   void Context::cb_OnFragmentRX( size_t callbackID )
   {
-    // LOG_INFO( "NetIf received fragment\r\n" );
   }
 
 
   void Context::cb_OnFragmentTXFail( size_t callbackID )
   {
-    // LOG_ERROR( "NetIf fragment TX fail\r\n" );
   }
 
 
   void Context::cb_OnRXQueueFull( size_t callbackID )
   {
-    // LOG_ERROR( "NetIf RX queue full\r\n" );
   }
 
 
   void Context::cb_OnTXQueueFull( size_t callbackID )
   {
-    // LOG_ERROR( "NetIf TX queue full\r\n" );
   }
 
 
   void Context::cb_OnARPResolveError( size_t callbackID )
   {
-    // LOG_ERROR( "NetIf ARP resolve error\r\n" );
   }
 
 
   void Context::cb_OnARPStorageLimit( size_t callbackID )
   {
-    // LOG_ERROR( "NetIf storage limit reached\r\n" );
   }
 
 
-  void Context::pruneStaleRXFragments()
+  /**
+   * @brief Removes dead packets from the assembly area
+   */
+  void Context::unsafe_pruneRXFrags()
   {
-    std::array<uint32_t, 16> uuidToRemove;
-    uuidToRemove.fill( UUID_NO_REMOVE );
+    /*-------------------------------------------------------------------------
+    Local Variables
+    -------------------------------------------------------------------------*/
+    std::array<uint32_t, RIPPLE_CTX_MAX_PKT> uuidToRemove;
     uint8_t removeIdx = 0;
 
-    /*-------------------------------------------------
-    Iterate over all the current assembly operations
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Find all packets that are expired, whether explicitly or via timeout.
+    -------------------------------------------------------------------------*/
+    uuidToRemove.fill( UUID_NO_REMOVE );
     for ( auto &assemblyItem : mPacketAssembly )
     {
-      PacketAssemblyCB *const assembly = &assemblyItem.second;
-      const uint32_t uuid              = assemblyItem.first;
+      PacketAssembly *const assembly = &assemblyItem.second;
+      const uint32_t uuid            = assemblyItem.first;
+      const uint32_t lifetime        = assembly->lastTimeoutCheck - assembly->startRxTime;
 
-      /*-------------------------------------------------
-      Mark for removal if explicitly told to or if the
-      packet has timed out.
-      -------------------------------------------------*/
-      if ( assembly->remove ||
-           ( assembly->inProgress && ( ( assembly->lastTimeoutCheck - assembly->startRxTime ) >= assembly->timeout ) ) )
+      if ( lifetime >= assembly->timeout )
+      {
+        assembly->remove    = true;
+        assembly->whyRemove = PacketAssembly::RemoveErr::TIMEOUT;
+      }
+
+      if ( assembly->remove )
       {
         uuidToRemove[ removeIdx ] = uuid;
         removeIdx++;
       }
-
-      /*-------------------------------------------------
-      Update the timeout check
-      -------------------------------------------------*/
-      assembly->lastTimeoutCheck = Chimera::millis();
+      else
+      {
+        assembly->lastTimeoutCheck = Chimera::millis();
+      }
     }
 
-    /*-------------------------------------------------
-    Free the memory flagged for removal. Assumes
-    operation within a protected (locked) context.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Free the memory flagged for removal
+    -------------------------------------------------------------------------*/
     for ( size_t idx = 0; idx < removeIdx; idx++ )
     {
       auto iter = mPacketAssembly.find( uuidToRemove[ idx ] );
       if ( iter != mPacketAssembly.end() )
       {
-        LOG_DEBUG_IF( DEBUG_MODULE, "Pruning UUID: %d\r\n", uuidToRemove[ idx ] );
+        /*---------------------------------------------------------------------
+        Log the reason for removal. Very useful for post mortem debugging.
+        ---------------------------------------------------------------------*/
+        PacketAssembly *const assembly = &iter->second;
+        if( assembly->whyRemove != PacketAssembly::RemoveErr::COMPLETED )
+        {
+          LOG_DEBUG_IF( DEBUG_MODULE, "Abnormal assembly removal of UUID [%d]: %s\r\n", uuidToRemove[ idx ], assembly->whyRemoveString() );
+        }
+
         mPacketAssembly.erase( iter );
       }
     }
 
-    LOG_DEBUG_IF( ( DEBUG_MODULE && removeIdx ), "Pruned %d packets from assembly\r\n", removeIdx );
+    LOG_TRACE_IF( ( DEBUG_MODULE && removeIdx ), "Pruned %d packets from assembly\r\n", removeIdx );
   }
 
 
-  void Context::processRXPacketAssembly()
+  /**
+   * @brief Process packet assembly for completed or malformed packets.
+   *
+   * Acts as a message pump of sorts. Completed fragments are inspected to
+   * determine which destination socket on the network stack the packet will be
+   * assigned to, then pushed in to the appropriate RX queue.
+   */
+  void Context::unsafe_processRXFrags()
   {
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Clean the assembly area to prepare for new frags
-    -------------------------------------------------*/
-    pruneStaleRXFragments();
+    -------------------------------------------------------------------------*/
+    unsafe_pruneRXFrags();
 
-    /*-------------------------------------------------
-    Iterate over each possible assembly task and update
-    their status. If completely ready, push to the RX
-    queue of the destination socket.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Iterate over each possible assembly task and update their status. If ready,
+    push to the RX queue of the destination socket.
+    -------------------------------------------------------------------------*/
     for ( auto &assemblyItem : mPacketAssembly )
     {
-      PacketAssemblyCB *const assembly = &assemblyItem.second;
-      const uint32_t uuid              = assemblyItem.first;
+      PacketAssembly *const assembly = &assemblyItem.second;
 
-      /*-------------------------------------------------
-      Check for a completed packet. Partial packets will
-      auto-remove themselves if not all data arrives.
-      -------------------------------------------------*/
+      /*-----------------------------------------------------------------------
+      Check for a completed packet
+      -----------------------------------------------------------------------*/
       if ( !assembly->inProgress || assembly->packet->isMissingFragments() )
       {
         continue;
       }
 
-      /*-------------------------------------------------
-      All bytes received. Sort the packets, erasing them
-      if the packet doesn't have the proper structure.
-      -------------------------------------------------*/
+      /*-----------------------------------------------------------------------
+      All fragments received. Sort them and check the first fragment is ok.
+      -----------------------------------------------------------------------*/
       assembly->inProgress = false;
       assembly->packet->sort();
 
-      /*-------------------------------------------------
-      Double check the first fragment is large enough to
-      contain the header.
-      -------------------------------------------------*/
       if ( ( assembly->packet->head->number != 0 ) || ( assembly->packet->head->length < sizeof( TransportHeader ) ) )
       {
-        assembly->remove = true;
-        LOG_ERROR( "Invalid fragment header\r\n" );
+        assembly->remove    = true;
+        assembly->whyRemove = PacketAssembly::RemoveErr::CORRUPTION;
         continue;
       }
 
-      /*-------------------------------------------------
-      Find the socket associated with the UUID and push
-      the message into its receive queue.
-      -------------------------------------------------*/
+      /*-----------------------------------------------------------------------
+      Find the socket associated with the packet, then push it to the RX queue
+      -----------------------------------------------------------------------*/
       void **raw_data = assembly->packet->head->data.get();
       auto header     = reinterpret_cast<TransportHeader *>( *raw_data );
 
       for ( auto sock = mSocketList.begin(); /* Check exit below*/; sock++ )
       {
-        /*-------------------------------------------------
-        No socket matched the received UUID. Perform loop
-        termination check here to take actions on exit.
-        -------------------------------------------------*/
+        /*---------------------------------------------------------------------
+        No socket matched the destination port. Exit the loop here. Note that
+        only sockets which are PULL type can receive data.
+        ---------------------------------------------------------------------*/
         if ( sock == mSocketList.end() )
         {
-          LOG_ERROR( "No socket has port %d for packet %d\r\n", header->dstPort, uuid );
-          assembly->remove = true;
+          assembly->remove    = true;
+          assembly->whyRemove = PacketAssembly::RemoveErr::SOCK_NOT_FOUND;
           break;
         }
 
-        /*-------------------------------------------------
-        Found the destination socket
-        -------------------------------------------------*/
+        /*---------------------------------------------------------------------
+        Found the destination socket. Right type and right port.
+        ---------------------------------------------------------------------*/
         if ( ( ( *sock )->type() == SocketType::PULL ) && ( ( *sock )->port() == header->dstPort ) )
         {
-          /*-------------------------------------------------
+          /*-------------------------------------------------------------------
           Check for enough room in the RX queue
-          -------------------------------------------------*/
+          -------------------------------------------------------------------*/
           if ( ( *sock )->mRXQueue.full() )
           {
-            LOG_ERROR( "Destination port %d receive queue was full\r\n", ( *sock )->port() );
-            assembly->remove = true;
+            assembly->remove    = true;
+            assembly->whyRemove = PacketAssembly::RemoveErr::SOCK_Q_FULL;
             break;
           }
 
-          /*-------------------------------------------------
-          Push the root fragment into the queue, effectively
-          informing the socket of the entire ordered packet.
-          -------------------------------------------------*/
+          /*-------------------------------------------------------------------
+          Push the root fragment into the queue, effectively informing the
+          socket of the entire ordered packet.
+          -------------------------------------------------------------------*/
           ( *sock )->mRXQueue.push( assembly->packet );
-          assembly->remove = true;
-          LOG_DEBUG_IF( DEBUG_MODULE, "Received packet on port %d\r\n", ( *sock )->port() );
+          assembly->remove    = true;
+          assembly->whyRemove = PacketAssembly::RemoveErr::COMPLETED;
           break;
         }
       }
@@ -476,60 +511,69 @@ namespace Ripple
   }
 
 
-  void Context::acquireFragments()
+  /**
+   * @brief Moves received data from hardware driver to net stack
+   *
+   * Acts as a message pump to communicate with the device driver, pulling out
+   * any waiting message fragments and pushing them into the appropriate area
+   * for assembly into a full message.
+   */
+  void Context::unsafe_pumpRXFrags()
   {
-    Fragment_sPtr list;
-    auto state = Chimera::Status::READY;
+    /*-------------------------------------------------------------------------
+    Local Variables
+    -------------------------------------------------------------------------*/
+    Fragment_sPtr fragList;              /**< Temp var for HW assembled data */
+    auto state = Chimera::Status::READY; /**< Reported HW state */
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Clean the assembly area to prepare for new frags
-    -------------------------------------------------*/
-    pruneStaleRXFragments();
+    -------------------------------------------------------------------------*/
+    unsafe_pruneRXFrags();
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Keep pulling in data while NetIf says it's ready
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     while ( state == Chimera::Status::READY )
     {
-      /*-------------------------------------------------
-      Try to receive a message
-      -------------------------------------------------*/
-      list  = Fragment_sPtr();
-      state = mNetIf->recv( list );
+      /*-----------------------------------------------------------------------
+      Try to receive a message from the hardware driver
+      -----------------------------------------------------------------------*/
+      fragList = Fragment_sPtr();
+      state    = mNetIf->recv( fragList );
 
-      if ( ( state != Chimera::Status::READY ) || !list )
+      if ( ( state != Chimera::Status::READY ) || !fragList )
       {
         continue;
       }
 
-      /*-------------------------------------------------
-      Extract each fragment from the list and push it to
-      its respective packet assembly area.
-      -------------------------------------------------*/
-      while ( list )
+      /*-----------------------------------------------------------------------
+      Pull each fragment from the list and push it to the packet assembly area.
+      -----------------------------------------------------------------------*/
+      while ( fragList )
       {
-        /*-------------------------------------------------
-        Cache the next item in the list for later.
-        -------------------------------------------------*/
-        Fragment_sPtr nextFragment = list->next;
-        list->next                 = Fragment_sPtr();
+        /*---------------------------------------------------------------------
+        Cache the next item in the list for later
+        ---------------------------------------------------------------------*/
+        Fragment_sPtr nextFragment = fragList->next;
+        fragList->next             = Fragment_sPtr();
 
-        /*-------------------------------------------------
+        /*---------------------------------------------------------------------
         Does the fragment UUID exist in the assembly area?
-        -------------------------------------------------*/
-        auto iter = mPacketAssembly.find( list->uuid );
+        ---------------------------------------------------------------------*/
+        auto iter = mPacketAssembly.find( fragList->uuid );
         if ( iter != mPacketAssembly.end() )
         {
-          LOG_DEBUG_IF( DEBUG_MODULE, "Received fragment UUID: %d\r\n", list->uuid );
+          LOG_TRACE_IF( DEBUG_MODULE, "Received fragment UUID: %d\r\n", fragList->uuid );
 
-          /*-------------------------------------------------
-          Does this packet already exist in the assembly?
-          -------------------------------------------------*/
+          /*-------------------------------------------------------------------
+          Does this particular packet already exist in the assembly?
+          -------------------------------------------------------------------*/
           Fragment_sPtr frag = iter->second.packet->head;
           bool isDuplicate   = false;
           while ( frag )
           {
-            if ( list->number == frag->number )
+            if ( fragList->number == frag->number )
             {
               isDuplicate = true;
               break;
@@ -538,59 +582,56 @@ namespace Ripple
             frag = frag->next;
           }
 
-          /*-------------------------------------------------
-          Insert the fragment at the front, out of order. The
-          sorting process will come later once all packets
-          have been received.
-          -------------------------------------------------*/
+          /*-------------------------------------------------------------------
+          Insert the fragment at the front, out of order. The sorting process
+          will come later once all packets have been received.
+          -------------------------------------------------------------------*/
           if ( !isDuplicate )
           {
             Fragment_sPtr prevAssemblyFragPtr = iter->second.packet->head;
 
-            iter->second.packet->head       = list;
+            iter->second.packet->head       = fragList;
             iter->second.packet->head->next = prevAssemblyFragPtr;
-            iter->second.bytesRcvd += list->length;
+            iter->second.bytesRcvd += fragList->length;
           }
         }
         else if ( !mPacketAssembly.full() )
         {
-          PacketAssemblyCB newAssembly( &this->mHeap );
+          /*-------------------------------------------------------------------
+          Allocate memory for a new assembly
+          -------------------------------------------------------------------*/
+          PacketAssembly newAssembly( &this->mHeap );
 
-          newAssembly.inProgress       = true;
-          newAssembly.remove           = false;
-          newAssembly.bytesRcvd        = list->length;
-          newAssembly.packet->head     = list;
-          newAssembly.startRxTime      = Chimera::millis();
-          newAssembly.lastTimeoutCheck = newAssembly.startRxTime;
-          newAssembly.timeout          = 1000 * Chimera::Thread::TIMEOUT_1MS;
-
-          /*-------------------------------------------------
-          First item in the list. Ensure it's terminated.
-          -------------------------------------------------*/
+          newAssembly.inProgress         = true;
+          newAssembly.remove             = false;
+          newAssembly.bytesRcvd          = fragList->length;
+          newAssembly.packet->head       = fragList;
+          newAssembly.startRxTime        = Chimera::millis();
+          newAssembly.lastTimeoutCheck   = newAssembly.startRxTime;
+          newAssembly.timeout            = RIPPLE_PKT_LIFETIME;
           newAssembly.packet->head->next = Fragment_sPtr();
 
-          /*-------------------------------------------------
-          Need to explicitly move the newly created assembly
-          else some memory issues occur with transferring the
-          internal shared_ptr objects.
-          -------------------------------------------------*/
-          std::pair<const uint32_t, Ripple::PacketAssemblyCB> x{ list->uuid, std::move( newAssembly ) };
+          /*-------------------------------------------------------------------
+          Need to explicitly move the newly created assembly else some memory
+          issues occur with transferring the internal shared_ptr objects.
+          -------------------------------------------------------------------*/
+          std::pair<const uint32_t, Ripple::PacketAssembly> x{ fragList->uuid, std::move( newAssembly ) };
           mPacketAssembly.insert( std::move( x ) );
 
-          LOG_DEBUG_IF( DEBUG_MODULE, "Starting assembly for UUID: %d\r\n", list->uuid );
+          LOG_TRACE_IF( DEBUG_MODULE, "Starting assembly for UUID: %d\r\n", fragList->uuid );
         }
         else
         {
-          LOG_ERROR( "Packet assembly limit reached. Dropped fragment with UUID: %d\r\n", list->uuid );
+          LOG_ERROR( "Packet assembly limit [%d] reached. Dropped fragment with UUID: %d\r\n", mPacketAssembly.MAX_SIZE,
+                     fragList->uuid );
         }
 
-        /*-------------------------------------------------
+        /*---------------------------------------------------------------------
         Start parsing the next fragment
-        -------------------------------------------------*/
-        list = nextFragment;
+        ---------------------------------------------------------------------*/
+        fragList = nextFragment;
       }
     }
   }
-
 
 }    // namespace Ripple

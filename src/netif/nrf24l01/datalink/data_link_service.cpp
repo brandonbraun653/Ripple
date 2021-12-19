@@ -29,6 +29,14 @@ Literals
 -------------------------------------------------------------------------------*/
 #define DEBUG_MODULE ( false )
 
+#if !defined( NRF_LINK_FRAME_RETRIES )
+#define NRF_LINK_FRAME_RETRIES ( 3 )
+#endif
+
+#if !defined( NRF_STAT_UPDATE_PERIOD_MS )
+#define NRF_STAT_UPDATE_PERIOD_MS ( Chimera::Thread::TIMEOUT_100MS )
+#endif
+
 namespace Ripple::NetIf::NRF24::DataLink
 {
   /*-------------------------------------------------------------------------------
@@ -251,10 +259,11 @@ namespace Ripple::NetIf::NRF24::DataLink
       Frame tmpFrame;
 
       /* Some high level packet parameters */
+      tmpFrame.txAttempts   = 1;
       tmpFrame.nextHop      = ip;
       tmpFrame.receivedPipe = Physical::PipeNumber::PIPE_INVALID;
-      tmpFrame.rtxCount     = Physical::AutoRetransmitCount::ART_COUNT_3;
-      tmpFrame.rtxDelay     = Physical::AutoRetransmitDelay::ART_DELAY_500uS;
+      tmpFrame.rtxCount     = mPhyHandle.cfg.hwRTXCount;
+      tmpFrame.rtxDelay     = mPhyHandle.cfg.hwRTXDelay;
 
       /* Set packet control parameters */
       memset( &tmpFrame.wireData, 0, sizeof( PackedFrame ) );
@@ -278,6 +287,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     }
 
     return Chimera::Status::READY;
+  }
+
+
+  void DataLink::getStats( PerfStats &stats )
+  {
+    Chimera::Thread::LockGuard _lock( *this );
+    stats = mStats;
   }
 
 
@@ -389,33 +405,32 @@ namespace Ripple::NetIf::NRF24::DataLink
     using namespace Aurora::Logging;
     using namespace Chimera::Thread;
 
-    /*-------------------------------------------------
-    Wait for this thread to be told to initialize
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Wait for thread to be told to initialize
+    -------------------------------------------------------------------------*/
     Ripple::TaskWaitInit();
     this_thread::set_name( "DataLink_Service" );
     mTaskId = this_thread::id();
 
     LOG_INFO( "Starting NRF24 network services\r\n" );
 
-    /*-------------------------------------------------
-    Establish communication with the radio and set up
-    user configuration properties.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Establish communication with the radio and set up user configuration
+    -------------------------------------------------------------------------*/
+    memset( &mStats, 0, sizeof( mStats ) );
     mFSMControl.receive( Physical::FSM::MsgPowerUp() );
     mSystemEnabled = true;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Execute the service
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     while ( 1 )
     {
-      /*-------------------------------------------------
-      Process the core radio events. This is driven by a
-      GPIO interrupt tied to the IRQ pin, or by another
-      task informing that it's time to process data.
-      -------------------------------------------------*/
-      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, 25 ) )
+      /*-----------------------------------------------------------------------
+      Process the core radio events. This is driven by a GPIO interrupt tied to
+      the IRQ pin, or by another task informing that it's time to process data.
+      -----------------------------------------------------------------------*/
+      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, 10 ) )
       {
         pendingEvent      = false;
         uint8_t eventMask = Physical::getISREvent( mPhyHandle );
@@ -445,23 +460,26 @@ namespace Ripple::NetIf::NRF24::DataLink
         }
       }
 
-      /*-------------------------------------------------
-      Handle packet TX timeouts. Getting here means there
-      is likely a setup issue with the hardware or no
-      receiver exists to accept the data.
-      -------------------------------------------------*/
+      /*-----------------------------------------------------------------------
+      Handle packet TX timeouts. Getting here means there is likely a setup
+      issue with the hardware or no receiver exists to accept the data.
+      -----------------------------------------------------------------------*/
       if ( mTCB.inProgress && ( ( Chimera::millis() - mTCB.start ) > mTCB.timeout ) )
       {
         processTXFail();
       }
 
-      /*-------------------------------------------------
-      Another thread may have woken this one to process
-      new frame queue data. Check if any is available.
-      Handle RX first to keep the HW FIFOs empty.
-      -------------------------------------------------*/
+      /*-----------------------------------------------------------------------
+      Another thread may have woken this one to process new frame queue data.
+      Check if any is available. Handle RX first to keep the HW FIFOs empty.
+      -----------------------------------------------------------------------*/
       processRXQueue();
       processTXQueue();
+
+      /*-----------------------------------------------------------------------
+      Calculate performance metrics
+      -----------------------------------------------------------------------*/
+      updateStats();
 
       mLastActive = Chimera::millis();
     }
@@ -613,7 +631,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     _fsmStateList[ Physical::FSM::StateId::TX_MODE ]     = &_fsmState_TXMode;
 
     mFSMControl.mHandle = &mPhyHandle;
-    mFSMControl.set_states( _fsmStateList, etl::size( _fsmStateList ) );
+    mFSMControl.set_states( _fsmStateList, std::size( _fsmStateList ) );
     mFSMControl.start();
 
     /*-------------------------------------------------
@@ -662,10 +680,9 @@ namespace Ripple::NetIf::NRF24::DataLink
   {
     using namespace Chimera::Thread;
 
-    /*-------------------------------------------------
-    Let the user space thread know it has an event to
-    process. Unsure what kind at this point.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Let user space thread know it has an event to process. Unsure what kind.
+    -------------------------------------------------------------------------*/
     if ( mSystemEnabled )
     {
       pendingEvent = true;
@@ -678,23 +695,31 @@ namespace Ripple::NetIf::NRF24::DataLink
   {
     using namespace Aurora::Logging;
 
-    /*-------------------------------------------------
-    Acknowledge the success
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Ack the success
+    -------------------------------------------------------------------------*/
     mFSMControl.receive( Physical::FSM::MsgGoToSTBY() );
     Physical::clrISREvent( mPhyHandle, Physical::bfISRMask::ISR_MSK_TX_DS );
     mTCB.inProgress = false;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Remove the now TX'd data off the queue
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     mTXMutex.lock();
     mTXQueue.pop();
     mTXMutex.unlock();
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
+    Update runtime stats
+    -------------------------------------------------------------------------*/
+    this->lock();
+    mStats.tx_bytes += sizeof( PackedFrame );
+    mStats.frame_tx += 1;
+    this->unlock();
+
+    /*-------------------------------------------------------------------------
     Notify the network layer of the success
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     mCBService_registry.call<CallbackId::CB_TX_SUCCESS>();
     LOG_DEBUG_IF( DEBUG_MODULE, "Transmit Success\r\n" );
   }
@@ -704,18 +729,25 @@ namespace Ripple::NetIf::NRF24::DataLink
   {
     using namespace Aurora::Logging;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Dump the unsuccessful frame from the queue
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     Frame failedFrame;
 
     mTXMutex.lock();
     mTXQueue.pop_into( failedFrame );
     mTXMutex.unlock();
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
+    Update stats
+    -------------------------------------------------------------------------*/
+    this->lock();
+    mStats.frame_tx_fail += 1;
+    this->unlock();
+
+    /*-------------------------------------------------------------------------
     Transition back to an idle state
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     mFSMControl.receive( Physical::FSM::MsgGoToSTBY() );
     mTCB.inProgress = false;
 
@@ -732,11 +764,16 @@ namespace Ripple::NetIf::NRF24::DataLink
     }
     // else NO_ACK, which means there is nothing to clear. The data was lost to the ether.
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Notify the network layer of the failed frame
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     mCBService_registry.call<CallbackId::CB_ERROR_TX_FAILURE>();
     LOG_DEBUG_IF( DEBUG_MODULE, "Transmit Fail\r\n" );
+
+    /*-------------------------------------------------------------------------
+    QOS: Retransmit the frame, using a backoff strategy.
+    -------------------------------------------------------------------------*/
+    this->retransmitFrame( failedFrame, true );
   }
 
 
@@ -907,8 +944,12 @@ namespace Ripple::NetIf::NRF24::DataLink
       Enqueue the frame if possible, call the network
       handler if not. Otherwise the data is simply lost.
       -------------------------------------------------*/
+      Chimera::Thread::LockGuard _lock( *this );
       if ( !mRXQueue.full() )
       {
+        mStats.rx_bytes += readSize;
+        mStats.frame_rx += 1;
+
         mRXQueue.push( tempFrame );
       }
       else
@@ -922,6 +963,8 @@ namespace Ripple::NetIf::NRF24::DataLink
         }
         else
         {
+          mStats.rx_bytes_lost += readSize;
+          mStats.frame_rx_drop += 1;
           LOG_DEBUG_IF( DEBUG_MODULE, "RX frame lost due to netif queue full\r\n" );
         }
       }
@@ -943,6 +986,76 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------*/
     mRXMutex.unlock();
     mCBService_registry.call<CallbackId::CB_RX_SUCCESS>();
+  }
+
+
+  void DataLink::retransmitFrame( Frame &frame, const bool rtxBackoff )
+  {
+    /*-------------------------------------------------------------------------
+    Input Protection
+    -------------------------------------------------------------------------*/
+    if ( frame.txAttempts > NRF_LINK_FRAME_RETRIES )
+    {
+      LOG_ERROR( "Frame exceeded link layer retry attempts\r\n" );
+      return;
+    }
+
+    /*-------------------------------------------------------------------------
+    Update the runtime data
+    -------------------------------------------------------------------------*/
+    frame.txAttempts++;
+    if ( rtxBackoff && ( frame.rtxDelay < Physical::AutoRetransmitDelay::ART_DELAY_MAX ) )
+    {
+      frame.rtxDelay = static_cast<Physical::AutoRetransmitDelay>( static_cast<size_t>( frame.rtxDelay ) + 1 );
+    }
+
+    /*-------------------------------------------------------------------------
+    Push to the transmit queue
+    -------------------------------------------------------------------------*/
+    Chimera::Thread::LockGuard _lock( mTXMutex );
+
+    if ( !mTXQueue.full() )
+    {
+      mTXQueue.push( frame );
+    }
+    else
+    {
+      Chimera::Thread::LockGuard _lock2( *this );
+      mStats.frame_tx_drop += 1;
+      mStats.tx_bytes_lost += frame.size();
+      LOG_ERROR( "Lost frame in retransmit attempt. TX queue full.\r\n" );
+    }
+  }
+
+
+  void DataLink::updateStats()
+  {
+    /*-------------------------------------------------------------------------
+    Local Constants
+    -------------------------------------------------------------------------*/
+    static constexpr size_t UPDATES_PER_SECOND = Chimera::Thread::TIMEOUT_1S / NRF_STAT_UPDATE_PERIOD_MS;
+
+    /*-------------------------------------------------------------------------
+    Calculation period elapsed?
+    -------------------------------------------------------------------------*/
+    static size_t last_update   = Chimera::millis();
+    static PerfStats last_stats = mStats;
+
+    if ( ( Chimera::millis() - last_update ) < NRF_STAT_UPDATE_PERIOD_MS )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------------------------------
+    Update statistics
+    -------------------------------------------------------------------------*/
+    last_update = Chimera::millis();
+    Chimera::Thread::LockGuard _lock( *this );
+
+    mStats.link_speed_tx = ( mStats.tx_bytes - last_stats.tx_bytes ) * UPDATES_PER_SECOND;
+    mStats.link_speed_rx = ( mStats.rx_bytes - last_stats.rx_bytes ) * UPDATES_PER_SECOND;
+
+    last_stats = mStats;
   }
 
 }    // namespace Ripple::NetIf::NRF24::DataLink

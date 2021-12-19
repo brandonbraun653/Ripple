@@ -55,6 +55,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     void powerDn() final override;
     Chimera::Status_t recv( Fragment_sPtr &fragmentList ) final override;
     Chimera::Status_t send( const Fragment_sPtr msg, const IPAddress &ip ) final override;
+    void getStats( PerfStats &stats ) final override;
     IARP *addressResolver() final override;
     size_t maxTransferSize() const final override;
     size_t maxNumFragments() const final override;
@@ -107,7 +108,11 @@ namespace Ripple::NetIf::NRF24::DataLink
      */
     Physical::MACAddress getEndpointMAC( const Endpoint endpoint );
 
-
+    /**
+     * @brief Assign the physical layer configuration
+     *
+     * @param handle  Configuration
+     */
     void assignConfig( Physical::Handle &handle );
 
   protected:
@@ -119,6 +124,12 @@ namespace Ripple::NetIf::NRF24::DataLink
      */
     Chimera::Status_t powerUpRadio( Physical::Handle &handle );
 
+    /**
+     * @brief Initialize the hardware peripherals supporting the radio
+     *
+     * @param handle  Handle to the physical layer configuration
+     * @return Chimera::Status_t
+     */
     Chimera::Status_t initPeripherals( Physical::Handle &handle );
 
     /**
@@ -154,6 +165,19 @@ namespace Ripple::NetIf::NRF24::DataLink
      */
     void processRXQueue();
 
+    /**
+     * @brief Retransmits a pre-built frame
+     *
+     * @param frame         Raw frame to transmit
+     * @param rtxBackoff    Use a backoff hardware level retransmit delay strategy
+     */
+    void retransmitFrame( Frame &frame, const bool rtxBackoff );
+
+    /**
+     * @brief Update runtime statistics of the driver
+     */
+    void updateStats();
+
   private:
     /*-------------------------------------------------
     Class State Data
@@ -163,6 +187,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     Chimera::Thread::TaskId mTaskId; /**< Thread registration ID */
     TransferControlBlock mTCB;       /**< TX control block */
     size_t mLastActive;              /**< Last time the system did some TX/RX activity */
+    PerfStats mStats;                /**< Driver performance stats */
 
     Physical::MACAddress mEndpointMAC[ Endpoint::EP_NUM_OPTIONS ];
 

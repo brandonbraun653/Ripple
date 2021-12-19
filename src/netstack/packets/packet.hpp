@@ -47,36 +47,53 @@ namespace Ripple
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
-  struct PacketAssemblyCB
+  class PacketAssembly
   {
-    bool inProgress;
-    bool remove;
-    Packet_sPtr packet;
-    size_t bytesRcvd;
-    size_t startRxTime;
-    size_t lastTimeoutCheck;
-    size_t timeout;
+  public:
+    enum class RemoveErr
+    {
+      UNKNOWN,            /**< Default invalid reason */
+      COMPLETED,          /**< Packet completed successfully. No errors. */
+      TIMEOUT,            /**< Assembly time limit was reached */
+      CORRUPTION,         /**< Packet was corrupted somehow */
+      SOCK_Q_FULL,        /**< Destination socket receive queue was full */
+      SOCK_NOT_FOUND,     /**< Destination socket wasn't found */
+    };
+
+    bool inProgress;         /**< Is the assembly still accumulating fragments? */
+    bool remove;             /**< Flag to mark for removal */
+    RemoveErr whyRemove;     /**< Reason for removal */
+    Packet_sPtr packet;      /**< Fragment container */
+    size_t bytesRcvd;        /**< Total number of bytes received */
+    size_t startRxTime;      /**< Time the assembly started */
+    size_t lastTimeoutCheck; /**< Last time a timeout check was performed */
+    size_t timeout;          /**< Time delta the assembly has to build the message */
 
     /**
-     * @brief Default construct a new PacketAssemblyCB
+     * @brief Default construct a new PacketAssembly
      */
-    explicit PacketAssemblyCB()
+    explicit PacketAssembly()
     {
       clear();
     }
 
     /**
-     * @brief Construct a new PacketAssemblyCB object with memory allocator
+     * @brief Construct a new PacketAssembly object with memory allocator
      *
      * @param context     Memory allocator
      */
-    explicit PacketAssemblyCB( Aurora::Memory::IHeapAllocator *const context )
+    explicit PacketAssembly( Aurora::Memory::IHeapAllocator *const context )
     {
       clear();
       packet = allocPacket( context );
     }
 
-    explicit PacketAssemblyCB( PacketAssemblyCB &&obj )
+    /**
+     * @brief Move construct a new Packet Assembly object
+     *
+     * @param obj     The old object
+     */
+    explicit PacketAssembly( PacketAssembly &&obj )
     {
       this->inProgress       = obj.inProgress;
       this->remove           = obj.remove;
@@ -85,29 +102,60 @@ namespace Ripple
       this->startRxTime      = obj.startRxTime;
       this->lastTimeoutCheck = obj.lastTimeoutCheck;
       this->timeout          = obj.timeout;
+      this->whyRemove        = obj.whyRemove;
 
-      obj.inProgress       = false;
-      obj.remove           = false;
-      obj.packet           = Packet_sPtr();
-      obj.bytesRcvd        = 0;
-      obj.startRxTime      = 0;
-      obj.lastTimeoutCheck = 0;
-      obj.timeout          = 0;
+      obj.clear();
     }
 
     /**
      * @brief Resets the assembly to defaults
-     *
      */
     void clear()
     {
       inProgress       = false;
       remove           = false;
+      whyRemove        = RemoveErr::UNKNOWN;
       packet           = Packet_sPtr();
       bytesRcvd        = 0;
       startRxTime      = 0;
       lastTimeoutCheck = 0;
       timeout          = 0;
+    }
+
+
+    /**
+     * @brief Helper method to convert removal reason error code into a string
+     * @return const char*
+     */
+    const char *whyRemoveString()
+    {
+      switch( whyRemove )
+      {
+        case RemoveErr::COMPLETED:
+          return "Packet built successfully";
+          break;
+
+        case RemoveErr::CORRUPTION:
+          return "Packet was corrupted";
+          break;
+
+        case RemoveErr::TIMEOUT:
+          return "Packet assembly timed out";
+          break;
+
+        case RemoveErr::SOCK_Q_FULL:
+          return "Destination socket receive queue was full";
+          break;
+
+        case RemoveErr::SOCK_NOT_FOUND:
+          return "Destination socket was not found";
+          break;
+
+        case RemoveErr::UNKNOWN:
+        default:
+          return "Unknown reason";
+          break;
+      };
     }
   };
 
@@ -115,7 +163,7 @@ namespace Ripple
   Aliases
   -------------------------------------------------------------------------------*/
   template<size_t SIZE>
-  using AssemblyMap = etl::map<const uint32_t, PacketAssemblyCB, SIZE>;
+  using AssemblyMap = etl::map<const uint32_t, PacketAssembly, SIZE>;
 
   /*-------------------------------------------------------------------------------
   Classes

@@ -141,6 +141,13 @@ namespace Ripple::NetIf
     virtual Chimera::Status_t send( const Fragment_sPtr head, const IPAddress &ip ) = 0;
 
     /**
+     * @brief Get the runtime statistics of the interface driver
+     *
+     * @param stats   Stats object to fill
+     */
+    virtual void getStats( PerfStats &stats ) = 0;
+
+    /**
      *  Gets the interface's address resolver
      *  @return IARP *
      */

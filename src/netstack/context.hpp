@@ -29,20 +29,21 @@
 
 /* Ripple Includes */
 #include <Ripple/src/netif/device_intf.hpp>
+#include <Ripple/src/netstack/config.hpp>
 #include <Ripple/src/netstack/types.hpp>
 #include <Ripple/src/netstack/packets/packet.hpp>
 
+
 namespace Ripple
 {
-  /*-------------------------------------------------------------------------------
+  /*---------------------------------------------------------------------------
   Classes
-  -------------------------------------------------------------------------------*/
+  ---------------------------------------------------------------------------*/
   /**
    *  Network context manager that handles high level operations, typically
    *  revolving around memory management.
    */
-  class Context : public Chimera::Thread::Lockable<Context>,
-                  public Chimera::Callback::DelegateService<Context, CallbackId>
+  class Context : public Chimera::Thread::Lockable<Context>, public Chimera::Callback::DelegateService<Context, CallbackId>
   {
   public:
     Context();
@@ -94,8 +95,13 @@ namespace Ripple
      */
     size_t availableMemory() const;
 
+    /**
+     * @brief Prints the available network stats to console
+     */
+    void printStats();
 
-    Aurora::Memory::Heap mHeap;         /**< Managed memory pool for the whole network */
+
+    Aurora::Memory::Heap mHeap; /**< Managed memory pool for the whole network */
 
 
   protected:
@@ -145,18 +151,14 @@ namespace Ripple
 
   private:
     IPAddress mIP;
-    NetIf::INetIf *mNetIf;              /**< Network interface driver */
-    etl::list<Socket *, 4> mSocketList; /**< Socket control structures */
-    AssemblyMap<8> mPacketAssembly;     /**< Workspace for assembling fragments */
+    NetIf::INetIf *mNetIf;                                   /**< Network interface driver */
+    etl::list<Socket *, RIPPLE_CTX_MAX_SOCKETS> mSocketList; /**< Socket control structures */
+    AssemblyMap<RIPPLE_CTX_MAX_PKT> mPacketAssembly;         /**< Workspace for assembling fragments */
 
-
-    void freeFragmentsWithUUID( uint32_t uuid );
-
-    void pruneStaleRXFragments();
-    void processRXPacketAssembly();
-    void acquireFragments();
+    void unsafe_pruneRXFrags();
+    void unsafe_processRXFrags();
+    void unsafe_pumpRXFrags();
   };
-
 
 }    // namespace Ripple
 
