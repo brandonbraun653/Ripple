@@ -53,6 +53,13 @@ namespace Ripple::NetIf::NRF24::DataLink
     0xD3  /**< APPLICATION DATA 1 */
   };
 
+  static constexpr Physical::PipeNumber PIPE_TX           = Physical::PIPE_NUM_0;
+  static constexpr Physical::PipeNumber PIPE_DEVICE_ROOT  = Physical::PIPE_NUM_1;
+  static constexpr Physical::PipeNumber PIPE_APP_DATA_0   = Physical::PIPE_NUM_2;
+  static constexpr Physical::PipeNumber PIPE_APP_DATA_1   = Physical::PIPE_NUM_3;
+  static constexpr Physical::PipeNumber PIPE_APP_DATA_2   = Physical::PIPE_NUM_4;
+  static constexpr Physical::PipeNumber PIPE_APP_DATA_3   = Physical::PIPE_NUM_5;
+
   /*-------------------------------------------------------------------------------
   Enumerations
   -------------------------------------------------------------------------------*/
@@ -73,16 +80,29 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   // One RX pipe is dedicated for the TX auto-ack process
   static_assert( EP_NUM_OPTIONS == ( Physical::MAX_NUM_RX_PIPES - 1 ) );
-  static_assert( Physical::MAX_NUM_PIPES ==  ARRAY_COUNT( EndpointAddrModifiers ) );
+  static_assert( Physical::MAX_NUM_PIPES == ARRAY_COUNT( EndpointAddrModifiers ) );
 
   /*-------------------------------------------------------------------------------
   Structures
   -------------------------------------------------------------------------------*/
   struct TransferControlBlock
   {
-    bool inProgress; /**< TX is ongoing and hasn't been acknowledged yet */
-    size_t timeout;  /**< Timeout for the transfer */
-    size_t start;    /**< Start time for the transfer */
+    bool inProgress;                /**< TX is ongoing and hasn't been acknowledged yet */
+    size_t timeout;                 /**< Timeout for the transfer */
+    size_t start;                   /**< Start time for the transfer */
+    size_t mLastTX_us;              /**< Last system time a TX event was issued (uS) */
+    size_t mTXRate_us;              /**< Adaptive TX rate limit (uS) */
+    Physical::PipeNumber lastPipe;  /**< Last pipe used for TX */
+
+    void reset()
+    {
+      inProgress = false;
+      timeout    = Chimera::Thread::TIMEOUT_10MS;
+      start      = 0;
+      mLastTX_us = 0;
+      mTXRate_us = 0;
+      lastPipe   = PIPE_APP_DATA_0;
+    }
   };
 
   /*-------------------------------------------------------------------------------

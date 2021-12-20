@@ -27,6 +27,11 @@
 #include <Ripple/shared>
 #include <Ripple/netstack>
 
+/*-----------------------------------------------------------------------------
+Literals
+-----------------------------------------------------------------------------*/
+#define DEBUG_MODULE ( false )
+
 namespace Ripple
 {
   /*-------------------------------------------------------------------------------
@@ -57,20 +62,12 @@ namespace Ripple
 
     maxMem   = memory;
     allocMem = 0;
-    mTXReady = false;
     mTXQueue.clear();
     mRXQueue.clear();
-
-    mLock = new ( ctx->malloc( sizeof( RecursiveMutex ) ) ) RecursiveMutex();
   }
 
   Socket::~Socket()
   {
-    if ( mLock )
-    {
-      mLock->~RecursiveMutex();
-      mContext->free( mLock );
-    }
   }
 
 
@@ -107,9 +104,9 @@ namespace Ripple
 
   Chimera::Status_t Socket::write( const void *const data, const size_t bytes )
   {
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Create a header for the packet
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     TransportHeader header;
     header.crc        = 0;
     header.dataLength = sizeof( TransportHeader ) + bytes;
@@ -118,19 +115,18 @@ namespace Ripple
     header.srcAddress = mContext->getIPAddress();
     header._pad       = 0;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Push the packet to the queue
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     Packet_sPtr newPacket = Transport::constructPacket( &mContext->mHeap, header, data, bytes );
     auto result           = Chimera::Status::FAIL;
 
     if ( newPacket )
     {
+      Chimera::Thread::LockGuard _lck( *this );
       mTXQueue.push( newPacket );
-      mTXReady = true;
-      result   = Chimera::Status::OK;
+      result = Chimera::Status::OK;
     }
-
 
     return result;
   }
@@ -186,6 +182,7 @@ namespace Ripple
     }
     else
     {
+      LOG_ERROR_IF( DEBUG_MODULE, "Packet CRC error!\r\n" );
       status = Chimera::Status::FAIL;
     }
 

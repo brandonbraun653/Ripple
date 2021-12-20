@@ -27,7 +27,7 @@
 /*-------------------------------------------------------------------------------
 Literals
 -------------------------------------------------------------------------------*/
-#define DEBUG_MODULE ( false )
+#define DEBUG_MODULE ( true )
 
 #if !defined( NRF_LINK_FRAME_RETRIES )
 #define NRF_LINK_FRAME_RETRIES ( 3 )
@@ -46,16 +46,8 @@ namespace Ripple::NetIf::NRF24::DataLink
   static constexpr size_t THREAD_STACK_WORDS    = STACK_BYTES( THREAD_STACK_BYTES );
   static constexpr std::string_view THREAD_NAME = "DataLink";
 
-
-  static constexpr Physical::PipeNumber PIPE_TX           = Physical::PIPE_NUM_0;
-  static constexpr Physical::PipeNumber PIPE_DEVICE_ROOT  = Physical::PIPE_NUM_1;
-  static constexpr Physical::PipeNumber PIPE_NET_SERVICES = Physical::PIPE_NUM_2;
-  static constexpr Physical::PipeNumber PIPE_DATA_FWD     = Physical::PIPE_NUM_3;
-  static constexpr Physical::PipeNumber PIPE_APP_DATA_0   = Physical::PIPE_NUM_4;
-  static constexpr Physical::PipeNumber PIPE_APP_DATA_1   = Physical::PIPE_NUM_5;
-
-  static const Physical::PipeNumber sEndpointPipes[] = { PIPE_DEVICE_ROOT, PIPE_NET_SERVICES, PIPE_DATA_FWD, PIPE_APP_DATA_0,
-                                                         PIPE_APP_DATA_1 };
+  static const Physical::PipeNumber sEndpointPipes[] = { PIPE_DEVICE_ROOT, PIPE_APP_DATA_0, PIPE_APP_DATA_1, PIPE_APP_DATA_2,
+                                                         PIPE_APP_DATA_3 };
   static_assert( ARRAY_COUNT( sEndpointPipes ) == EP_NUM_OPTIONS );
   static_assert( PIPE_DEVICE_ROOT == Physical::PIPE_NUM_1 );
 
@@ -96,6 +88,9 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------*/
     mContext = reinterpret_cast<Context_rPtr>( context );
     memset( &mEndpointMAC, 0, ARRAY_BYTES( mEndpointMAC ) );
+    mTCB.reset();
+    mTCB.mTXRate_us = 2000;
+    mTCB.mLastTX_us = Chimera::micros();
 
     /*-------------------------------------------------
     First turn on the hardware drivers
@@ -249,7 +244,6 @@ namespace Ripple::NetIf::NRF24::DataLink
       }
       else if ( mTXQueue.full() )
       {
-        LOG_DEBUG_IF( DEBUG_MODULE, "TX queue full\r\n" );
         return Chimera::Status::FULL;
       }
 
@@ -430,7 +424,7 @@ namespace Ripple::NetIf::NRF24::DataLink
       Process the core radio events. This is driven by a GPIO interrupt tied to
       the IRQ pin, or by another task informing that it's time to process data.
       -----------------------------------------------------------------------*/
-      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, 10 ) )
+      if ( pendingEvent || this_thread::pendTaskMsg( TSK_MSG_WAKEUP, 5 ) )
       {
         pendingEvent      = false;
         uint8_t eventMask = Physical::getISREvent( mPhyHandle );
@@ -480,7 +474,6 @@ namespace Ripple::NetIf::NRF24::DataLink
       Calculate performance metrics
       -----------------------------------------------------------------------*/
       updateStats();
-
       mLastActive = Chimera::millis();
     }
   }
@@ -693,8 +686,6 @@ namespace Ripple::NetIf::NRF24::DataLink
 
   void DataLink::processTXSuccess()
   {
-    using namespace Aurora::Logging;
-
     /*-------------------------------------------------------------------------
     Ack the success
     -------------------------------------------------------------------------*/
@@ -721,14 +712,12 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the success
     -------------------------------------------------------------------------*/
     mCBService_registry.call<CallbackId::CB_TX_SUCCESS>();
-    LOG_DEBUG_IF( DEBUG_MODULE, "Transmit Success\r\n" );
+    LOG_TRACE_IF( DEBUG_MODULE, "Transmit Success\r\n" );
   }
 
 
   void DataLink::processTXFail()
   {
-    using namespace Aurora::Logging;
-
     /*-------------------------------------------------------------------------
     Dump the unsuccessful frame from the queue
     -------------------------------------------------------------------------*/
@@ -768,7 +757,6 @@ namespace Ripple::NetIf::NRF24::DataLink
     Notify the network layer of the failed frame
     -------------------------------------------------------------------------*/
     mCBService_registry.call<CallbackId::CB_ERROR_TX_FAILURE>();
-    LOG_DEBUG_IF( DEBUG_MODULE, "Transmit Fail\r\n" );
 
     /*-------------------------------------------------------------------------
     QOS: Retransmit the frame, using a backoff strategy.
@@ -782,28 +770,35 @@ namespace Ripple::NetIf::NRF24::DataLink
     using namespace Aurora::Logging;
     using namespace Chimera::Thread;
 
-    /*-------------------------------------------------
-    Cannot process another frame until the last one
-    either successfully transmitted, or errored out.
-    -------------------------------------------------*/
-    if ( mTCB.inProgress || !mTXMutex.try_lock_for( TIMEOUT_1MS ) )
+    /*-------------------------------------------------------------------------
+    Can't TX new frame until the last frame transmitted or errored out
+    -------------------------------------------------------------------------*/
+    if ( mTCB.inProgress )
     {
       return;
     }
-    else if ( mTXQueue.empty() )
+
+    Chimera::Thread::LockGuard _queueLock( mTXMutex );
+    if ( mTXQueue.empty() )
     {
-      /*-------------------------------------------------
-      Nothing to TX, so ensure hardware is listening
-      -------------------------------------------------*/
-      mTXMutex.unlock();
+      /*-----------------------------------------------------------------------
+      Nothing to TX. Ensure hardware is listening.
+      -----------------------------------------------------------------------*/
       mFSMControl.receive( Physical::FSM::MsgStartRX() );
       return;
     }
 
-    /*-------------------------------------------------
-    Look up the hardware address associated with the
-    destination node.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Rate limit the transfers
+    -------------------------------------------------------------------------*/
+    if( ( Chimera::micros() - mTCB.mLastTX_us ) < mTCB.mTXRate_us )
+    {
+      return;
+    }
+
+    /*-------------------------------------------------------------------------
+    Look up the hardware address associated with the destination node.
+    -------------------------------------------------------------------------*/
     Frame &cacheFrame                  = mTXQueue.front();
     Physical::MACAddress deviceAddress = 0;
 
@@ -811,38 +806,52 @@ namespace Ripple::NetIf::NRF24::DataLink
     {
       mCBService_registry.call<CallbackId::CB_ERROR_ARP_RESOLVE>();
       mTXQueue.pop();
-      mTXMutex.unlock();
       mTCB.inProgress = false;
       LOG_ERROR_IF( DEBUG_MODULE, "NRF24 ARP lookup failure for next hop: %d\r\n", cacheFrame.nextHop );
-
       return;
     }
 
-    /*-------------------------------------------------
-    Modify the destination address to go to the correct
-    pipe. Currently only pipes 4 & 5 are allocated for
-    user data.
-    -------------------------------------------------*/
-    auto dstAddress = ( deviceAddress & ~0xFF ) | EndpointAddrModifiers[ PIPE_APP_DATA_0 ];
+    /*-------------------------------------------------------------------------
+    Modify the destination address to go to the correct pipe. Switch pipes per
+    transaction to increase overall bandwidth and decrease channel congestion.
+    -------------------------------------------------------------------------*/
+    auto dstAddress = ( deviceAddress & ~0xFF ) | EndpointAddrModifiers[ mTCB.lastPipe ];
+    switch( mTCB.lastPipe )
+    {
+      case PIPE_APP_DATA_0:
+        mTCB.lastPipe = PIPE_APP_DATA_1;
+        break;
 
-    /*-------------------------------------------------
-    All information needed to TX the frame is known, so
-    it's safe to transition to standby mode in prep for
-    moving to TX mode once the data is loaded.
-    -------------------------------------------------*/
+      case PIPE_APP_DATA_1:
+        mTCB.lastPipe = PIPE_APP_DATA_2;
+        break;
+
+      case PIPE_APP_DATA_2:
+        mTCB.lastPipe = PIPE_APP_DATA_3;
+        break;
+
+      case PIPE_APP_DATA_3:
+      default:
+        mTCB.lastPipe = PIPE_APP_DATA_0;
+        break;
+    };
+
+    /*-------------------------------------------------------------------------
+    All information needed to TX the frame is known, so it's safe to transition
+    to standby mode in prep for moving to TX mode once the data is loaded.
+    -------------------------------------------------------------------------*/
     mFSMControl.receive( Physical::FSM::MsgGoToSTBY() );
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Open the proper port for writing
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     Physical::openWritePipe( mPhyHandle, dstAddress );
 
-    /*-------------------------------------------------
-    Determine the reliability required on the TX. This
-    assumes hardware is initialized with DynamicACK,
-    the proper payload length settings are set, and any
-    pipes needing auto-ack are enabled.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Determine the reliability required on the TX. This assumes hardware is
+    initialized with DynamicACK, the proper payload length settings are set
+    and any pipes needing auto-ack are enabled.
+    -------------------------------------------------------------------------*/
     auto txType = Physical::PayloadType::PAYLOAD_NO_ACK;
     if ( cacheFrame.wireData.control.requireACK )
     {
@@ -850,78 +859,64 @@ namespace Ripple::NetIf::NRF24::DataLink
       Physical::setRetries( mPhyHandle, cacheFrame.rtxDelay, cacheFrame.rtxCount );
     }
 
-    /*-------------------------------------------------
-    Write the data to the TX FIFO and transition to the
-    active TX mode.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Write the data to the TX FIFO and transition to the active TX mode.
+    -------------------------------------------------------------------------*/
     mTCB.inProgress = true;
-    mTCB.timeout    = 10;
+    mTCB.timeout    = Chimera::Thread::TIMEOUT_10MS;
     mTCB.start      = Chimera::millis();
+    mTCB.mLastTX_us = Chimera::micros();
 
     FrameBuffer data;
     cacheFrame.pack( data );
 
-    LOG_DEBUG_IF( DEBUG_MODULE, "Transmit Packet\r\n" );
+    LOG_TRACE_IF( DEBUG_MODULE, "Transmit Packet\r\n" );
     Physical::writePayload( mPhyHandle, data.data(), data.size(), txType );
     mFSMControl.receive( Physical::FSM::MsgStartTX() );
-
-    /*-------------------------------------------------
-    Clean up and return
-    -------------------------------------------------*/
-    mTXMutex.unlock();
   }
 
 
   void DataLink::processRXQueue()
   {
-    /*-------------------------------------------------
-    Ensure it is safe to process the RX Queue/FIFO
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Ensure safe to process the queue. TX-ing and RX-ing are exclusive.
+    -------------------------------------------------------------------------*/
     if ( mTCB.inProgress )
     {
-      /*-------------------------------------------------
-      TX-ing and RX-ing are exclusive. Play nice.
-      -------------------------------------------------*/
       return;
-    }
-    else if ( !mRXMutex.try_lock_for( 25 * Chimera::Thread::TIMEOUT_1MS ) )
-    {
-      /*-------------------------------------------------
-      Who is holding the RX lock for so long?
-      -------------------------------------------------*/
-      Chimera::insert_debug_breakpoint();
-      return;
-    }
-    else if ( mRXQueue.full() )
-    {
-      /*-------------------------------------------------
-      Give the network layer an opportunity to pull data
-      -------------------------------------------------*/
-      mCBService_registry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
     }
 
-    /*-------------------------------------------------
-    Transition to Standby-1 mode, else the data cannot
-    be read from the RX FIFO (RM Appendix A)
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Check if the queue is full, allowing the NET driver to pull data off. Don't
+    return early here b/c HW RX FIFO needs emptying regardless.
+    -------------------------------------------------------------------------*/
+    Chimera::Thread::LockGuard _mtxLock( mRXMutex );
+    if ( mRXQueue.full() )
+    {
+      mCBService_registry.call<CallbackId::CB_ERROR_RX_QUEUE_FULL>();
+      LOG_ERROR_IF( mRXQueue.full(), "RX queue full. Cannot process netif receive\r\n" );
+    }
+
+    /*-------------------------------------------------------------------------
+    Move to Standby-1, else data can't be read from RX FIFO (RM Appendix A)
+    -------------------------------------------------------------------------*/
     mFSMControl.receive( Physical::FSM::MsgGoToSTBY() );
 
-    /*-------------------------------------------------
-    Acknowledge the RX event
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Acknowledge the RX event. This prevents infinite IRQ events.
+    -------------------------------------------------------------------------*/
     Physical::clrISREvent( mPhyHandle, Physical::bfISRMask::ISR_MSK_RX_DR );
 
-    /*-------------------------------------------------
-    Read out all available data, regardless of whether
-    or not the queue can store the information. Without
-    this, the network will stall.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Read out all available data, regardless of whether or not the queue can
+    store the information. Without this, the network will stall.
+    -------------------------------------------------------------------------*/
     Physical::PipeNumber pipe = Physical::getAvailablePayloadPipe( mPhyHandle );
     while ( pipe != Physical::PipeNumber::PIPE_INVALID )
     {
-      /*-------------------------------------------------
+      /*-----------------------------------------------------------------------
       Read out the data associated with the frame
-      -------------------------------------------------*/
+      -----------------------------------------------------------------------*/
       size_t readSize = mPhyHandle.cfg.hwStaticPayloadWidth;
       if ( !readSize )
       {
@@ -933,18 +928,17 @@ namespace Ripple::NetIf::NRF24::DataLink
       auto read_result = Physical::readPayload( mPhyHandle, tmpBuffer.data(), readSize );
       RT_HARD_ASSERT( read_result == Chimera::Status::OK );
 
-      /*-------------------------------------------------
+      /*-----------------------------------------------------------------------
       Create a new frame
-      -------------------------------------------------*/
+      -----------------------------------------------------------------------*/
       Frame tempFrame;
       tempFrame.unpack( tmpBuffer );
       tempFrame.receivedPipe = pipe;
 
-      /*-------------------------------------------------
-      Enqueue the frame if possible, call the network
-      handler if not. Otherwise the data is simply lost.
-      -------------------------------------------------*/
-      Chimera::Thread::LockGuard _lock( *this );
+      /*-----------------------------------------------------------------------
+      Enqueue the frame if possible, Otherwise the data is simply lost.
+      -----------------------------------------------------------------------*/
+      Chimera::Thread::LockGuard _lock( *this ); // Protect stats update
       if ( !mRXQueue.full() )
       {
         mStats.rx_bytes += readSize;
@@ -965,26 +959,21 @@ namespace Ripple::NetIf::NRF24::DataLink
         {
           mStats.rx_bytes_lost += readSize;
           mStats.frame_rx_drop += 1;
-          LOG_DEBUG_IF( DEBUG_MODULE, "RX frame lost due to netif queue full\r\n" );
+          LOG_ERROR( "RX frame lost due to netif queue full\r\n" );
         }
       }
 
-      /*-------------------------------------------------
+      /*-----------------------------------------------------------------------
       Check for more data to read from the RX FIFO
-      -------------------------------------------------*/
+      -----------------------------------------------------------------------*/
       pipe = Physical::getAvailablePayloadPipe( mPhyHandle );
     }
 
-    /*-------------------------------------------------
-    Go back to listening. The TX process is mutually
-    exclusive, so it's ok to transition to this state.
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Go back to listening. The TX process is mutually exclusive, so it's ok to
+    transition to this state.
+    -------------------------------------------------------------------------*/
     mFSMControl.receive( Physical::FSM::MsgStartRX() );
-
-    /*-------------------------------------------------
-    Let the network layer know data is ready
-    -------------------------------------------------*/
-    mRXMutex.unlock();
     mCBService_registry.call<CallbackId::CB_RX_SUCCESS>();
   }
 
@@ -996,7 +985,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     -------------------------------------------------------------------------*/
     if ( frame.txAttempts > NRF_LINK_FRAME_RETRIES )
     {
-      LOG_ERROR( "Frame exceeded link layer retry attempts\r\n" );
+      LOG_ERROR( "Transmit fail. Frame exceeded link layer retry attempts\r\n" );
       return;
     }
 

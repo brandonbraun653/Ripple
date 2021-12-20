@@ -55,7 +55,7 @@ namespace Ripple::NetIf::NRF24
      *  allocate from RAM at compile time for its purposes. This is just
      *  for static analysis.
      */
-    static constexpr size_t MAX_ALLOCATION_SIZE = 2048;
+    static constexpr size_t MAX_ALLOCATION_SIZE = 4096;
 
     /**
      *  Defines the number of physical frames that can be buffered to either
@@ -64,7 +64,7 @@ namespace Ripple::NetIf::NRF24
      *  queues are not emptied quickly enough, these may need to be larger.
      */
     static constexpr size_t TX_QUEUE_ELEMENTS = 32;
-    static constexpr size_t RX_QUEUE_ELEMENTS = 5;
+    static constexpr size_t RX_QUEUE_ELEMENTS = 32;
 
     /**
      *  Defines the number of IP<->MAC mapping entries can exist in the

@@ -34,7 +34,7 @@ namespace Ripple::NetIf::Loopback
     Use placement new to allocate a handle on the heap
     -------------------------------------------------*/
     RT_HARD_ASSERT( context );
-    void * ptr = context->malloc( sizeof( Adapter ) );
+    void *ptr = context->malloc( sizeof( Adapter ) );
     return new ( ptr ) Adapter();
   }
 
@@ -55,12 +55,12 @@ namespace Ripple::NetIf::Loopback
   /*-------------------------------------------------------------------------------
   Service: Net Interface
   -------------------------------------------------------------------------------*/
-  bool Adapter::powerUp( void * context )
+  bool Adapter::powerUp( void *context )
   {
     /*-------------------------------------------------
     Input Protection
     -------------------------------------------------*/
-    if( !context )
+    if ( !context )
     {
       return false;
     }
@@ -71,9 +71,10 @@ namespace Ripple::NetIf::Loopback
     mContext = reinterpret_cast<Context_rPtr>( context );
     mAddressCache.clear();
     mPacketQueue.clear();
+    memset( &mStats, 0, sizeof( mStats ) );
 
     auto lock_mem = mContext->malloc( sizeof( Chimera::Thread::Mutex ) );
-    if( lock_mem )
+    if ( lock_mem )
     {
       mLock = new ( lock_mem ) Chimera::Thread::Mutex();
       return true;
@@ -97,7 +98,7 @@ namespace Ripple::NetIf::Loopback
     /*-------------------------------------------------
     Pop off the first element in the queue
     -------------------------------------------------*/
-    if( mPacketQueue.empty() )
+    if ( mPacketQueue.empty() )
     {
       return Chimera::Status::EMPTY;
     }
@@ -112,11 +113,11 @@ namespace Ripple::NetIf::Loopback
     Chimera::Thread::LockGuard lck( *mLock );
 
     Fragment_sPtr fragPtr = msg;
-    while( fragPtr )
+    while ( fragPtr )
     {
       auto newFragment = fragmentShallowCopy( &mContext->mHeap, fragPtr );
 
-      if( !mPacketQueue.full() )
+      if ( !mPacketQueue.full() )
       {
         mPacketQueue.push( newFragment );
       }
@@ -128,6 +129,12 @@ namespace Ripple::NetIf::Loopback
   }
 
 
+  void Adapter::getStats( PerfStats &stats )
+  {
+    Chimera::Thread::LockGuard _lock( *this );
+    stats = mStats;
+  }
+
   IARP *Adapter::addressResolver()
   {
     return this;
@@ -136,18 +143,18 @@ namespace Ripple::NetIf::Loopback
 
   size_t Adapter::maxTransferSize() const
   {
-    return 29; // Simulate packet size of NRF24L01
+    return 29;    // Simulate packet size of NRF24L01
   }
 
   size_t Adapter::maxNumFragments() const
   {
-    return 512; // Arbitrary. No real limit outside of memory.
+    return 512;    // Arbitrary. No real limit outside of memory.
   }
 
 
   size_t Adapter::linkSpeed() const
   {
-    return 1024; // 1kB per second
+    return 1024;    // 1kB per second
   }
 
 
@@ -190,7 +197,7 @@ namespace Ripple::NetIf::Loopback
     -------------------------------------------------*/
     Chimera::Thread::LockGuard lck( *this );
     auto iter = mAddressCache.find( ip );
-    if( iter != mAddressCache.end() )
+    if ( iter != mAddressCache.end() )
     {
       mAddressCache.erase( iter );
     }
@@ -211,7 +218,7 @@ namespace Ripple::NetIf::Loopback
 
     Chimera::Thread::LockGuard lck( *this );
     auto iter = mAddressCache.find( ip );
-    if( iter != mAddressCache.end() )
+    if ( iter != mAddressCache.end() )
     {
       memcpy( mac, &iter->second, size );
       return true;
@@ -228,4 +235,4 @@ namespace Ripple::NetIf::Loopback
     return 0;
   }
 
-}  // namespace Ripple::NetIf::Loopback
+}    // namespace Ripple::NetIf::Loopback

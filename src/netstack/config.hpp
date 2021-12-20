@@ -24,7 +24,7 @@
  * Max number of fragmented packets that are being assembled at any given time
  */
 #if !defined( RIPPLE_CTX_MAX_PKT )
-#define RIPPLE_CTX_MAX_PKT ( 8 )
+#define RIPPLE_CTX_MAX_PKT ( 32 )
 #endif
 
 /**

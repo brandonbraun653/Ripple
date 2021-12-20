@@ -213,10 +213,8 @@ namespace Ripple
     size_t maxMem;   /**< Maximum memory assigned to this socket */
     size_t allocMem; /**< Currently allocated memory */
 
-    bool mTXReady;
     PacketQueue<5> mTXQueue;
     PacketQueue<5> mRXQueue;
-    Chimera::Thread::RecursiveMutex *mLock;
 
     Port mThisPort;         /**< Port of this socket */
     IPAddress mDestAddress; /**< Destination network address */

@@ -36,7 +36,6 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   static etl::random_xorshift s_rng;
 
-
   /*-------------------------------------------------------------------------------
   Public Functions
   -------------------------------------------------------------------------------*/
@@ -137,7 +136,7 @@ namespace Ripple
     const size_t allocationSize = size + ( Fragment_sPtr().size() * mTotalFragments );
     if ( freeMem <= allocationSize )
     {
-      LOG_DEBUG( "Socket out of memory. Tried to allocate %d bytes from remaining %d\r\n", allocationSize, freeMem );
+      LOG_DEBUG( "Out of memory. Tried to allocate %d bytes from remaining %d\r\n", allocationSize, freeMem );
       return Chimera::Status::MEMORY;
     }
 
@@ -352,6 +351,23 @@ namespace Ripple
     }
 
     LOG_INFO( "%s\r\n", msgBuffer );
+  }
+
+
+  bool Packet::checkReferences( const size_t number )
+  {
+    Fragment_sPtr* frag = &this->head;
+    while( *frag )
+    {
+      if( frag->references() != number )
+      {
+        return false;
+      }
+
+      frag = &( *frag )->next;
+    }
+
+    return true;
   }
 
 }    // namespace Ripple

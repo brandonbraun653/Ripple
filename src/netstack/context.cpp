@@ -76,7 +76,7 @@ namespace Ripple
     /*-------------------------------------------------
     Check and see if enough memory exists
     -------------------------------------------------*/
-    Chimera::Thread::LockGuard<Context>( *this );
+    Chimera::Thread::LockGuard<Context> _ctxLock( *this );
     if ( ( availableMemory() < cacheSize ) || mSocketList.full() )
     {
       LOG_DEBUG_IF( DEBUG_MODULE, "Out of memory to create socket!\r\n" );
@@ -138,7 +138,7 @@ namespace Ripple
 
   void *Context::malloc( const size_t size )
   {
-    Chimera::Thread::LockGuard<Context>( *this );
+    Chimera::Thread::LockGuard<Context> _ctxLock( *this );
     void *mem = mHeap.malloc( size );
 
     if ( !mem )
@@ -152,7 +152,7 @@ namespace Ripple
 
   void Context::free( void *pv )
   {
-    Chimera::Thread::LockGuard<Context>( *this );
+    Chimera::Thread::LockGuard<Context> _ctxLock( *this );
     mHeap.free( pv );
   }
 
@@ -196,29 +196,26 @@ namespace Ripple
     using namespace Aurora::Logging;
     using namespace Chimera::Thread;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Wait for this thread to be told to initialize
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     Ripple::TaskWaitInit();
     this_thread::set_name( "NetMgr" );
     LOG_DEBUG_IF( DEBUG_MODULE, "Starting Ripple Net Manager\r\n" );
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Initialize the fragment assembly workspace
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     for ( auto &assemblyItem : mPacketAssembly )
     {
       assemblyItem.second.inProgress = false;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Perform the core processing loop
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     while ( true )
     {
-      /*-------------------------------------------------
-      Process all registered socket queues
-      -------------------------------------------------*/
       processRX();
       processTX();
       this_thread::sleep_for( 10 );
@@ -231,22 +228,17 @@ namespace Ripple
     /*-----------------------------------------------------------------
     Input Protections
     -----------------------------------------------------------------*/
-    Chimera::Thread::LockGuard<Context>( *this );
-
     if ( !mNetIf )
     {
       return;
     }
 
     /*-----------------------------------------------------------------
-    Push completed packets into their destinations or remove them from
-    the processing queue.
+    Process in-progress RX'd fragments first, then pull any waiting
+    fragments from the network interface driver.
     -----------------------------------------------------------------*/
+    Chimera::Thread::LockGuard<Context> _ctxLock( *this );
     unsafe_processRXFrags();
-
-    /*-----------------------------------------------------------------
-    Talk with the NetIf driver to get any pending packet fragments
-    -----------------------------------------------------------------*/
     unsafe_pumpRXFrags();
 
     /*-----------------------------------------------------------------
@@ -261,56 +253,37 @@ namespace Ripple
 
   void Context::processTX()
   {
-    using namespace Aurora::Logging;
-
-    /*-------------------------------------------------
-    Input protections
-    -------------------------------------------------*/
-    Chimera::Thread::LockGuard<Context>( *this );
-
+    /*-------------------------------------------------------------------------
+    Input Protections
+    -------------------------------------------------------------------------*/
     if ( !mNetIf )
     {
       return;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Check each registered socket for available TX data
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     for ( auto sock = mSocketList.begin(); sock != mSocketList.end(); sock++ )
     {
-      /*-------------------------------------------------
-      Nothing ready? Move to the next one.
-      -------------------------------------------------*/
-      if ( !( *sock )->mTXReady )
+      Chimera::Thread::LockGuard<Socket> _sckLock( *( *sock ) );
+
+      /*-----------------------------------------------------------------------
+      Grab the next fragment list to transmit until no more exist
+      -----------------------------------------------------------------------*/
+      while( !( *sock )->mTXQueue.empty() )
       {
-        continue;
-      }
+        Packet_sPtr msg;
+        ( *sock )->mTXQueue.pop_into( msg );
 
-      /*-------------------------------------------------
-      Grab the next fragment list to transmit, validating
-      if the data pointers are ok.
-      -------------------------------------------------*/
-      Chimera::Thread::LockGuard<Socket> sockLock( *( *sock ) );
-      if ( ( *sock )->mTXQueue.empty() )
-      {
-        continue;
-      }
-
-      Packet_sPtr msg;
-      ( *sock )->mTXQueue.pop_into( msg );
-
-      /*-------------------------------------------------
-      Move the data into the network interface
-      -------------------------------------------------*/
-      auto sts = mNetIf->send( msg->head, ( *sock )->mDestAddress );
-
-      /*-------------------------------------------------
-      Update transmit status
-      -------------------------------------------------*/
-      ( *sock )->mTXReady = false;
-      if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
-      {
-        LOG_DEBUG_IF( DEBUG_MODULE, "Failed TX to netif\r\n" );
+        /*---------------------------------------------------------------------
+        Move the data into the network interface driver
+        ---------------------------------------------------------------------*/
+        auto sts = mNetIf->send( msg->head, ( *sock )->mDestAddress );
+        if ( ( sts != Chimera::Status::OK ) && ( sts != Chimera::Status::READY ) )
+        {
+          LOG_DEBUG_IF( DEBUG_MODULE, "Failed TX to netif\r\n" );
+        }
       }
     }
   }

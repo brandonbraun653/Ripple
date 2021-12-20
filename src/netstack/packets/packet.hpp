@@ -36,7 +36,6 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   template<size_t SIZE>
   using PacketQueue = etl::queue<Aurora::Memory::shared_ptr<Packet>, SIZE>;
-
   using Packet_sPtr = Aurora::Memory::shared_ptr<Packet>;
 
   /*-------------------------------------------------------------------------------
@@ -52,12 +51,12 @@ namespace Ripple
   public:
     enum class RemoveErr
     {
-      UNKNOWN,            /**< Default invalid reason */
-      COMPLETED,          /**< Packet completed successfully. No errors. */
-      TIMEOUT,            /**< Assembly time limit was reached */
-      CORRUPTION,         /**< Packet was corrupted somehow */
-      SOCK_Q_FULL,        /**< Destination socket receive queue was full */
-      SOCK_NOT_FOUND,     /**< Destination socket wasn't found */
+      UNKNOWN,        /**< Default invalid reason */
+      COMPLETED,      /**< Packet completed successfully. No errors. */
+      TIMEOUT,        /**< Assembly time limit was reached */
+      CORRUPTION,     /**< Packet was corrupted somehow */
+      SOCK_Q_FULL,    /**< Destination socket receive queue was full */
+      SOCK_NOT_FOUND, /**< Destination socket wasn't found */
     };
 
     bool inProgress;         /**< Is the assembly still accumulating fragments? */
@@ -129,7 +128,7 @@ namespace Ripple
      */
     const char *whyRemoveString()
     {
-      switch( whyRemove )
+      switch ( whyRemove )
       {
         case RemoveErr::COMPLETED:
           return "Packet built successfully";
@@ -170,7 +169,6 @@ namespace Ripple
   -------------------------------------------------------------------------------*/
   /**
    * @brief Top level interface for raw packets on the network
-   *
    */
   class Packet
   {
@@ -179,16 +177,37 @@ namespace Ripple
     Packet( Aurora::Memory::IHeapAllocator *const context );
     ~Packet();
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Actions
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
+    /**
+     * @brief Sorts all fragments in ascending order
+     */
     void sort();
-    bool pack( const void *const buffer, const size_t size );
-    bool unpack( void * buffer, const size_t size );
 
-    /*-------------------------------------------------
+    /**
+     * @brief Packs user data into the packet, creating new fragments as needed
+     *
+     * @param buffer  User data to be packed
+     * @param size    Number of bytes being packed
+     * @return true
+     * @return false
+     */
+    bool pack( const void *const buffer, const size_t size );
+
+    /**
+     * @brief Unpacks the packet fragments into a user buffer
+     *
+     * @param buffer  User buffer to dump fragment payloads into
+     * @param size    Max size of the user's buffer
+     * @return true
+     * @return false
+     */
+    bool unpack( void *buffer, const size_t size );
+
+    /*-------------------------------------------------------------------------
     Information
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     /**
      * @brief Total number of fragments the packet is broken into
      *
@@ -219,13 +238,29 @@ namespace Ripple
      */
     bool isMissingFragments() const;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Debugging Utilities
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
+    /**
+     * @brief Prints the raw payload bytes to console
+     */
     void printPayload();
 
+    /**
+     * @brief Check the number of references for all fragments are equal
+     *
+     * Created to help track down a memory leak.
+     *
+     * @param number    Expected number of references
+     * @return true     All reference counts equal the given number
+     * @return false    One or more reference counts do not match
+     */
+    bool checkReferences( const size_t number );
 
-    Fragment_sPtr head;
+    /*-------------------------------------------------------------------------
+    Public Data
+    -------------------------------------------------------------------------*/
+    Fragment_sPtr head; /**< Fragment list head */
 
   protected:
     friend Packet_sPtr allocPacket( Aurora::Memory::IHeapAllocator *const context );
