@@ -89,7 +89,7 @@ namespace Ripple::NetIf::NRF24::DataLink
     mContext = reinterpret_cast<Context_rPtr>( context );
     memset( &mEndpointMAC, 0, ARRAY_BYTES( mEndpointMAC ) );
     mTCB.reset();
-    mTCB.mTXRate_us = 2000;
+    mTCB.mTXRate_us = 500;
     mTCB.mLastTX_us = Chimera::micros();
 
     /*-------------------------------------------------
