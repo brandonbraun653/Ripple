@@ -424,12 +424,12 @@ namespace Ripple
       }
 
       /*-----------------------------------------------------------------------
-      All fragments received. Sort them and check the first fragment is ok.
+      All fragments received. Perform basic validity checks on whole packet.
       -----------------------------------------------------------------------*/
       assembly->inProgress = false;
       assembly->packet->sort();
 
-      if ( ( assembly->packet->head->number != 0 ) || ( assembly->packet->head->length < sizeof( TransportHeader ) ) )
+      if ( !assembly->packet->isFullyComposed() )
       {
         assembly->remove    = true;
         assembly->whyRemove = PacketAssembly::RemoveErr::CORRUPTION;
@@ -540,19 +540,21 @@ namespace Ripple
           LOG_TRACE_IF( DEBUG_MODULE, "Received fragment UUID: %d\r\n", fragList->uuid );
 
           /*-------------------------------------------------------------------
-          Does this particular packet already exist in the assembly?
+          Does this particular packet already exist in the assembly? Iterate
+          with pointers to avoid constructor costs.
           -------------------------------------------------------------------*/
-          Fragment_sPtr frag = iter->second.packet->head;
-          bool isDuplicate   = false;
-          while ( frag )
+          Fragment_sPtr* frag = &iter->second.packet->head;
+          bool isDuplicate    = false;
+          while ( *frag )
           {
-            if ( fragList->number == frag->number )
+            if ( fragList->number == ( *frag )->number )
             {
+              LOG_ERROR_IF( DEBUG_MODULE, "Got duplicate fragment %d for UUID %d \r\n", fragList->number, fragList->uuid );
               isDuplicate = true;
-              break;
+              break; // First while
             }
 
-            frag = frag->next;
+            frag = &( *frag )->next;
           }
 
           /*-------------------------------------------------------------------

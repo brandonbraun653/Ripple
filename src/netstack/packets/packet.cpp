@@ -9,36 +9,40 @@
  *  2021 | Brandon Braun | brandonbraun653@gmail.com
  *******************************************************************************/
 
-/* STL Includes */
+/*-----------------------------------------------------------------------------
+Includes
+-----------------------------------------------------------------------------*/
+#include <Aurora/logging>
+#include <Ripple/netstack>
+#include <etl/random.h>
 #include <limits>
 #include <utility>
 
-/* ETL Includes */
-#include <etl/random.h>
 
-/* Aurora Includes */
-#include <Aurora/logging>
-
-/* Ripple Includes */
-#include <Ripple/netstack>
+/*-----------------------------------------------------------------------------
+Literals
+-----------------------------------------------------------------------------*/
+#define DEBUG_MODULE ( false )
 
 
 namespace Ripple
 {
-  /*-------------------------------------------------------------------------------
+  /*---------------------------------------------------------------------------
   Constants
-  -------------------------------------------------------------------------------*/
+  ---------------------------------------------------------------------------*/
   static constexpr size_t DFLT_FRAG_SIZE = 24;
   static constexpr size_t MAX_NUM_FRAGS  = 32;
 
-  /*-------------------------------------------------------------------------------
+
+  /*---------------------------------------------------------------------------
   Static Data
-  -------------------------------------------------------------------------------*/
+  ---------------------------------------------------------------------------*/
   static etl::random_xorshift s_rng;
 
-  /*-------------------------------------------------------------------------------
+
+  /*---------------------------------------------------------------------------
   Public Functions
-  -------------------------------------------------------------------------------*/
+  ---------------------------------------------------------------------------*/
   Packet_sPtr allocPacket( Aurora::Memory::IHeapAllocator *const context )
   {
     s_rng.initialise( Chimera::millis() );
@@ -50,15 +54,16 @@ namespace Ripple
   }
 
 
-  /*-------------------------------------------------------------------------------
+  /*---------------------------------------------------------------------------
   Classes
-  -------------------------------------------------------------------------------*/
+  ---------------------------------------------------------------------------*/
   Packet::Packet() : mContext( nullptr ), mFragmentationSize( DFLT_FRAG_SIZE ), mTotalFragments( 0 )
   {
   }
 
 
-  Packet::Packet( Aurora::Memory::IHeapAllocator *const context ) : mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE ), mTotalFragments( 0 )
+  Packet::Packet( Aurora::Memory::IHeapAllocator *const context ) :
+      mContext( context ), mFragmentationSize( DFLT_FRAG_SIZE ), mTotalFragments( 0 )
   {
   }
 
@@ -187,36 +192,42 @@ namespace Ripple
   }
 
 
-  bool Packet::unpack( void *buffer, const size_t size )
+  bool Packet::unpack( void *buffer, const size_t size ) const
   {
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Input Protection
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     if ( !head || !buffer || !size )
     {
       return false;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Copy the data over
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     Chimera::Thread::LockGuard<Aurora::Memory::IHeapAllocator> lock( *mContext );
 
-    Fragment_sPtr fragPtr = head;
-    size_t offset         = 0;
+    const Fragment_sPtr *fragPtr = &head;
+    size_t offset                = 0;
 
-    while ( fragPtr && ( offset < size ) )
+    while ( *fragPtr && ( offset < size ) )
     {
-      void **data_ptr = fragPtr->data.get();
-      uint8_t *dest   = reinterpret_cast<uint8_t *>( buffer ) + offset;
+      /* Get the source and destination pointers */
+      void **src    = ( *fragPtr )->data.get();
+      uint8_t *dest = reinterpret_cast<uint8_t *>( buffer ) + offset;
 
-      memcpy( dest, *( data_ptr ), fragPtr->length );
+      /* Move the data over */
+      memcpy( dest, *( src ), ( *fragPtr )->length );
 
-      offset += fragPtr->length;
-      fragPtr = fragPtr->next;
+      /* Update trackers */
+      offset += ( *fragPtr )->length;   // Offset into user buffer
+      fragPtr = &( *fragPtr )->next;    // Next fragment to pull from
     }
 
-    return ( !fragPtr && ( offset <= size ) );
+    /*-------------------------------------------------------------------------
+    Fragment is null (end of list) and some data was copied.
+    -------------------------------------------------------------------------*/
+    return ( !( *fragPtr ) && ( offset <= size ) );
   }
 
 
@@ -226,100 +237,101 @@ namespace Ripple
   }
 
 
-  size_t Packet::size()
+  size_t Packet::size() const
   {
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Input Protection
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     if ( !head )
     {
       return 0;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Walk the list and accumulate bytes
-    -------------------------------------------------*/
-    Fragment_sPtr fragPtr = head;
-    size_t byteSize       = 0;
+    -------------------------------------------------------------------------*/
+    const Fragment_sPtr *fragPtr = &head;
+    size_t byteSize              = 0;
 
-    while ( fragPtr )
+    while ( *fragPtr )
     {
-      byteSize += fragPtr->length;
-      fragPtr = fragPtr->next;
+      byteSize += ( *fragPtr )->length;
+      fragPtr = &( *fragPtr )->next;
     }
 
     return byteSize;
   }
 
 
-  uint16_t Packet::getUUID()
+  uint16_t Packet::getUUID() const
   {
-    return head->uuid;
+    return head ? head->uuid : 0;
   }
 
 
   bool Packet::isMissingFragments() const
   {
     static_assert( MAX_NUM_FRAGS % sizeof( uint8_t ) == 0 );
-
     static constexpr size_t FLAG_BIT = std::numeric_limits<uint8_t>::digits;
 
-    /*-------------------------------------------------
-    Use individual bits to mark a fragment as received
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Cache a few values for performance
+    -------------------------------------------------------------------------*/
+    const auto totalFrags = head->total;
+
+    /*-------------------------------------------------------------------------
+    Use individual bits to mark a fragment as received. Must check uniqueness
+    of a fragment, not just that X number of fragments are in the packet.
+    -------------------------------------------------------------------------*/
     uint8_t flagBits[ MAX_NUM_FRAGS / FLAG_BIT ];
     memset( flagBits, 0, sizeof( flagBits ) );
 
     static constexpr size_t SEARCHABLE_BITS = sizeof( flagBits ) * FLAG_BIT;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Verify fragment sizing constraints
-    -------------------------------------------------*/
-    const size_t existingFrags = this->numFragments();
-    if( ( head->total > SEARCHABLE_BITS ) || ( existingFrags > SEARCHABLE_BITS ) )
+    -------------------------------------------------------------------------*/
+    if ( ( totalFrags > SEARCHABLE_BITS ) || ( this->numFragments() > SEARCHABLE_BITS ) )
     {
-      LOG_ERROR( "Too many fragments exist (%d) to determine completeness!\r\n", head->total );
+      LOG_ERROR_IF( DEBUG_MODULE, "Too many fragments exist [%d] to determine completeness\r\n", totalFrags );
       return false;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Walk each fragment that exists
-    -------------------------------------------------*/
-    Fragment_sPtr fragPtr = head;
-
-    while( fragPtr )
+    -------------------------------------------------------------------------*/
+    const Fragment_sPtr *fragPtr = &this->head;
+    while ( *fragPtr )
     {
-      /*-------------------------------------------------
+      /*-----------------------------------------------------------------------
       Check for out of bounds values
-      -------------------------------------------------*/
-      if( fragPtr->number >= head->total )
+      -----------------------------------------------------------------------*/
+      if ( ( *fragPtr )->number >= totalFrags )
       {
-        LOG_ERROR( "Packet corruption. Reported fragment number [%d] is greater than total [%d].\r\n", fragPtr->number,
+        LOG_ERROR( "Packet corruption. Reported fragment number [%d] is greater than total [%d].\r\n", ( *fragPtr )->number,
                    head->total );
       }
 
-      /*-------------------------------------------------
+      /*-----------------------------------------------------------------------
       Mark the appropriate bit
-      -------------------------------------------------*/
-      size_t index  = fragPtr->number / FLAG_BIT;
-      size_t offset = fragPtr->number - ( index * FLAG_BIT );
+      -----------------------------------------------------------------------*/
+      const size_t index  = ( *fragPtr )->number / FLAG_BIT;
+      const size_t offset = ( *fragPtr )->number - ( index * FLAG_BIT );
 
       flagBits[ index ] |= ( 1u << offset );
-
-      fragPtr = fragPtr->next;
+      fragPtr = &( *fragPtr )->next;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Are all fragments present?
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     size_t countedFragments = 0;
-
-    for( size_t bitNumber = 0; ( bitNumber < SEARCHABLE_BITS ) && ( bitNumber < head->total ); bitNumber++ )
+    for ( size_t bitNumber = 0; ( bitNumber < SEARCHABLE_BITS ) && ( bitNumber < totalFrags ); bitNumber++ )
     {
-      size_t index  = bitNumber / FLAG_BIT;
-      size_t offset = bitNumber - ( index * FLAG_BIT );
+      const size_t index  = bitNumber / FLAG_BIT;
+      const size_t offset = bitNumber - ( index * FLAG_BIT );
 
-      if( ( flagBits[ index ] >> offset ) & 0x1 )
+      if ( ( flagBits[ index ] >> offset ) & 0x1 )
       {
         countedFragments++;
       }
@@ -329,25 +341,70 @@ namespace Ripple
   }
 
 
-  void Packet::printPayload()
+  bool Packet::isUniform() const
   {
-    /*-------------------------------------------------
-    Print out the data
-    -------------------------------------------------*/
-    Fragment_sPtr fragPtr = head;
+    const auto exp               = this->getUUID();
+    const Fragment_sPtr *fragPtr = &this->head;
 
-    char msgBuffer[ 512 ];
-
-    auto bytes = scnprintf( msgBuffer, sizeof( msgBuffer ), "Fragment Data: " );
-    while ( fragPtr )
+    while ( *fragPtr )
     {
-      for ( size_t byte = 0; byte < fragPtr->length; byte++ )
+      if ( exp != ( *fragPtr )->uuid )
       {
-        void **raw_buffer = fragPtr->data.get();
+        return false;
+      }
+      fragPtr = &( *fragPtr )->next;
+    }
+
+    return true;
+  }
+
+
+  bool Packet::isSorted() const
+  {
+    const Fragment_sPtr *fragPtr = &this->head;
+    size_t currentIdx            = 0;
+
+    while ( *fragPtr )
+    {
+      if ( currentIdx != ( *fragPtr )->number )
+      {
+        return false;
+      }
+      fragPtr = &( *fragPtr )->next;
+    }
+
+    return true;
+  }
+
+
+  bool Packet::isFullyComposed() const
+  {
+    /*-------------------------------------------------------------------------
+    A packet has been fully composed when:
+      1. No fragments are missing from the full list
+      2. Each fragment belongs to the same transaction (UUID)
+      3. The whole list has been sorted
+      4. The first fragment contains the header for the transport layer
+    -------------------------------------------------------------------------*/
+    return !isMissingFragments() && isUniform() && isSorted() && ( this->head->length >= sizeof( TransportHeader ) );
+  }
+
+
+  void Packet::printPayload() const
+  {
+    char msgBuffer[ 512 ];
+    const Fragment_sPtr *fragPtr = &this->head;
+    auto bytes                   = scnprintf( msgBuffer, sizeof( msgBuffer ), "Fragment Data: " );
+
+    while ( *fragPtr )
+    {
+      for ( size_t byte = 0; byte < ( *fragPtr )->length; byte++ )
+      {
+        void **raw_buffer = ( *fragPtr )->data.get();
         bytes += scnprintf( msgBuffer + bytes, sizeof( msgBuffer ) - bytes, "0x%02x ",
                             reinterpret_cast<const uint8_t *>( *raw_buffer )[ byte ] );
       }
-      fragPtr = fragPtr->next;
+      fragPtr = &( *fragPtr )->next;
     }
 
     LOG_INFO( "%s\r\n", msgBuffer );
@@ -356,10 +413,10 @@ namespace Ripple
 
   bool Packet::checkReferences( const size_t number )
   {
-    Fragment_sPtr* frag = &this->head;
-    while( *frag )
+    Fragment_sPtr *frag = &this->head;
+    while ( *frag )
     {
-      if( frag->references() != number )
+      if ( frag->references() != number )
       {
         return false;
       }

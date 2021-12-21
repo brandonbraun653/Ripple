@@ -203,7 +203,7 @@ namespace Ripple
      * @return true
      * @return false
      */
-    bool unpack( void *buffer, const size_t size );
+    bool unpack( void *buffer, const size_t size ) const;
 
     /*-------------------------------------------------------------------------
     Information
@@ -220,14 +220,14 @@ namespace Ripple
      *
      * @return size_t
      */
-    size_t size();
+    size_t size() const;
 
     /**
      * @brief Returns the unique ID of the packet
      *
      * @return uint16_t
      */
-    uint16_t getUUID();
+    uint16_t getUUID() const;
 
     /**
      * @brief Validates if all expected fragments exist
@@ -238,13 +238,39 @@ namespace Ripple
      */
     bool isMissingFragments() const;
 
+    /**
+     * @brief Checks if each fragment in the packet belongs to the registered UUID
+     *
+     * @return true
+     * @return false
+     */
+    bool isUniform() const;
+
+    /**
+     * @brief Checks if the packet fragments have been sorted
+     *
+     * @return true
+     * @return false
+     */
+    bool isSorted() const;
+
+    /**
+     * @brief Checks if the packet is fully composed without error
+     *
+     * This includes checks for ordering, uniformity, etc.
+     *
+     * @return true
+     * @return false
+     */
+    bool isFullyComposed() const;
+
     /*-------------------------------------------------------------------------
     Debugging Utilities
     -------------------------------------------------------------------------*/
     /**
      * @brief Prints the raw payload bytes to console
      */
-    void printPayload();
+    void printPayload() const;
 
     /**
      * @brief Check the number of references for all fragments are equal

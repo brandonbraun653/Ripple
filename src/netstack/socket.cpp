@@ -30,7 +30,7 @@
 /*-----------------------------------------------------------------------------
 Literals
 -----------------------------------------------------------------------------*/
-#define DEBUG_MODULE ( false )
+#define DEBUG_MODULE ( true )
 
 namespace Ripple
 {
@@ -137,9 +137,9 @@ namespace Ripple
     Chimera::Thread::LockGuard sockLock( *this );
     Chimera::Thread::LockGuard<Context> lock( *mContext );
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Input Protection
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     if ( !data || !bytes )
     {
       return Chimera::Status::INVAL_FUNC_PARAM;
@@ -152,9 +152,9 @@ namespace Ripple
     Packet_sPtr packet       = mRXQueue.front();
     Chimera::Status_t status = Chimera::Status::OK;
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Build the full packet in some scratch memory
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     const size_t packetSize    = packet->size();
     const size_t crcDataOffset = offsetof( TransportHeader, dstPort );
     const size_t dataSize      = packetSize - sizeof( TransportHeader );
@@ -162,33 +162,38 @@ namespace Ripple
     memset( scratch, 0, packetSize );
     packet->unpack( scratch, packetSize );
 
-    /*-------------------------------------------------
+    if( bytes < dataSize )
+    {
+      LOG_ERROR_IF( DEBUG_MODULE, "User buffer too small to read from socket\r\n" );
+      return Chimera::Status::INVAL_FUNC_PARAM;
+    }
+
+    /*-------------------------------------------------------------------------
     Calculate the CRC over the packet data
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     etl::crc32 crc_gen;
     crc_gen.reset();
     crc_gen.add( scratch + crcDataOffset, scratch + packetSize );
 
     auto hdr_ptr = reinterpret_cast<TransportHeader *>( scratch );
 
-    /*-------------------------------------------------
-    Read the packet into the user's buffer. Toss the
-    first fragment (network header).
-    -------------------------------------------------*/
+    /*-------------------------------------------------------------------------
+    Read packet into the user buffer, tossing the first fragment (NET header)
+    -------------------------------------------------------------------------*/
     uint32_t crc = crc_gen.value();
-    if ( ( hdr_ptr->crc == crc ) && ( bytes <= dataSize ) )
+    if ( hdr_ptr->crc == crc )
     {
       memcpy( data, scratch + sizeof( TransportHeader ), bytes );
     }
     else
     {
       LOG_ERROR_IF( DEBUG_MODULE, "Packet CRC error!\r\n" );
-      status = Chimera::Status::FAIL;
+      status = Chimera::Status::CRC_ERROR;
     }
 
-    /*-------------------------------------------------
+    /*-------------------------------------------------------------------------
     Free the packet and return the status
-    -------------------------------------------------*/
+    -------------------------------------------------------------------------*/
     mRXQueue.pop();
     mContext->free( scratch );
 
